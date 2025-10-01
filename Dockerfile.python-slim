@@ -1,0 +1,70 @@
+# Multi-stage build for py-gbcms
+FROM python:3.11-slim as builder
+
+# Install system dependencies for building
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    gcc \
+    g++ \
+    make \
+    zlib1g-dev \
+    libbz2-dev \
+    liblzma-dev \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    libhts-dev \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv
+RUN pip install --no-cache-dir uv
+
+# Set working directory
+WORKDIR /build
+
+# Copy project files
+COPY pyproject.toml README.md LICENSE ./
+COPY src/ ./src/
+
+# Install the package with all optional dependencies
+# This includes cyvcf2 (fast VCF parsing) and Ray (distributed computing)
+RUN uv pip install --system --no-cache ".[all]"
+
+# Final stage
+FROM python:3.11-slim
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    zlib1g \
+    libbz2-1.0 \
+    liblzma5 \
+    libcurl4 \
+    libssl3 \
+    libhts3 \
+    samtools \
+    procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy installed packages from builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin/gbcms /usr/local/bin/gbcms
+
+# Create working directory
+WORKDIR /data
+
+# Set entrypoint
+ENTRYPOINT ["gbcms"]
+
+# Default command (show help)
+CMD ["--help"]
+
+# Verify installation
+RUN gbcms version
+
+# Metadata
+LABEL maintainer="MSK-ACCESS <access@mskcc.org>"
+LABEL description="Python implementation of GetBaseCountsMultiSample (gbcms) for calculating base counts in BAM files"
+LABEL version="2.0.0"
+LABEL org.opencontainers.image.source="https://github.com/msk-access/getbasecounts"
+LABEL org.opencontainers.image.documentation="https://github.com/msk-access/getbasecounts/blob/main/README.md"
+LABEL org.opencontainers.image.licenses="Apache-2.0"

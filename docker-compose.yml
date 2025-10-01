@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  getbasecounts:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: getbasecounts:latest
+    container_name: getbasecounts
+    volumes:
+      - ./data:/data
+      - ./test_data:/test_data:ro
+    working_dir: /data
+    command: --help
+    
+  # Service for running tests
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    image: getbasecounts:test
+    container_name: getbasecounts-test
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: pytest -v --cov=getbasecounts --cov-report=html

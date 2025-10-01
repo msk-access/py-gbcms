@@ -1,0 +1,39 @@
+# Dockerfile for testing py-gbcms
+FROM ubuntu:22.04
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    gcc \
+    g++ \
+    make \
+    zlib1g-dev \
+    libbz2-dev \
+    liblzma-dev \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    libhts-dev \
+    samtools \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv
+RUN pip install --no-cache-dir uv
+
+# Set working directory
+WORKDIR /app
+
+# Copy project files
+COPY pyproject.toml README.md LICENSE ./
+COPY src/ ./src/
+COPY tests/ ./tests/
+
+# Install package with dev and all dependencies
+# This includes cyvcf2, Ray, and all dev tools
+RUN uv pip install --system --no-cache ".[dev,all]"
+
+# Verify installation
+RUN gbcms version
+
+# Run tests by default
+CMD ["pytest", "-v", "--cov=gbcms", "--cov-report=term-missing"]
