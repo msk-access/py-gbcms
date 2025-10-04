@@ -147,6 +147,7 @@ class GetBaseCountsConfig(BaseModel):
     # Advanced
     generic_counting: bool = Field(False, description="Use generic counting algorithm")
     max_warning_per_type: int = Field(3, ge=0, description="Maximum warnings per type")
+
     @field_validator("fasta_file")
     @classmethod
     def validate_fasta_exists(cls, v: Path) -> Path:

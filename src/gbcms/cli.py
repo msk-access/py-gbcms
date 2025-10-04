@@ -1,6 +1,5 @@
 """Command-line interface for GetBaseCounts using Typer and Rich."""
 
-import sys
 from pathlib import Path
 from typing import Annotated
 
@@ -91,12 +90,8 @@ def validate_input_files(
             if rich_output:
                 results.add_row("FASTA", str(fasta), "⚠️  WARN", "Index (.fai) not found")
             else:
-                console.print(
-                    f"[red]Error:[/red] FASTA index (.fai) not found: {fai_file}"
-                )
-                console.print(
-                    "Please index your FASTA file with: samtools faidx reference.fa"
-                )
+                console.print(f"[red]Error:[/red] FASTA index (.fai) not found: {fai_file}")
+                console.print("Please index your FASTA file with: samtools faidx reference.fa")
             all_valid = False
         else:
             if rich_output:
@@ -122,13 +117,9 @@ def validate_input_files(
                         "BAM", f"{sample_name}:{bam_path}", "⚠️  WARN", "Index (.bai) not found"
                     )
                 else:
-                    console.print(
-                        f"[red]Error:[/red] BAM index not found for: {bam_file}"
-                    )
+                    console.print(f"[red]Error:[/red] BAM index not found for: {bam_file}")
                     console.print(f"Expected: {bai_file1} or {bai_file2}")
-                    console.print(
-                        "Please index your BAM file with: samtools index sample.bam"
-                    )
+                    console.print("Please index your BAM file with: samtools index sample.bam")
                 all_valid = False
             else:
                 if rich_output:

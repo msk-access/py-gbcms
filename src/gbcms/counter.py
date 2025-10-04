@@ -128,7 +128,9 @@ class BaseCounter:
 
         for aln in alignments:
             # Check if alignment overlaps variant position
-            if (aln.reference_start is not None and aln.reference_start > variant.pos) or (aln.reference_end is not None and aln.reference_end <= variant.pos):
+            if (aln.reference_start is not None and aln.reference_start > variant.pos) or (
+                aln.reference_end is not None and aln.reference_end <= variant.pos
+            ):
                 continue
 
             # Get the base at variant position
@@ -240,9 +242,9 @@ class BaseCounter:
 
         for aln in alignments:
             # Check if alignment fully covers the DNP
-            if (
-                (aln.reference_start is not None and aln.reference_start > variant.pos)
-                or (aln.reference_end is not None and aln.reference_end <= variant.pos + variant.dnp_len - 1)
+            if (aln.reference_start is not None and aln.reference_start > variant.pos) or (
+                aln.reference_end is not None
+                and aln.reference_end <= variant.pos + variant.dnp_len - 1
             ):
                 continue
 
@@ -344,7 +346,9 @@ class BaseCounter:
 
         for aln in alignments:
             # Check if alignment overlaps the indel region
-            if (aln.reference_start is not None and aln.reference_start > variant.pos + 1) or (aln.reference_end is not None and aln.reference_end <= variant.pos):
+            if (aln.reference_start is not None and aln.reference_start > variant.pos + 1) or (
+                aln.reference_end is not None and aln.reference_end <= variant.pos
+            ):
                 continue
 
             # Parse CIGAR to find indels at the variant position
@@ -501,7 +505,9 @@ class BaseCounter:
                 continue
 
             # Check if alignment overlaps variant region
-            if aln.reference_end is not None and (aln.reference_end <= variant.pos or aln.reference_start > variant.end_pos):
+            if aln.reference_end is not None and (
+                aln.reference_end <= variant.pos or aln.reference_start > variant.end_pos
+            ):
                 continue
 
             # Extract alignment allele by parsing CIGAR
@@ -509,7 +515,9 @@ class BaseCounter:
             cur_bq = float("inf")
             partially_cover = False
 
-            if aln.reference_start > variant.pos or (aln.reference_end is not None and aln.reference_end < variant.end_pos):
+            if aln.reference_start > variant.pos or (
+                aln.reference_end is not None and aln.reference_end < variant.end_pos
+            ):
                 partially_cover = True
 
             # Check if query sequence and qualities are available
@@ -525,7 +533,11 @@ class BaseCounter:
                 continue
 
             for i, (op, length) in enumerate(aln.cigartuples):
-                if aln.reference_end is not None and ref_pos > variant.end_pos and not additional_insertion:
+                if (
+                    aln.reference_end is not None
+                    and ref_pos > variant.end_pos
+                    and not additional_insertion
+                ):
                     break
 
                 if op == 0:  # M (match/mismatch)
@@ -564,7 +576,11 @@ class BaseCounter:
                     read_pos += length
 
                 elif op in [2, 3]:  # D or N (deletion/skip)
-                    if aln.reference_end is not None and ref_pos is not None and ref_pos + length - 1 > variant.end_pos:
+                    if (
+                        aln.reference_end is not None
+                        and ref_pos is not None
+                        and ref_pos + length - 1 > variant.end_pos
+                    ):
                         alignment_allele = "U"  # Unmatched deletion
                     if ref_pos is not None:
                         ref_pos += length
