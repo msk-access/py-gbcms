@@ -174,8 +174,10 @@ class ParallelProcessor:
         show_progress: bool,
     ) -> list[Any]:
         """Starmap using joblib."""
+
         def wrapper(args):
             return func(*args)
+
         return self._map_joblib(wrapper, items, description, show_progress)
 
     def _starmap_ray(
@@ -186,8 +188,10 @@ class ParallelProcessor:
         show_progress: bool,
     ) -> list[Any]:
         """Starmap using Ray."""
+
         def wrapper(args):
             return func(*args)
+
         return self._map_ray(wrapper, items, description, show_progress)
 
     def shutdown(self):

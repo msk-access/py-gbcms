@@ -45,7 +45,6 @@ are very fast. Use `cache=True` to cache compiled functions.
 a pure Python implementation that's easier to debug.
 """
 
-
 import numpy as np
 from numba import jit, prange
 
