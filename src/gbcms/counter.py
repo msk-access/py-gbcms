@@ -21,7 +21,7 @@ which provides 50-100x speedup through JIT compilation.
 **Usage:**
     from gbcms.counter import BaseCounter
     from gbcms.config import Config
-    
+
     config = Config(...)
     counter = BaseCounter(config)
     counter.count_bases_snp(variant, alignments, sample_name)
@@ -43,21 +43,21 @@ logger = logging.getLogger(__name__)
 class BaseCounter:
     """
     Performs base counting for variants using pure Python.
-    
+
     This is the standard (non-optimized) implementation that works directly
     with pysam AlignedSegment objects. It's flexible and easy to debug but
     slower than the Numba-optimized version.
-    
+
     **Performance Characteristics:**
     - Speed: Baseline (1x)
     - Memory: Low
     - Flexibility: High (easy to modify)
     - Debugging: Easy (pure Python)
-    
+
     **For better performance on large datasets, see:**
     - `numba_counter.py` for 50-100x speedup
     - Use with `parallel.py` for multi-core processing
-    
+
     **Attributes:**
         config: Configuration object with quality thresholds and filters
         warning_counts: Track warnings to avoid spam
@@ -189,7 +189,10 @@ class BaseCounter:
             for frag_name, end_counts in dpf_map.items():
                 # Check for overlapping multimapped reads
                 if any(count > 1 for count in end_counts.values()):
-                    if self.warning_counts["overlapping_multimap"] < self.config.max_warning_per_type:
+                    if (
+                        self.warning_counts["overlapping_multimap"]
+                        < self.config.max_warning_per_type
+                    ):
                         logger.warning(
                             f"Fragment {frag_name} has overlapping multiple mapped alignment "
                             f"at site: {variant.chrom}:{variant.pos + 1}, and will not be used"
@@ -233,7 +236,10 @@ class BaseCounter:
 
         for aln in alignments:
             # Check if alignment fully covers the DNP
-            if aln.reference_start > variant.pos or aln.reference_end <= variant.pos + variant.dnp_len - 1:
+            if (
+                aln.reference_start > variant.pos
+                or aln.reference_end <= variant.pos + variant.dnp_len - 1
+            ):
                 continue
 
             # Find the read positions corresponding to the DNP
@@ -454,13 +460,13 @@ class BaseCounter:
     ) -> None:
         """
         Generic counting algorithm that works for all variant types.
-        
+
         This algorithm extracts the alignment allele by parsing CIGAR and comparing
         directly to ref/alt. Works better for complex variants but may give slightly
         different results than the specialized counting methods.
-        
+
         This is equivalent to the C++ baseCountGENERIC function.
-        
+
         Args:
             variant: Variant to count
             alignments: List of alignments overlapping the variant
@@ -470,133 +476,141 @@ class BaseCounter:
         dpf_map: Dict[str, Dict[int, int]] = {}
         rdf_map: Dict[str, Dict[int, int]] = {}
         adf_map: Dict[str, Dict[int, int]] = {}
-        
+
         for aln in alignments:
             if self.filter_alignment(aln):
                 continue
-            
+
             # Check if alignment overlaps variant region
             if aln.reference_end <= variant.pos or aln.reference_start > variant.end_pos:
                 continue
-            
+
             # Extract alignment allele by parsing CIGAR
             alignment_allele = ""
-            cur_bq = float('inf')
+            cur_bq = float("inf")
             partially_cover = False
-            
+
             if aln.reference_start > variant.pos or aln.reference_end < variant.end_pos:
                 partially_cover = True
-            
+
             # Parse CIGAR to extract allele
             ref_pos = aln.reference_start
             read_pos = 0
             additional_insertion = False
-            
+
             if aln.cigartuples is None:
                 continue
-            
+
             for i, (op, length) in enumerate(aln.cigartuples):
                 if ref_pos > variant.end_pos and not additional_insertion:
                     break
-                
+
                 if op == 0:  # M (match/mismatch)
                     if ref_pos + length - 1 >= variant.pos:
                         start_idx = read_pos + max(variant.pos, ref_pos) - ref_pos
-                        str_len = min(length, min(variant.end_pos, ref_pos + length - 1) + 1 - max(variant.pos, ref_pos))
-                        alignment_allele += aln.query_sequence[start_idx:start_idx + str_len]
-                        
+                        str_len = min(
+                            length,
+                            min(variant.end_pos, ref_pos + length - 1)
+                            + 1
+                            - max(variant.pos, ref_pos),
+                        )
+                        alignment_allele += aln.query_sequence[start_idx : start_idx + str_len]
+
                         # Get minimum base quality
                         for bq_idx in range(str_len):
                             cur_bq = min(cur_bq, aln.query_qualities[start_idx + bq_idx])
-                    
+
                     ref_pos += length
                     read_pos += length
-                    
+
                     # Allow additional insertion if M falls at variant end
                     if ref_pos == variant.end_pos + 1:
                         if i + 1 < len(aln.cigartuples) and aln.cigartuples[i + 1][0] == 1:
                             additional_insertion = True
-                
+
                 elif op == 1:  # I (insertion)
                     if ref_pos >= variant.pos:
-                        alignment_allele += aln.query_sequence[read_pos:read_pos + length]
+                        alignment_allele += aln.query_sequence[read_pos : read_pos + length]
                         for bq_idx in range(length):
                             cur_bq = min(cur_bq, aln.query_qualities[read_pos + bq_idx])
                     read_pos += length
                     additional_insertion = False
-                
+
                 elif op == 4:  # S (soft clip)
                     read_pos += length
-                
+
                 elif op in [2, 3]:  # D or N (deletion/skip)
                     if ref_pos + length - 1 > variant.end_pos:
                         alignment_allele = "U"  # Unmatched deletion
                     ref_pos += length
-                    
+
                     # Allow additional insertion if D/N falls at variant end
                     if ref_pos == variant.end_pos + 1:
                         if i + 1 < len(aln.cigartuples) and aln.cigartuples[i + 1][0] == 1:
                             additional_insertion = True
-            
+
             # Check base quality threshold
             if cur_bq < self.config.base_quality_threshold:
                 continue
-            
+
             # Count depth
             counts[CountType.DP] += 1
             if not aln.is_reverse:
                 counts[CountType.DPP] += 1
-            
+
             # Track fragment
             end_no = 1 if aln.is_read1 else 2
             frag_name = aln.query_name
-            
+
             if self.config.output_fragment_count:
                 if frag_name not in dpf_map:
                     dpf_map[frag_name] = {}
                 if end_no not in dpf_map[frag_name]:
                     dpf_map[frag_name][end_no] = 0
                 dpf_map[frag_name][end_no] += 1
-            
+
             # Count ref/alt (skip if partially covered)
             if not partially_cover:
                 if alignment_allele == variant.ref:
                     counts[CountType.RD] += 1
                     if not aln.is_reverse:
                         counts[CountType.RDP] += 1
-                    
+
                     if self.config.output_fragment_count:
                         if frag_name not in rdf_map:
                             rdf_map[frag_name] = {}
                         if end_no not in rdf_map[frag_name]:
                             rdf_map[frag_name][end_no] = 0
                         rdf_map[frag_name][end_no] += 1
-                
+
                 elif alignment_allele == variant.alt:
                     counts[CountType.AD] += 1
                     if not aln.is_reverse:
                         counts[CountType.ADP] += 1
-                    
+
                     if self.config.output_fragment_count:
                         if frag_name not in adf_map:
                             adf_map[frag_name] = {}
                         if end_no not in adf_map[frag_name]:
                             adf_map[frag_name][end_no] = 0
                         adf_map[frag_name][end_no] += 1
-        
+
         # Calculate fragment counts
         if self.config.output_fragment_count:
             counts[CountType.DPF] = len(dpf_map)
-            
+
             fragment_ref_weight = 0.5 if self.config.fragment_fractional_weight else 0
             fragment_alt_weight = 0.5 if self.config.fragment_fractional_weight else 0
-            
+
             for frag_name, end_counts in dpf_map.items():
                 # Check for overlapping multimapped reads
                 overlap_multimap = False
                 for count in end_counts.values():
                     if count > 1:
-                        if self.warning_counts["overlapping_multimap"] < self.config.max_warning_per_type:
+                        if (
+                            self.warning_counts["overlapping_multimap"]
+                            < self.config.max_warning_per_type
+                        ):
                             logger.warning(
                                 f"Fragment {frag_name} has overlapping multiple mapped alignment "
                                 f"at site: {variant.chrom}:{variant.pos}"
@@ -604,14 +618,14 @@ class BaseCounter:
                             self.warning_counts["overlapping_multimap"] += 1
                         overlap_multimap = True
                         break
-                
+
                 if overlap_multimap:
                     continue
-                
+
                 # Count fragment ref/alt
                 has_ref = frag_name in rdf_map
                 has_alt = frag_name in adf_map
-                
+
                 if has_ref and has_alt:
                     # Both ref and alt in fragment
                     counts[CountType.RDF] += fragment_ref_weight
@@ -620,7 +634,7 @@ class BaseCounter:
                     counts[CountType.RDF] += 1
                 elif has_alt:
                     counts[CountType.ADF] += 1
-        
+
         # Store counts
         if sample_name not in variant.base_count:
             variant.base_count[sample_name] = counts
@@ -642,7 +656,7 @@ class BaseCounter:
         if self.config.generic_counting:
             self.count_bases_generic(variant, alignments, sample_name)
             return
-        
+
         # Otherwise use specialized methods
         if variant.snp:
             self.count_bases_snp(variant, alignments, sample_name)

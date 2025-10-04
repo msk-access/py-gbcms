@@ -85,9 +85,7 @@ class VariantFileConfig(BaseModel):
 class QualityFilters(BaseModel):
     """Quality filtering parameters."""
 
-    mapping_quality_threshold: int = Field(
-        20, ge=0, description="Mapping quality threshold"
-    )
+    mapping_quality_threshold: int = Field(20, ge=0, description="Mapping quality threshold")
     base_quality_threshold: int = Field(0, ge=0, description="Base quality threshold")
     filter_duplicate: bool = Field(True, description="Filter duplicate reads")
     filter_improper_pair: bool = Field(False, description="Filter improper pairs")

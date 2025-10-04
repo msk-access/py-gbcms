@@ -3,7 +3,7 @@
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Tuple, Optional
 
 import numpy as np
 
@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 # Try to import cyvcf2 for fast VCF parsing
 try:
     from cyvcf2 import VCF
+
     HAS_CYVCF2 = True
     logger.debug("cyvcf2 available - using fast VCF parsing")
 except ImportError:
@@ -105,12 +106,12 @@ class VariantLoader:
     def load_vcf(self, vcf_file: str) -> List[VariantEntry]:
         """
         Load variants from VCF file.
-        
+
         Uses cyvcf2 for fast parsing if available, otherwise falls back to pure Python.
-        
+
         Args:
             vcf_file: Path to VCF file (can be .vcf or .vcf.gz)
-        
+
         Returns:
             List of VariantEntry objects
         """
@@ -118,36 +119,36 @@ class VariantLoader:
             return self._load_vcf_cyvcf2(vcf_file)
         else:
             return self._load_vcf_python(vcf_file)
-    
+
     def _load_vcf_cyvcf2(self, vcf_file: str) -> List[VariantEntry]:
         """
         Load variants from VCF using cyvcf2 (fast, C-based parser).
-        
+
         This is 10-100x faster than pure Python parsing.
         """
         logger.info(f"Loading variants file with cyvcf2: {vcf_file}")
         variants = []
-        
+
         try:
             vcf = VCF(vcf_file)
-            
+
             for variant in vcf:
                 chrom = variant.CHROM
                 pos = variant.POS - 1  # Convert to 0-indexed
                 ref = variant.REF
-                
+
                 # Handle multiple alts - take first one
                 alt = variant.ALT[0] if variant.ALT else ""
-                
+
                 end_pos = pos + len(ref) - 1
-                
+
                 # Determine variant type
                 snp = len(alt) == len(ref) == 1
                 dnp = len(alt) == len(ref) > 1
                 dnp_len = len(ref) if dnp else 0
                 insertion = len(alt) > len(ref)
                 deletion = len(alt) < len(ref)
-                
+
                 entry = VariantEntry(
                     chrom=chrom,
                     pos=pos,
@@ -161,21 +162,21 @@ class VariantLoader:
                     deletion=deletion,
                 )
                 variants.append(entry)
-            
+
             vcf.close()
-            
+
         except Exception as e:
             logger.error(f"Error loading VCF with cyvcf2: {e}")
             logger.info("Falling back to pure Python VCF parser")
             return self._load_vcf_python(vcf_file)
-        
+
         logger.info(f"{len(variants)} variants loaded from file: {vcf_file}")
         return variants
-    
+
     def _load_vcf_python(self, vcf_file: str) -> List[VariantEntry]:
         """
         Load variants from VCF using pure Python (slower but always works).
-        
+
         This is the fallback method when cyvcf2 is not available.
         """
         logger.info(f"Loading variants file with Python parser: {vcf_file}")

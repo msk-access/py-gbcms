@@ -38,7 +38,7 @@ def test_config_validation_missing_fai(temp_dir: Path, sample_bam: Path, sample_
     fasta_file = temp_dir / "reference.fa"
     with open(fasta_file, "w") as f:
         f.write(">chr1\nATCG\n")
-    
+
     with pytest.raises(FileNotFoundError, match="Reference FASTA index not found"):
         Config(
             fasta_file=str(fasta_file),
@@ -66,7 +66,7 @@ def test_config_validation_missing_bai(temp_dir: Path, sample_fasta: Path, sampl
     # Create BAM without index
     bam_file = temp_dir / "sample.bam"
     bam_file.touch()
-    
+
     with pytest.raises(FileNotFoundError, match="BAM index not found"):
         Config(
             fasta_file=str(sample_fasta),
@@ -132,7 +132,7 @@ def test_config_valid(temp_dir: Path, sample_fasta: Path, sample_bam: Path, samp
         mapping_quality_threshold=30,
         base_quality_threshold=20,
     )
-    
+
     assert config.fasta_file == str(sample_fasta)
     assert config.num_threads == 4
     assert config.mapping_quality_threshold == 30

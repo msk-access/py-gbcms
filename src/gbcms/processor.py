@@ -96,9 +96,7 @@ class VariantProcessor:
 
         return variants
 
-    def _create_variant_blocks(
-        self, variants: List[VariantEntry]
-    ) -> List[Tuple[int, int]]:
+    def _create_variant_blocks(self, variants: List[VariantEntry]) -> List[Tuple[int, int]]:
         """
         Create blocks of variants for parallel processing.
 
@@ -180,9 +178,7 @@ class VariantProcessor:
                 )
 
                 for start_idx, end_idx in variant_blocks:
-                    self._process_variant_block(
-                        bam, sample_name, variants, start_idx, end_idx
-                    )
+                    self._process_variant_block(bam, sample_name, variants, start_idx, end_idx)
                     progress.update(task, advance=1)
 
     def _process_bam_parallel(
@@ -272,9 +268,7 @@ class VariantProcessor:
             return
 
         # Filter alignments
-        filtered_alignments = [
-            aln for aln in alignments if not self.counter.filter_alignment(aln)
-        ]
+        filtered_alignments = [aln for aln in alignments if not self.counter.filter_alignment(aln)]
 
         # Process each variant in the block
         for i in range(start_idx, end_idx + 1):

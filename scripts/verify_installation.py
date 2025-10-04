@@ -10,14 +10,15 @@ import sys
 from pathlib import Path
 from typing import List, Tuple
 
+
 def check_import(module_name: str, package_name: str = None) -> Tuple[bool, str]:
     """
     Check if a module can be imported.
-    
+
     Args:
         module_name: Name of the module to import
         package_name: Display name (defaults to module_name)
-    
+
     Returns:
         Tuple of (success, message)
     """
@@ -35,11 +36,11 @@ def main():
     print("GetBaseCounts Installation Verification")
     print("=" * 60)
     print()
-    
+
     # Core dependencies
     print("Core Dependencies:")
     print("-" * 60)
-    
+
     core_deps = [
         ("pysam", "pysam"),
         ("numpy", "numpy"),
@@ -50,31 +51,31 @@ def main():
         ("numba", "numba"),
         ("joblib", "joblib"),
     ]
-    
+
     core_results = [check_import(mod, pkg) for mod, pkg in core_deps]
     for success, msg in core_results:
         print(msg)
-    
+
     print()
-    
+
     # Optional dependencies
     print("Optional Dependencies:")
     print("-" * 60)
-    
+
     opt_deps = [
         ("ray", "ray (for distributed computing)"),
     ]
-    
+
     opt_results = [check_import(mod, pkg) for mod, pkg in opt_deps]
     for success, msg in opt_results:
         print(msg)
-    
+
     print()
-    
+
     # GetBaseCounts modules
     print("GetBaseCounts Modules:")
     print("-" * 60)
-    
+
     gb_modules = [
         ("gbcms", "gbcms"),
         ("gbcms.cli", "CLI"),
@@ -88,46 +89,48 @@ def main():
         ("gbcms.output", "Output Formatter"),
         ("gbcms.processor", "Main Processor"),
     ]
-    
+
     gb_results = [check_import(mod, pkg) for mod, pkg in gb_modules]
     for success, msg in gb_results:
         print(msg)
-    
+
     print()
-    
+
     # Check CLI entry point
     print("CLI Entry Point:")
     print("-" * 60)
-    
+
     try:
         from gbcms.cli import app
+
         print("✅ CLI app accessible")
-        
+
         # Try to get version
         try:
             from gbcms import __version__
+
             print(f"✅ Version: {__version__}")
         except:
             print("⚠️  Version not accessible")
     except Exception as e:
         print(f"❌ CLI app: {str(e)}")
-    
+
     print()
-    
+
     # Summary
     print("=" * 60)
     print("Summary:")
     print("-" * 60)
-    
+
     all_results = core_results + opt_results + gb_results
     total = len(all_results)
     passed = sum(1 for success, _ in all_results if success)
     failed = total - passed
-    
+
     print(f"Total checks: {total}")
     print(f"Passed: {passed}")
     print(f"Failed: {failed}")
-    
+
     if failed == 0:
         print()
         print("🎉 All checks passed! GetBaseCounts is ready to use.")

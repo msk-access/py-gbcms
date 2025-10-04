@@ -1,7 +1,8 @@
 """Tests for output module."""
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from gbcms.config import Config, CountType
 from gbcms.output import OutputFormatter
@@ -36,7 +37,7 @@ def config_maf(temp_dir, sample_fasta, sample_bam, sample_maf):
 def test_output_formatter_vcf(config_vcf, temp_dir):
     """Test VCF output formatting."""
     formatter = OutputFormatter(config_vcf, ["sample1", "sample2"])
-    
+
     # Create test variants
     variant = VariantEntry(
         chrom="chr1",
@@ -50,14 +51,14 @@ def test_output_formatter_vcf(config_vcf, temp_dir):
     variant.base_count["sample1"][CountType.DP] = 10
     variant.base_count["sample1"][CountType.RD] = 6
     variant.base_count["sample1"][CountType.AD] = 4
-    
+
     formatter.write_vcf_output([variant])
-    
+
     # Check output file exists
     assert Path(config_vcf.output_file).exists()
-    
+
     # Read and verify content
-    with open(config_vcf.output_file, "r") as f:
+    with open(config_vcf.output_file) as f:
         lines = f.readlines()
         assert len(lines) == 2  # Header + 1 variant
         assert "Chrom" in lines[0]
@@ -67,7 +68,7 @@ def test_output_formatter_vcf(config_vcf, temp_dir):
 def test_output_formatter_maf(config_maf, temp_dir):
     """Test MAF output formatting."""
     formatter = OutputFormatter(config_maf, ["Tumor1", "Normal1"])
-    
+
     # Create test variant
     variant = VariantEntry(
         chrom="chr1",
@@ -84,6 +85,7 @@ def test_output_formatter_maf(config_maf, temp_dir):
         maf_end_pos=100,
         maf_ref="A",
         maf_alt="T",
+        maf_line="GENE1\tchr1\t101\t101\tA\tT\t\tTumor1\tNormal1\tMissense_Mutation\t10\t6\t4\t15\t15\t0\t0\t0\t0\t0\t0\t0",  # Mock MAF line
     )
     variant.initialize_counts(["Tumor1", "Normal1"])
     variant.base_count["Tumor1"][CountType.DP] = 10
@@ -92,14 +94,14 @@ def test_output_formatter_maf(config_maf, temp_dir):
     variant.base_count["Normal1"][CountType.DP] = 15
     variant.base_count["Normal1"][CountType.RD] = 15
     variant.base_count["Normal1"][CountType.AD] = 0
-    
+
     formatter.write_maf_output([variant])
-    
+
     # Check output file exists
     assert Path(config_maf.output_file).exists()
-    
+
     # Read and verify content
-    with open(config_maf.output_file, "r") as f:
+    with open(config_maf.output_file) as f:
         lines = f.readlines()
         assert len(lines) == 2  # Header + 1 variant
         assert "Hugo_Symbol" in lines[0]
@@ -110,7 +112,7 @@ def test_output_formatter_fillout(config_maf, temp_dir):
     """Test fillout output formatting."""
     config_maf.output_maf = False
     formatter = OutputFormatter(config_maf, ["Tumor1", "Normal1"])
-    
+
     # Create test variant
     variant = VariantEntry(
         chrom="chr1",
@@ -129,9 +131,9 @@ def test_output_formatter_fillout(config_maf, temp_dir):
         maf_alt="T",
     )
     variant.initialize_counts(["Tumor1", "Normal1"])
-    
+
     formatter.write_fillout_output([variant])
-    
+
     # Check output file exists
     assert Path(config_maf.output_file).exists()
 
@@ -140,7 +142,7 @@ def test_output_formatter_with_strand_counts(config_vcf, temp_dir):
     """Test output with strand counts."""
     config_vcf.output_positive_count = True
     formatter = OutputFormatter(config_vcf, ["sample1"])
-    
+
     variant = VariantEntry(
         chrom="chr1",
         pos=100,
@@ -152,11 +154,11 @@ def test_output_formatter_with_strand_counts(config_vcf, temp_dir):
     variant.initialize_counts(["sample1"])
     variant.base_count["sample1"][CountType.DP] = 10
     variant.base_count["sample1"][CountType.DPP] = 6
-    
+
     formatter.write_vcf_output([variant])
-    
+
     # Check output includes strand counts
-    with open(config_vcf.output_file, "r") as f:
+    with open(config_vcf.output_file) as f:
         header = f.readline()
         assert "DPP" in header
 
@@ -165,7 +167,7 @@ def test_output_formatter_with_fragment_counts(config_vcf, temp_dir):
     """Test output with fragment counts."""
     config_vcf.output_fragment_count = True
     formatter = OutputFormatter(config_vcf, ["sample1"])
-    
+
     variant = VariantEntry(
         chrom="chr1",
         pos=100,
@@ -176,10 +178,10 @@ def test_output_formatter_with_fragment_counts(config_vcf, temp_dir):
     )
     variant.initialize_counts(["sample1"])
     variant.base_count["sample1"][CountType.DPF] = 5
-    
+
     formatter.write_vcf_output([variant])
-    
+
     # Check output includes fragment counts
-    with open(config_vcf.output_file, "r") as f:
+    with open(config_vcf.output_file) as f:
         header = f.readline()
         assert "DPF" in header
