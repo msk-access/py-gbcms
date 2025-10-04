@@ -69,11 +69,11 @@ pytest --cov=gbcms --cov-report=html
 
 ## 🔗 Key Links
 
-- **🐛 [Report Issues](https://github.com/msk-access/getbasecounts/issues)**
-- **💬 [Discussions](https://github.com/msk-access/getbasecounts/discussions)**
-- **📧 [Contact](mailto:access@mskcc.org)** - MSK-ACCESS Team
-- **📦 [PyPI Package](https://pypi.org/project/gbcms/)**
-- **🐳 [Docker Hub](https://hub.docker.com/r/mskaccess/getbasecounts)**
+- **🐛 [Report Issues](https://github.com/msk-access/py-gbcms/issues)**
+- **💬 [Discussions](https://github.com/msk-access/py-gbcms/discussions)**
+- **📧 [Contact](mailto:shahr2@mskcc.org)** - MSK-ACCESS Team
+- **📦 [PyPI Package](https://pypi.org/project/py-gbcms/)**
+- **🐳 [Docker Hub](https://ghcr.io/msk-access/py-gbcms)**
 
 ## 📝 Citation
 
@@ -83,7 +83,7 @@ If you use gbcms in your research, please cite:
 @software{gbcms,
   title={gbcms: Python implementation of GetBaseCountsMultiSample},
   author={MSK-ACCESS Team},
-  url={https://github.com/msk-access/getbasecounts},
+  url={https://github.com/msk-access/py-gbcms},
   version={2.0.0}
 }
 ```
