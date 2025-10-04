@@ -2,10 +2,9 @@
 
 from enum import IntEnum
 from pathlib import Path
-from typing import Dict, List, Optional
 
-from pydantic import BaseModel, Field, field_validator, model_validator
 import numpy as np
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class CountType(IntEnum):
@@ -27,7 +26,7 @@ class BamFileConfig(BaseModel):
 
     sample_name: str = Field(..., description="Sample name")
     bam_path: Path = Field(..., description="Path to BAM file")
-    bai_path: Optional[Path] = Field(None, description="Path to BAM index")
+    bai_path: Path | None = Field(None, description="Path to BAM index")
 
     @field_validator("bam_path")
     @classmethod
@@ -133,8 +132,8 @@ class GetBaseCountsConfig(BaseModel):
 
     # Input files
     fasta_file: Path = Field(..., description="Reference FASTA file")
-    bam_files: List[BamFileConfig] = Field(..., description="BAM files to process")
-    variant_files: List[VariantFileConfig] = Field(..., description="Variant files")
+    bam_files: list[BamFileConfig] = Field(..., description="BAM files to process")
+    variant_files: list[VariantFileConfig] = Field(..., description="Variant files")
 
     # Options
     quality_filters: QualityFilters = Field(
@@ -175,7 +174,7 @@ class GetBaseCountsConfig(BaseModel):
 
         return self
 
-    def get_sample_names(self) -> List[str]:
+    def get_sample_names(self) -> list[str]:
         """Get list of sample names in order."""
         return [bam.sample_name for bam in self.bam_files]
 
@@ -247,7 +246,7 @@ class VariantModel(BaseModel):
     caller: str = Field("", description="Variant caller")
 
     # Counts
-    sample_counts: Dict[str, VariantCounts] = Field(
+    sample_counts: dict[str, VariantCounts] = Field(
         default_factory=dict, description="Counts per sample"
     )
 
@@ -280,7 +279,7 @@ class VariantModel(BaseModel):
         """Get unique variant key."""
         return (self.chrom, self.pos, self.ref, self.alt)
 
-    def initialize_counts(self, sample_names: List[str]) -> None:
+    def initialize_counts(self, sample_names: list[str]) -> None:
         """Initialize counts for all samples."""
         for sample in sample_names:
             if sample not in self.sample_counts:

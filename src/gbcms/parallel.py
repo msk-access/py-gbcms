@@ -1,12 +1,12 @@
 """Parallel processing with joblib and Ray support."""
 
 import logging
-from typing import List, Callable, Any, Optional
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 import os
+from collections.abc import Callable
+from typing import Any
 
 from joblib import Parallel, delayed
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
 
 logger = logging.getLogger(__name__)
 
@@ -56,10 +56,10 @@ class ParallelProcessor:
     def map(
         self,
         func: Callable,
-        items: List[Any],
+        items: list[Any],
         description: str = "Processing",
         show_progress: bool = True,
-    ) -> List[Any]:
+    ) -> list[Any]:
         """
         Map function over items in parallel.
 
@@ -80,10 +80,10 @@ class ParallelProcessor:
     def _map_joblib(
         self,
         func: Callable,
-        items: List[Any],
+        items: list[Any],
         description: str,
         show_progress: bool,
-    ) -> List[Any]:
+    ) -> list[Any]:
         """Map using joblib."""
         if show_progress:
             with Progress(
@@ -109,10 +109,10 @@ class ParallelProcessor:
     def _map_ray(
         self,
         func: Callable,
-        items: List[Any],
+        items: list[Any],
         description: str,
         show_progress: bool,
-    ) -> List[Any]:
+    ) -> list[Any]:
         """Map using Ray."""
         # Convert function to Ray remote function
         remote_func = ray.remote(func)
@@ -145,10 +145,10 @@ class ParallelProcessor:
     def starmap(
         self,
         func: Callable,
-        items: List[tuple],
+        items: list[tuple],
         description: str = "Processing",
         show_progress: bool = True,
-    ) -> List[Any]:
+    ) -> list[Any]:
         """
         Starmap function over items (unpack tuples as arguments).
 
@@ -169,23 +169,25 @@ class ParallelProcessor:
     def _starmap_joblib(
         self,
         func: Callable,
-        items: List[tuple],
+        items: list[tuple],
         description: str,
         show_progress: bool,
-    ) -> List[Any]:
+    ) -> list[Any]:
         """Starmap using joblib."""
-        wrapper = lambda args: func(*args)
+        def wrapper(args):
+            return func(*args)
         return self._map_joblib(wrapper, items, description, show_progress)
 
     def _starmap_ray(
         self,
         func: Callable,
-        items: List[tuple],
+        items: list[tuple],
         description: str,
         show_progress: bool,
-    ) -> List[Any]:
+    ) -> list[Any]:
         """Starmap using Ray."""
-        wrapper = lambda args: func(*args)
+        def wrapper(args):
+            return func(*args)
         return self._map_ray(wrapper, items, description, show_progress)
 
     def shutdown(self):
@@ -218,9 +220,9 @@ class BatchProcessor:
     def process_batches(
         self,
         func: Callable,
-        items: List[Any],
+        items: list[Any],
         description: str = "Processing batches",
-    ) -> List[Any]:
+    ) -> list[Any]:
         """
         Process items in batches.
 
@@ -257,12 +259,12 @@ class BatchProcessor:
 
 def parallel_map(
     func: Callable,
-    items: List[Any],
+    items: list[Any],
     n_jobs: int = -1,
     backend: str = "joblib",
     description: str = "Processing",
     show_progress: bool = True,
-) -> List[Any]:
+) -> list[Any]:
     """
     Convenience function for parallel mapping.
 
@@ -286,12 +288,12 @@ def parallel_map(
 
 def parallel_starmap(
     func: Callable,
-    items: List[tuple],
+    items: list[tuple],
     n_jobs: int = -1,
     backend: str = "joblib",
     description: str = "Processing",
     show_progress: bool = True,
-) -> List[Any]:
+) -> list[Any]:
     """
     Convenience function for parallel starmapping.
 
@@ -338,9 +340,7 @@ if RAY_AVAILABLE:
                 Dictionary with counting results
             """
             # Import here to avoid circular dependencies
-            from .counter import BaseCounter
 
-            counter = BaseCounter(self.config)
             # Process block
             # ... counting logic ...
 
@@ -351,7 +351,7 @@ if RAY_AVAILABLE:
             """Get processing statistics."""
             return {"processed_blocks": self.processed_count}
 
-    def create_ray_actors(n_actors: int, config_dict: dict) -> List:
+    def create_ray_actors(n_actors: int, config_dict: dict) -> list:
         """
         Create Ray actors for distributed processing.
 
@@ -371,10 +371,10 @@ if RAY_AVAILABLE:
         return actors
 
     def distribute_work_to_actors(
-        actors: List,
-        work_items: List[Any],
+        actors: list,
+        work_items: list[Any],
         description: str = "Distributing work",
-    ) -> List[Any]:
+    ) -> list[Any]:
         """
         Distribute work items to Ray actors.
 

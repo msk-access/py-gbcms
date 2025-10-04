@@ -1,7 +1,6 @@
 """Output formatting for variant counts."""
 
 import logging
-from typing import List
 
 from .config import Config, CountType
 from .variant import VariantEntry
@@ -12,7 +11,7 @@ logger = logging.getLogger(__name__)
 class OutputFormatter:
     """Formats and writes output files."""
 
-    def __init__(self, config: Config, sample_order: List[str]):
+    def __init__(self, config: Config, sample_order: list[str]):
         """
         Initialize output formatter.
 
@@ -23,7 +22,7 @@ class OutputFormatter:
         self.config = config
         self.sample_order = sample_order
 
-    def write_vcf_output(self, variants: List[VariantEntry]) -> None:
+    def write_vcf_output(self, variants: list[VariantEntry]) -> None:
         """
         Write output in VCF-like format.
 
@@ -87,7 +86,7 @@ class OutputFormatter:
 
         logger.info(f"Successfully wrote {len(variants)} variants to output file")
 
-    def write_maf_output(self, variants: List[VariantEntry]) -> None:
+    def write_maf_output(self, variants: list[VariantEntry]) -> None:
         """
         Write output in MAF format.
 
@@ -202,7 +201,7 @@ class OutputFormatter:
 
         logger.info(f"Successfully wrote {len(variants)} variants to MAF output file")
 
-    def write_fillout_output(self, variants: List[VariantEntry]) -> None:
+    def write_fillout_output(self, variants: list[VariantEntry]) -> None:
         """
         Write output in fillout format (extended MAF with all samples).
 

@@ -3,8 +3,6 @@
 import os
 from dataclasses import dataclass
 from enum import IntEnum
-from pathlib import Path
-from typing import Dict, List
 
 
 class CountType(IntEnum):
@@ -26,8 +24,8 @@ class Config:
     """Configuration for base counting."""
 
     fasta_file: str
-    bam_files: Dict[str, str]  # sample_name -> bam_path
-    variant_files: List[str]
+    bam_files: dict[str, str]  # sample_name -> bam_path
+    variant_files: list[str]
     output_file: str
 
     # Optional parameters

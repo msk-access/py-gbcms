@@ -1,11 +1,18 @@
 """Pytest configuration and fixtures."""
 
+import sys
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 import pysam
 import pytest
+
+# Add src directory to path so tests use local code, not installed package
+project_root = Path(__file__).parent.parent
+src_dir = project_root / "src"
+if str(src_dir) not in sys.path:
+    sys.path.insert(0, str(src_dir))
 
 
 @pytest.fixture

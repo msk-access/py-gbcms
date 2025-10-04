@@ -45,9 +45,9 @@ are very fast. Use `cache=True` to cache compiled functions.
 a pure Python implementation that's easier to debug.
 """
 
+
 import numpy as np
 from numba import jit, prange
-from typing import Dict, Tuple
 
 
 @jit(nopython=True, cache=True)
@@ -60,7 +60,7 @@ def count_snp_base(
     ref_base: str,
     alt_base: str,
     base_quality_threshold: int,
-) -> Tuple[int, int, int, int, int, int]:
+) -> tuple[int, int, int, int, int, int]:
     """
     Count SNP bases with Numba JIT compilation.
 
@@ -253,7 +253,7 @@ def calculate_fragment_counts(
     has_ref: np.ndarray,
     has_alt: np.ndarray,
     fractional_weight: float,
-) -> Tuple[int, float, float]:
+) -> tuple[int, float, float]:
     """
     Calculate fragment-level counts.
 
@@ -305,7 +305,7 @@ def find_cigar_position(
     cigar_lens: np.ndarray,
     alignment_start: int,
     target_pos: int,
-) -> Tuple[int, bool]:
+) -> tuple[int, bool]:
     """
     Find read position corresponding to reference position using CIGAR.
 
@@ -349,7 +349,7 @@ def find_cigar_position(
 def compute_base_quality_stats(
     qualities: np.ndarray,
     min_quality: int,
-) -> Tuple[float, float, int]:
+) -> tuple[float, float, int]:
     """
     Compute base quality statistics.
 

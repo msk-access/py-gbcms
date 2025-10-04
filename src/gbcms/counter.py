@@ -29,7 +29,6 @@ which provides 50-100x speedup through JIT compilation.
 
 import logging
 from collections import defaultdict
-from typing import Dict, List
 
 import numpy as np
 import pysam
@@ -71,7 +70,7 @@ class BaseCounter:
             config: Configuration object with quality filters and thresholds
         """
         self.config = config
-        self.warning_counts: Dict[str, int] = defaultdict(int)
+        self.warning_counts: dict[str, int] = defaultdict(int)
 
     def filter_alignment(self, aln: pysam.AlignedSegment) -> bool:
         """
@@ -104,13 +103,13 @@ class BaseCounter:
         """Check if alignment has indels."""
         if aln.cigartuples is None:
             return False
-        for op, length in aln.cigartuples:
+        for op, _length in aln.cigartuples:
             if op in (1, 2):  # Insertion or deletion
                 return True
         return False
 
     def count_bases_snp(
-        self, variant: VariantEntry, alignments: List[pysam.AlignedSegment], sample_name: str
+        self, variant: VariantEntry, alignments: list[pysam.AlignedSegment], sample_name: str
     ) -> None:
         """
         Count bases for SNP variants.
@@ -123,9 +122,9 @@ class BaseCounter:
         counts = np.zeros(len(CountType), dtype=np.float32)
 
         # Fragment tracking for fragment counts
-        dpf_map: Dict[str, Dict[int, int]] = {}
-        rdf_map: Dict[str, Dict[int, int]] = {}
-        adf_map: Dict[str, Dict[int, int]] = {}
+        dpf_map: dict[str, dict[int, int]] = {}
+        rdf_map: dict[str, dict[int, int]] = {}
+        adf_map: dict[str, dict[int, int]] = {}
 
         for aln in alignments:
             # Check if alignment overlaps variant position
@@ -218,7 +217,7 @@ class BaseCounter:
             variant.base_count[sample_name] += counts
 
     def count_bases_dnp(
-        self, variant: VariantEntry, alignments: List[pysam.AlignedSegment], sample_name: str
+        self, variant: VariantEntry, alignments: list[pysam.AlignedSegment], sample_name: str
     ) -> None:
         """
         Count bases for DNP (di-nucleotide polymorphism) variants.
@@ -230,9 +229,9 @@ class BaseCounter:
         """
         counts = np.zeros(len(CountType), dtype=np.float32)
 
-        dpf_map: Dict[str, Dict[int, int]] = {}
-        rdf_map: Dict[str, Dict[int, int]] = {}
-        adf_map: Dict[str, Dict[int, int]] = {}
+        dpf_map: dict[str, dict[int, int]] = {}
+        rdf_map: dict[str, dict[int, int]] = {}
+        adf_map: dict[str, dict[int, int]] = {}
 
         for aln in alignments:
             # Check if alignment fully covers the DNP
@@ -316,7 +315,7 @@ class BaseCounter:
             variant.base_count[sample_name] += counts
 
     def count_bases_indel(
-        self, variant: VariantEntry, alignments: List[pysam.AlignedSegment], sample_name: str
+        self, variant: VariantEntry, alignments: list[pysam.AlignedSegment], sample_name: str
     ) -> None:
         """
         Count bases for indel variants using DMP method.
@@ -328,9 +327,9 @@ class BaseCounter:
         """
         counts = np.zeros(len(CountType), dtype=np.float32)
 
-        dpf_map: Dict[str, Dict[int, int]] = {}
-        rdf_map: Dict[str, Dict[int, int]] = {}
-        adf_map: Dict[str, Dict[int, int]] = {}
+        dpf_map: dict[str, dict[int, int]] = {}
+        rdf_map: dict[str, dict[int, int]] = {}
+        adf_map: dict[str, dict[int, int]] = {}
 
         for aln in alignments:
             # Check if alignment overlaps the indel region
@@ -456,7 +455,7 @@ class BaseCounter:
             variant.base_count[sample_name] += counts
 
     def count_bases_generic(
-        self, variant: VariantEntry, alignments: List[pysam.AlignedSegment], sample_name: str
+        self, variant: VariantEntry, alignments: list[pysam.AlignedSegment], sample_name: str
     ) -> None:
         """
         Generic counting algorithm that works for all variant types.
@@ -473,9 +472,9 @@ class BaseCounter:
             sample_name: Sample name
         """
         counts = np.zeros(len(CountType), dtype=np.float32)
-        dpf_map: Dict[str, Dict[int, int]] = {}
-        rdf_map: Dict[str, Dict[int, int]] = {}
-        adf_map: Dict[str, Dict[int, int]] = {}
+        dpf_map: dict[str, dict[int, int]] = {}
+        rdf_map: dict[str, dict[int, int]] = {}
+        adf_map: dict[str, dict[int, int]] = {}
 
         for aln in alignments:
             if self.filter_alignment(aln):
@@ -642,7 +641,7 @@ class BaseCounter:
             variant.base_count[sample_name] += counts
 
     def count_variant(
-        self, variant: VariantEntry, alignments: List[pysam.AlignedSegment], sample_name: str
+        self, variant: VariantEntry, alignments: list[pysam.AlignedSegment], sample_name: str
     ) -> None:
         """
         Count bases for a variant (dispatches to appropriate method).

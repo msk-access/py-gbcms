@@ -1,7 +1,8 @@
 """Tests for configuration module."""
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from gbcms.config import Config, CountType
 
@@ -34,8 +35,8 @@ def test_config_validation_missing_fasta(temp_dir: Path, sample_bam: Path, sampl
 
 def test_config_validation_missing_fai(temp_dir: Path, sample_bam: Path, sample_vcf: Path):
     """Test config validation with missing FASTA index."""
-    # Create FASTA without index
-    fasta_file = temp_dir / "reference.fa"
+    # Create FASTA without index (use different name to avoid fixture conflicts)
+    fasta_file = temp_dir / "test_reference.fa"
     with open(fasta_file, "w") as f:
         f.write(">chr1\nATCG\n")
 
@@ -92,7 +93,7 @@ def test_config_validation_mutually_exclusive(
         )
 
 
-def test_config_validation_no_input_format(
+def test_config_validation_missing_input_format(
     temp_dir: Path, sample_fasta: Path, sample_bam: Path, sample_vcf: Path
 ):
     """Test config validation without input format specified."""

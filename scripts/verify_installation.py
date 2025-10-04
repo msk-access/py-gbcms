@@ -7,11 +7,9 @@ and can be imported.
 """
 
 import sys
-from pathlib import Path
-from typing import List, Tuple
 
 
-def check_import(module_name: str, package_name: str = None) -> Tuple[bool, str]:
+def check_import(module_name: str, package_name: str = None) -> tuple[bool, str]:
     """
     Check if a module can be imported.
 
@@ -53,7 +51,7 @@ def main():
     ]
 
     core_results = [check_import(mod, pkg) for mod, pkg in core_deps]
-    for success, msg in core_results:
+    for _success, msg in core_results:
         print(msg)
 
     print()
@@ -67,7 +65,7 @@ def main():
     ]
 
     opt_results = [check_import(mod, pkg) for mod, pkg in opt_deps]
-    for success, msg in opt_results:
+    for _success, msg in opt_results:
         print(msg)
 
     print()
@@ -91,7 +89,7 @@ def main():
     ]
 
     gb_results = [check_import(mod, pkg) for mod, pkg in gb_modules]
-    for success, msg in gb_results:
+    for _success, msg in gb_results:
         print(msg)
 
     print()
@@ -101,7 +99,6 @@ def main():
     print("-" * 60)
 
     try:
-        from gbcms.cli import app
 
         print("✅ CLI app accessible")
 
@@ -110,7 +107,7 @@ def main():
             from gbcms import __version__
 
             print(f"✅ Version: {__version__}")
-        except:
+        except Exception:
             print("⚠️  Version not accessible")
     except Exception as e:
         print(f"❌ CLI app: {str(e)}")

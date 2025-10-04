@@ -1,15 +1,14 @@
 """Command-line interface for GetBaseCounts using Typer and Rich."""
 
-import logging
 import sys
 from pathlib import Path
-from typing import Annotated, Dict, List, Optional, Tuple
+from typing import Annotated
+
+import typer
 from rich.console import Console
-from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.table import Table
-from typing_extensions import Annotated
-import typer
+
 from . import __version__
 from .config import Config
 from .processor import VariantProcessor
@@ -41,7 +40,7 @@ def validate_input_files(
     input_is_maf: bool,
     input_is_vcf: bool,
     rich_output: bool = False,
-) -> tuple[bool, Optional[Table]]:
+) -> tuple[bool, Table | None]:
     """
     Validate input files for GetBaseCounts processing.
 
@@ -219,7 +218,7 @@ def load_bam_fof(bam_fof_path: str) -> dict[str, str]:
         Dictionary mapping sample names to BAM paths
     """
     bam_files = {}
-    with open(bam_fof_path, "r") as f:
+    with open(bam_fof_path) as f:
         for line_num, line in enumerate(f, 1):
             line = line.strip()
             if not line or line.startswith("#"):
@@ -272,7 +271,7 @@ def count_run(
     ],
     # BAM input options
     bam: Annotated[
-        Optional[List[str]],
+        list[str] | None,
         typer.Option(
             "--bam",
             "-b",
@@ -281,7 +280,7 @@ def count_run(
         ),
     ] = None,
     bam_fof: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--bam-fof",
             help="File containing sample names and BAM paths (tab-separated)",
@@ -294,7 +293,7 @@ def count_run(
     ] = None,
     # Variant input options (mutually exclusive)
     maf: Annotated[
-        Optional[List[Path]],
+        list[Path] | None,
         typer.Option(
             "--maf",
             help="Input variant file in [green]MAF format[/green] (can be specified multiple times)",
@@ -306,7 +305,7 @@ def count_run(
         ),
     ] = None,
     vcf: Annotated[
-        Optional[List[Path]],
+        list[Path] | None,
         typer.Option(
             "--vcf",
             help="Input variant file in [green]VCF format[/green] (can be specified multiple times)",
@@ -621,13 +620,13 @@ def count_run(
         )
         if verbose:
             console.print_exception()
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @validate_app.command(name="files", help="Validate input files")
 def validate_files(
     fasta: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--fasta",
             "-f",
@@ -636,7 +635,7 @@ def validate_files(
         ),
     ] = None,
     bam: Annotated[
-        Optional[List[str]],
+        list[str] | None,
         typer.Option(
             "--bam",
             "-b",
@@ -645,7 +644,7 @@ def validate_files(
         ),
     ] = None,
     vcf: Annotated[
-        Optional[List[Path]],
+        list[Path] | None,
         typer.Option(
             "--vcf",
             help="VCF files to validate",
@@ -653,7 +652,7 @@ def validate_files(
         ),
     ] = None,
     maf: Annotated[
-        Optional[List[Path]],
+        list[Path] | None,
         typer.Option(
             "--maf",
             help="MAF files to validate",
@@ -683,8 +682,6 @@ def validate_files(
     results.add_column("File Path", style="white")
     results.add_column("Status", style="white")
     results.add_column("Details", style="yellow")
-
-    all_valid = True
 
     # Parse BAM files if provided
     bam_files = {}
