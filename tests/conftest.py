@@ -19,17 +19,17 @@ def temp_dir() -> Generator[Path, None, None]:
 def sample_fasta(temp_dir: Path) -> Path:
     """Create a sample FASTA file for testing."""
     fasta_file = temp_dir / "reference.fa"
-    
+
     # Create a simple reference sequence
     with open(fasta_file, "w") as f:
         f.write(">chr1\n")
         f.write("ATCGATCGATCGATCGATCGATCGATCGATCGATCGATCG\n")
         f.write(">chr2\n")
         f.write("GCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTA\n")
-    
+
     # Index the FASTA file
     pysam.faidx(str(fasta_file))
-    
+
     return fasta_file
 
 
@@ -37,7 +37,7 @@ def sample_fasta(temp_dir: Path) -> Path:
 def sample_bam(temp_dir: Path, sample_fasta: Path) -> Path:
     """Create a sample BAM file for testing."""
     bam_file = temp_dir / "sample.bam"
-    
+
     # Create header
     header = {
         "HD": {"VN": "1.6", "SO": "coordinate"},
@@ -46,7 +46,7 @@ def sample_bam(temp_dir: Path, sample_fasta: Path) -> Path:
             {"SN": "chr2", "LN": 40},
         ],
     }
-    
+
     # Create BAM file
     with pysam.AlignmentFile(str(bam_file), "wb", header=header) as outf:
         # Add some test alignments
@@ -64,10 +64,10 @@ def sample_bam(temp_dir: Path, sample_fasta: Path) -> Path:
             a.template_length = 120
             a.query_qualities = pysam.qualitystring_to_array("IIIIIIIIIIIIIIIIIIII")
             outf.write(a)
-    
+
     # Index the BAM file
     pysam.index(str(bam_file))
-    
+
     return bam_file
 
 
@@ -75,7 +75,7 @@ def sample_bam(temp_dir: Path, sample_fasta: Path) -> Path:
 def sample_vcf(temp_dir: Path) -> Path:
     """Create a sample VCF file for testing."""
     vcf_file = temp_dir / "variants.vcf"
-    
+
     with open(vcf_file, "w") as f:
         f.write("##fileformat=VCFv4.2\n")
         f.write("##contig=<ID=chr1,length=40>\n")
@@ -85,7 +85,7 @@ def sample_vcf(temp_dir: Path) -> Path:
         f.write("chr1\t10\t.\tC\tG\t.\tPASS\t.\n")
         f.write("chr1\t15\t.\tGA\tG\t.\tPASS\t.\n")  # Deletion
         f.write("chr2\t5\t.\tG\tGC\t.\tPASS\t.\n")  # Insertion
-    
+
     return vcf_file
 
 
@@ -93,7 +93,7 @@ def sample_vcf(temp_dir: Path) -> Path:
 def sample_maf(temp_dir: Path) -> Path:
     """Create a sample MAF file for testing."""
     maf_file = temp_dir / "variants.maf"
-    
+
     with open(maf_file, "w") as f:
         # Header
         f.write(
@@ -104,13 +104,7 @@ def sample_maf(temp_dir: Path) -> Path:
             "Variant_Classification\n"
         )
         # Variants
-        f.write(
-            "GENE1\tchr1\t5\t5\tA\tT\t\tTumor1\tNormal1\t"
-            "10\t5\t15\t0\tMissense_Mutation\n"
-        )
-        f.write(
-            "GENE2\tchr1\t10\t10\tC\tG\t\tTumor1\tNormal1\t"
-            "8\t7\t12\t1\tMissense_Mutation\n"
-        )
-    
+        f.write("GENE1\tchr1\t5\t5\tA\tT\t\tTumor1\tNormal1\t" "10\t5\t15\t0\tMissense_Mutation\n")
+        f.write("GENE2\tchr1\t10\t10\tC\tG\t\tTumor1\tNormal1\t" "8\t7\t12\t1\tMissense_Mutation\n")
+
     return maf_file

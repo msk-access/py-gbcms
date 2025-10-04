@@ -114,19 +114,38 @@ class OutputFormatter:
                 ]
 
                 # Add count columns for tumor and normal
-                count_cols = ["t_depth", "t_ref_count", "t_alt_count", "n_depth", "n_ref_count", "n_alt_count"]
-                
+                count_cols = [
+                    "t_depth",
+                    "t_ref_count",
+                    "t_alt_count",
+                    "n_depth",
+                    "n_ref_count",
+                    "n_alt_count",
+                ]
+
                 if self.config.output_positive_count:
-                    count_cols.extend([
-                        "t_depth_forward", "t_ref_count_forward", "t_alt_count_forward",
-                        "n_depth_forward", "n_ref_count_forward", "n_alt_count_forward"
-                    ])
+                    count_cols.extend(
+                        [
+                            "t_depth_forward",
+                            "t_ref_count_forward",
+                            "t_alt_count_forward",
+                            "n_depth_forward",
+                            "n_ref_count_forward",
+                            "n_alt_count_forward",
+                        ]
+                    )
 
                 if self.config.output_fragment_count:
-                    count_cols.extend([
-                        "t_depth_fragment", "t_ref_count_fragment", "t_alt_count_fragment",
-                        "n_depth_fragment", "n_ref_count_fragment", "n_alt_count_fragment"
-                    ])
+                    count_cols.extend(
+                        [
+                            "t_depth_fragment",
+                            "t_ref_count_fragment",
+                            "t_alt_count_fragment",
+                            "n_depth_fragment",
+                            "n_ref_count_fragment",
+                            "n_alt_count_fragment",
+                        ]
+                    )
 
                 f.write("\t".join(header_cols + count_cols) + "\n")
 
@@ -164,7 +183,9 @@ class OutputFormatter:
                     n_dpp = int(variant.get_count(variant.normal_sample, CountType.DPP))
                     n_rdp = int(variant.get_count(variant.normal_sample, CountType.RDP))
                     n_adp = int(variant.get_count(variant.normal_sample, CountType.ADP))
-                    row.extend([str(t_dpp), str(t_rdp), str(t_adp), str(n_dpp), str(n_rdp), str(n_adp)])
+                    row.extend(
+                        [str(t_dpp), str(t_rdp), str(t_adp), str(n_dpp), str(n_rdp), str(n_adp)]
+                    )
 
                 if self.config.output_fragment_count:
                     t_dpf = int(variant.get_count(variant.tumor_sample, CountType.DPF))
@@ -173,7 +194,9 @@ class OutputFormatter:
                     n_dpf = int(variant.get_count(variant.normal_sample, CountType.DPF))
                     n_rdf = int(variant.get_count(variant.normal_sample, CountType.RDF))
                     n_adf = int(variant.get_count(variant.normal_sample, CountType.ADF))
-                    row.extend([str(t_dpf), str(t_rdf), str(t_adf), str(n_dpf), str(n_rdf), str(n_adf)])
+                    row.extend(
+                        [str(t_dpf), str(t_rdf), str(t_adf), str(n_dpf), str(n_rdf), str(n_adf)]
+                    )
 
                 f.write("\t".join(row) + "\n")
 

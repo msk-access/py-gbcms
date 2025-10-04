@@ -30,11 +30,11 @@ Python functions to machine code.
 **Usage:**
     from gbcms.numba_counter import count_snp_batch
     import numpy as np
-    
+
     # Convert pysam data to NumPy arrays
     bases = np.array([aln.query_sequence for aln in alignments])
     quals = np.array([aln.query_qualities for aln in alignments])
-    
+
     # Fast batch counting
     counts = count_snp_batch(bases, quals, positions, ...)
 
@@ -47,7 +47,7 @@ a pure Python implementation that's easier to debug.
 
 import numpy as np
 from numba import jit, prange
-from typing import Tuple
+from typing import Dict, Tuple
 
 
 @jit(nopython=True, cache=True)
@@ -63,7 +63,7 @@ def count_snp_base(
 ) -> Tuple[int, int, int, int, int, int]:
     """
     Count SNP bases with Numba JIT compilation.
-    
+
     Args:
         query_bases: Array of query base characters
         query_qualities: Array of base qualities
@@ -73,7 +73,7 @@ def count_snp_base(
         ref_base: Reference base
         alt_base: Alternate base
         base_quality_threshold: Quality threshold
-    
+
     Returns:
         Tuple of (DP, RD, AD, DPP, RDP, ADP)
     """
@@ -83,23 +83,23 @@ def count_snp_base(
     dpp = 0  # Positive strand depth
     rdp = 0  # Positive strand reference depth
     adp = 0  # Positive strand alternate depth
-    
+
     n_reads = len(query_bases)
-    
+
     for i in range(n_reads):
         if reference_positions[i] != variant_pos:
             continue
-            
+
         if query_qualities[i] < base_quality_threshold:
             continue
-        
+
         base = query_bases[i]
-        
+
         # Count total depth
         dp += 1
         if not is_reverse[i]:
             dpp += 1
-        
+
         # Count ref/alt
         if base == ref_base:
             rd += 1
@@ -109,7 +109,7 @@ def count_snp_base(
             ad += 1
             if not is_reverse[i]:
                 adp += 1
-    
+
     return dp, rd, ad, dpp, rdp, adp
 
 
@@ -126,7 +126,7 @@ def count_snp_batch(
 ) -> np.ndarray:
     """
     Count multiple SNPs in parallel with Numba.
-    
+
     Args:
         query_bases_list: List of query base arrays
         query_qualities_list: List of quality arrays
@@ -136,13 +136,13 @@ def count_snp_batch(
         ref_bases: Array of reference bases
         alt_bases: Array of alternate bases
         base_quality_threshold: Quality threshold
-    
+
     Returns:
         Array of counts (n_variants, 6) with columns (DP, RD, AD, DPP, RDP, ADP)
     """
     n_variants = len(variant_positions)
     counts = np.zeros((n_variants, 6), dtype=np.int32)
-    
+
     for i in prange(n_variants):
         dp, rd, ad, dpp, rdp, adp = count_snp_base(
             query_bases_list[i],
@@ -160,7 +160,7 @@ def count_snp_batch(
         counts[i, 3] = dpp
         counts[i, 4] = rdp
         counts[i, 5] = adp
-    
+
     return counts
 
 
@@ -182,7 +182,7 @@ def filter_alignment_numba(
 ) -> bool:
     """
     Fast alignment filtering with Numba.
-    
+
     Returns:
         True if alignment should be filtered (excluded)
     """
@@ -219,13 +219,13 @@ def filter_alignments_batch(
 ) -> np.ndarray:
     """
     Filter multiple alignments in parallel.
-    
+
     Returns:
         Boolean array where True means keep the alignment
     """
     n = len(is_duplicate)
     keep = np.ones(n, dtype=np.bool_)
-    
+
     for i in prange(n):
         keep[i] = not filter_alignment_numba(
             is_duplicate[i],
@@ -242,7 +242,7 @@ def filter_alignments_batch(
             filter_indel,
             mapping_quality_threshold,
         )
-    
+
     return keep
 
 
@@ -256,37 +256,37 @@ def calculate_fragment_counts(
 ) -> Tuple[int, float, float]:
     """
     Calculate fragment-level counts.
-    
+
     Args:
         fragment_ids: Array of fragment identifiers
         end_numbers: Array of read end numbers (1 or 2)
         has_ref: Array indicating if fragment has reference
         has_alt: Array indicating if fragment has alternate
         fractional_weight: Weight for disagreement (0.5 or 0)
-    
+
     Returns:
         Tuple of (DPF, RDF, ADF)
     """
     # Get unique fragments
     unique_fragments = np.unique(fragment_ids)
     dpf = len(unique_fragments)
-    
+
     rdf = 0.0
     adf = 0.0
-    
+
     for frag_id in unique_fragments:
         # Find all reads for this fragment
         frag_mask = fragment_ids == frag_id
         frag_has_ref = np.any(has_ref[frag_mask])
         frag_has_alt = np.any(has_alt[frag_mask])
-        
+
         # Check for overlapping ends
         frag_ends = end_numbers[frag_mask]
         unique_ends, end_counts = np.unique(frag_ends, return_counts=True)
         if np.any(end_counts > 1):
             # Skip fragments with overlapping multimapped reads
             continue
-        
+
         # Count based on ref/alt presence
         if frag_has_ref and frag_has_alt:
             rdf += fractional_weight
@@ -295,7 +295,7 @@ def calculate_fragment_counts(
             rdf += 1.0
         elif frag_has_alt:
             adf += 1.0
-    
+
     return dpf, rdf, adf
 
 
@@ -308,23 +308,23 @@ def find_cigar_position(
 ) -> Tuple[int, bool]:
     """
     Find read position corresponding to reference position using CIGAR.
-    
+
     Args:
         cigar_ops: Array of CIGAR operations
         cigar_lens: Array of CIGAR lengths
         alignment_start: Alignment start position
         target_pos: Target reference position
-    
+
     Returns:
         Tuple of (read_position, is_covered)
     """
     ref_pos = alignment_start
     read_pos = 0
-    
+
     for i in range(len(cigar_ops)):
         op = cigar_ops[i]
         length = cigar_lens[i]
-        
+
         if op == 0:  # Match/mismatch (M)
             if ref_pos <= target_pos < ref_pos + length:
                 return read_pos + (target_pos - ref_pos), True
@@ -341,7 +341,7 @@ def find_cigar_position(
         elif op == 4:  # Soft clip (S)
             read_pos += length
         # Hard clip (H) and padding (P) don't affect positions
-    
+
     return -1, False
 
 
@@ -352,22 +352,22 @@ def compute_base_quality_stats(
 ) -> Tuple[float, float, int]:
     """
     Compute base quality statistics.
-    
+
     Args:
         qualities: Array of base qualities
         min_quality: Minimum quality threshold
-    
+
     Returns:
         Tuple of (mean_quality, median_quality, n_passing)
     """
     n = len(qualities)
     if n == 0:
         return 0.0, 0.0, 0
-    
+
     mean_qual = np.mean(qualities)
     median_qual = np.median(qualities)
     n_passing = np.sum(qualities >= min_quality)
-    
+
     return mean_qual, median_qual, n_passing
 
 
@@ -378,18 +378,18 @@ def vectorized_quality_filter(
 ) -> np.ndarray:
     """
     Vectorized quality filtering.
-    
+
     Args:
         qualities: 2D array of qualities (n_reads, read_length)
         threshold: Quality threshold
-    
+
     Returns:
         Boolean array of passing reads
     """
     n_reads = qualities.shape[0]
     passing = np.zeros(n_reads, dtype=np.bool_)
-    
+
     for i in prange(n_reads):
         passing[i] = np.all(qualities[i] >= threshold)
-    
+
     return passing

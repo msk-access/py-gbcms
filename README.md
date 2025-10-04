@@ -1,7 +1,7 @@
 # py-gbcms - Python Implementation of gbcms
 
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](https://opensource.org/licenses/AGPL-3.0)
 
 A high-performance Python reimplementation of [GetBaseCountsMultiSample](https://github.com/msk-access/GetBaseCountsMultiSample) for calculating base counts in multiple BAM files at variant positions specified in VCF or MAF files.
 
@@ -31,24 +31,29 @@ uv pip install "py-gbcms[all]"
 # Or with pip
 pip install "py-gbcms[all]"
 ```
+**Requirements:** Python 3.11 or later
 
 ### Basic Usage
 
 ```bash
-# Process VCF file
+# Run
 gbcms count run \
     --fasta reference.fa \
     --bam sample1:sample1.bam \
     --vcf variants.vcf \
-    --output counts.txt
+    --output counts.txt \
+    --thread 8
 
-# Process MAF file
+# Run with MAF file
 gbcms count run \
     --fasta reference.fa \
     --bam-fof bam_files.txt \
     --maf variants.maf \
+    --output counts.txt
+
 ### Docker Usage
 
+```bash
 docker pull ghcr.io/msk-access/getbasecounts:latest
 
 # Run the container
@@ -61,6 +66,7 @@ docker run --rm \
     --bam sample1:/data/sample1.bam \
     --vcf /data/variants.vcf \
     --output /data/counts.maf
+```
 
 ### BAM File of Files Format
 
@@ -78,14 +84,12 @@ gbcms count run \
     --fasta reference.fa \
     --bam-fof bam_files.txt \
     --vcf variants.vcf \
-    --output counts.txt
-```
 
 ## Command Line Options
 
 ### Commands
 
-py-gbcms uses subcommands for different operations:
+gbcms uses subcommands for different operations:
 
 - `gbcms count run`: Run base counting on variants (main command)
 - `gbcms validate files`: Validate input files before processing
@@ -166,8 +170,8 @@ When using `--omaf`, the output maintains the MAF format with updated count colu
 
 ```bash
 # Clone the repository
-git clone https://github.com/msk-access/getbasecounts.git
-cd getbasecounts
+git clone https://github.com/msk-access/py-gbcms.git
+cd py-gbcms
 
 # Install with development dependencies
 uv pip install -e ".[dev]"
@@ -183,13 +187,10 @@ pre-commit install
 pytest
 
 # Run with coverage
-pytest --cov=getbasecounts --cov-report=html
+pytest --cov=gbcms --cov-report=html
 
 # Run specific test file
-pytest tests/test_counter.py
-
-# Run with verbose output
-pytest -v
+pytest tests/test_counter.py -v
 ```
 
 ### Code Quality
@@ -209,10 +210,10 @@ mypy src/
 
 ```bash
 # Build the image
-docker build -t getbasecounts:latest .
+docker build -t gbcms:latest .
 
 # Run tests in container
-docker run --rm getbasecounts:latest pytest
+docker run --rm gbcms:latest pytest
 ```
 
 ## Performance Comparison
@@ -229,15 +230,15 @@ Compared to the original C++ implementation:
 
 *Performance varies based on workload and Python version. Python 3.11+ shows significant improvements.
 
-**With Numba JIT compilation and optimized parallelization. See [ADVANCED_FEATURES.md](ADVANCED_FEATURES.md) for benchmarks.
+**With Numba JIT compilation and optimized parallelization. See [Fast VCF Parsing](docs/CYVCF2_SUPPORT.md) for benchmarks.
 
 ## Architecture
 
 The package is organized into distinct modules with clear responsibilities:
 
 ```
-getbasecounts/
-├── src/getbasecounts/
+py-gbcms/
+├── src/gbcms/
 │   ├── __init__.py
 │   ├── cli.py              # 🎨 Typer CLI interface with Rich
 │   ├── config.py           # ⚙️  Configuration dataclasses (legacy)
@@ -287,35 +288,22 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed module relationshi
 
 ## Documentation
 
-📚 **[Complete Documentation](docs/README.md)** | [Quick Start](docs/QUICKSTART.md) | [API Reference](docs/API_REFERENCE.md)
-
-### Quick Links
-
-- **Getting Started**
-  - [Installation Guide](docs/INSTALLATION.md)
-  - [Quick Start Tutorial](docs/QUICKSTART.md)
-  - [CLI Features](docs/CLI_FEATURES.md)
+📚 **[Complete Documentation](docs/README.md)** | [Quick Start](docs/QUICKSTART.md) | [Contributing Guide](CONTRIBUTING.md) | [Package Structure](docs/PACKAGE_STRUCTURE.md) | [Testing Guide](docs/TESTING_GUIDE.md)
 
 - **User Guide**
   - [Input & Output Formats](docs/INPUT_OUTPUT.md)
-  - [Quality Filtering](docs/QUALITY_FILTERING.md)
-  - [Performance Tuning](docs/PERFORMANCE_TUNING.md)
 
 - **Advanced**
-  - [Pydantic Type Safety](docs/PYDANTIC_GUIDE.md)
+  - [Advanced Features](docs/ADVANCED_FEATURES.md)
   - [Fast VCF Parsing (cyvcf2)](docs/CYVCF2_SUPPORT.md)
-  - [Numba Performance](docs/NUMBA_GUIDE.md)
-  - [Parallelization & Ray](docs/PARALLELIZATION_GUIDE.md)
 
 - **Reference**
   - [Architecture](docs/ARCHITECTURE.md)
   - [C++ Comparison](docs/CPP_FEATURE_COMPARISON.md)
   - [FAQ](docs/FAQ.md)
-  - [Troubleshooting](docs/TROUBLESHOOTING.md)
 
 - **Docker & Deployment**
   - [Docker Guide](docs/DOCKER_GUIDE.md)
-  - [Docker Summary](docs/DOCKER_SUMMARY.md)
 
 ## Advanced Features
 
@@ -324,7 +312,7 @@ GetBaseCounts includes several advanced features for performance and scalability
 ### 🔒 Type Safety with Pydantic
 
 ```python
-from getbasecounts.models import GetBaseCountsConfig
+from gbcms.models import GetBaseCountsConfig
 
 # Runtime validation of all inputs
 config = GetBaseCountsConfig(
@@ -337,7 +325,7 @@ config = GetBaseCountsConfig(
 ### ⚡ Performance with Numba
 
 ```python
-from getbasecounts.numba_counter import count_snp_batch
+from gbcms.numba_counter import count_snp_batch
 
 # JIT-compiled counting (50-100x faster)
 counts = count_snp_batch(bases, qualities, positions, ...)
@@ -347,17 +335,17 @@ counts = count_snp_batch(bases, qualities, positions, ...)
 
 ```bash
 # Use joblib for efficient local parallelization
-getbasecounts count run --thread 16 --backend joblib ...
+gbcms count run --thread 16 --backend joblib ...
 ```
 
 ### 🌐 Distributed Computing with Ray
 
 ```bash
 # Install with Ray support
-uv pip install "getbasecounts[ray]"
+uv pip install "gbcms[ray]"
 
 # Use Ray for distributed processing
-getbasecounts count run --thread 32 --backend ray --use-ray ...
+gbcms count run --thread 32 --backend ray --use-ray ...
 ```
 
 See [ADVANCED_FEATURES.md](ADVANCED_FEATURES.md) for detailed documentation and benchmarks.
@@ -384,7 +372,7 @@ https://github.com/msk-access/GetBaseCountsMultiSample
 
 ## License
 
-Apache License 2.0 - See [LICENSE](LICENSE) for details.
+AGPL-3.0 License - See [LICENSE](LICENSE) for details.
 
 ## Support
 

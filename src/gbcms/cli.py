@@ -3,15 +3,13 @@
 import logging
 import sys
 from pathlib import Path
-from typing import Annotated, List, Optional
-
-import typer
+from typing import Annotated, Dict, List, Optional, Tuple
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.table import Table
 from typing_extensions import Annotated
-
+import typer
 from . import __version__
 from .config import Config
 from .processor import VariantProcessor
@@ -204,9 +202,8 @@ def parse_bam_file(bam_string: str) -> tuple[str, str]:
     if len(parts) != 2:
         console.print(
             f"[red]Error:[/red] Incorrect format for --bam parameter: {bam_string}",
-            file=sys.stderr,
         )
-        console.print("Expected format: SAMPLE_NAME:BAM_FILE", file=sys.stderr)
+        console.print("Expected format: SAMPLE_NAME:BAM_FILE")
         raise typer.Exit(1)
     return parts[0], parts[1]
 
@@ -232,16 +229,14 @@ def load_bam_fof(bam_fof_path: str) -> dict[str, str]:
             if len(parts) != 2:
                 console.print(
                     f"[red]Error:[/red] Incorrect format at line {line_num} in {bam_fof_path}",
-                    file=sys.stderr,
                 )
-                console.print("Expected format: SAMPLE_NAME<TAB>BAM_FILE", file=sys.stderr)
+                console.print("Expected format: SAMPLE_NAME<TAB>BAM_FILE")
                 raise typer.Exit(1)
 
             sample_name, bam_path = parts
             if sample_name in bam_files:
                 console.print(
                     f"[red]Error:[/red] Duplicate sample name: {sample_name}",
-                    file=sys.stderr,
                 )
                 raise typer.Exit(1)
 
@@ -488,7 +483,7 @@ def count_run(
     and output formats.
     """
     # Setup logging
-    setup_logging(verbose)
+    # setup_logging(verbose)
 
     # Print banner
     console.print(
@@ -503,21 +498,18 @@ def count_run(
     if not bam and not bam_fof:
         console.print(
             "[red]Error:[/red] Please specify at least one BAM file with --bam or --bam-fof",
-            file=sys.stderr,
         )
         raise typer.Exit(1)
 
     if not maf and not vcf:
         console.print(
             "[red]Error:[/red] Please specify at least one variant file with --maf or --vcf",
-            file=sys.stderr,
         )
         raise typer.Exit(1)
 
     if maf and vcf:
         console.print(
             "[red]Error:[/red] --maf and --vcf are mutually exclusive",
-            file=sys.stderr,
         )
         raise typer.Exit(1)
 
@@ -530,7 +522,6 @@ def count_run(
             if sample_name in bam_files:
                 console.print(
                     f"[red]Error:[/red] Duplicate sample name: {sample_name}",
-                    file=sys.stderr,
                 )
                 raise typer.Exit(1)
             bam_files[sample_name] = bam_path
@@ -541,7 +532,6 @@ def count_run(
             if sample_name in bam_files:
                 console.print(
                     f"[red]Error:[/red] Duplicate sample name: {sample_name}",
-                    file=sys.stderr,
                 )
                 raise typer.Exit(1)
             bam_files[sample_name] = bam_path
