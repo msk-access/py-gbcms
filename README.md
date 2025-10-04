@@ -376,9 +376,9 @@ AGPL-3.0 License - See [LICENSE](LICENSE) for details.
 
 ## Support
 
-- 🐛 Report bugs: [GitHub Issues](https://github.com/msk-access/getbasecounts/issues)
-- 💬 Ask questions: [GitHub Discussions](https://github.com/msk-access/getbasecounts/discussions)
-- 📧 Email: access@mskcc.org
+- 🐛 Report bugs: [GitHub Issues](https://github.com/msk-access/py-gbcms/issues)
+- 💬 Ask questions: [GitHub Discussions](https://github.com/msk-access/py-gbcms/discussions)
+- 📧 Email: shahr2@mskcc.org
 
 ## Acknowledgments
 
