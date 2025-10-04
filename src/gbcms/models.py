@@ -137,17 +137,16 @@ class GetBaseCountsConfig(BaseModel):
 
     # Options
     quality_filters: QualityFilters = Field(
-        default_factory=QualityFilters, description="Quality filtering options"
+        default_factory=QualityFilters, description="Quality filtering options"  # type: ignore[arg-type]
     )
     output_options: OutputOptions = Field(..., description="Output options")
     performance: PerformanceConfig = Field(
-        default_factory=PerformanceConfig, description="Performance options"
+        default_factory=PerformanceConfig, description="Performance options"  # type: ignore[arg-type]
     )
 
     # Advanced
     generic_counting: bool = Field(False, description="Use generic counting algorithm")
     max_warning_per_type: int = Field(3, ge=0, description="Maximum warnings per type")
-
     @field_validator("fasta_file")
     @classmethod
     def validate_fasta_exists(cls, v: Path) -> Path:

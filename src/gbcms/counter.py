@@ -128,7 +128,7 @@ class BaseCounter:
 
         for aln in alignments:
             # Check if alignment overlaps variant position
-            if aln.reference_start > variant.pos or aln.reference_end <= variant.pos:
+            if (aln.reference_start is not None and aln.reference_start > variant.pos) or (aln.reference_end is not None and aln.reference_end <= variant.pos):
                 continue
 
             # Get the base at variant position
@@ -140,6 +140,10 @@ class BaseCounter:
 
             if read_pos is None:
                 continue  # Variant position is in deletion
+
+            # Check if query sequence and qualities are available
+            if aln.query_sequence is None or aln.query_qualities is None:
+                continue
 
             # Get base and quality
             base = aln.query_sequence[read_pos].upper()
@@ -156,16 +160,17 @@ class BaseCounter:
             # Track fragment
             end_no = 1 if aln.is_read1 else 2
             if self.config.output_fragment_count:
-                if aln.query_name not in dpf_map:
-                    dpf_map[aln.query_name] = {}
-                dpf_map[aln.query_name][end_no] = dpf_map[aln.query_name].get(end_no, 0) + 1
+                if aln.query_name is not None:
+                    if aln.query_name not in dpf_map:
+                        dpf_map[aln.query_name] = {}
+                    dpf_map[aln.query_name][end_no] = dpf_map[aln.query_name].get(end_no, 0) + 1
 
             # Count ref/alt
             if base == variant.ref:
                 counts[CountType.RD] += 1
                 if not aln.is_reverse:
                     counts[CountType.RDP] += 1
-                if self.config.output_fragment_count:
+                if self.config.output_fragment_count and aln.query_name is not None:
                     if aln.query_name not in rdf_map:
                         rdf_map[aln.query_name] = {}
                     rdf_map[aln.query_name][end_no] = rdf_map[aln.query_name].get(end_no, 0) + 1
@@ -173,7 +178,7 @@ class BaseCounter:
                 counts[CountType.AD] += 1
                 if not aln.is_reverse:
                     counts[CountType.ADP] += 1
-                if self.config.output_fragment_count:
+                if self.config.output_fragment_count and aln.query_name is not None:
                     if aln.query_name not in adf_map:
                         adf_map[aln.query_name] = {}
                     adf_map[aln.query_name][end_no] = adf_map[aln.query_name].get(end_no, 0) + 1
@@ -236,8 +241,8 @@ class BaseCounter:
         for aln in alignments:
             # Check if alignment fully covers the DNP
             if (
-                aln.reference_start > variant.pos
-                or aln.reference_end <= variant.pos + variant.dnp_len - 1
+                (aln.reference_start is not None and aln.reference_start > variant.pos)
+                or (aln.reference_end is not None and aln.reference_end <= variant.pos + variant.dnp_len - 1)
             ):
                 continue
 
@@ -245,10 +250,15 @@ class BaseCounter:
             read_bases = []
             for read_idx, ref_idx in aln.get_aligned_pairs(matches_only=True):
                 if ref_idx is not None and variant.pos <= ref_idx < variant.pos + variant.dnp_len:
-                    read_bases.append((read_idx, aln.query_sequence[read_idx]))
+                    if aln.query_sequence is not None:
+                        read_bases.append((read_idx, aln.query_sequence[read_idx]))
 
             if len(read_bases) != variant.dnp_len:
                 continue  # DNP not fully covered
+
+            # Check if query sequence and qualities are available
+            if aln.query_sequence is None or aln.query_qualities is None:
+                continue
 
             # Get the DNP sequence and minimum quality
             dnp_seq = "".join([base for _, base in read_bases]).upper()
@@ -265,16 +275,17 @@ class BaseCounter:
             # Track fragment
             end_no = 1 if aln.is_read1 else 2
             if self.config.output_fragment_count:
-                if aln.query_name not in dpf_map:
-                    dpf_map[aln.query_name] = {}
-                dpf_map[aln.query_name][end_no] = dpf_map[aln.query_name].get(end_no, 0) + 1
+                if aln.query_name is not None:
+                    if aln.query_name not in dpf_map:
+                        dpf_map[aln.query_name] = {}
+                    dpf_map[aln.query_name][end_no] = dpf_map[aln.query_name].get(end_no, 0) + 1
 
             # Count ref/alt
             if dnp_seq == variant.ref:
                 counts[CountType.RD] += 1
                 if not aln.is_reverse:
                     counts[CountType.RDP] += 1
-                if self.config.output_fragment_count:
+                if self.config.output_fragment_count and aln.query_name is not None:
                     if aln.query_name not in rdf_map:
                         rdf_map[aln.query_name] = {}
                     rdf_map[aln.query_name][end_no] = rdf_map[aln.query_name].get(end_no, 0) + 1
@@ -282,7 +293,7 @@ class BaseCounter:
                 counts[CountType.AD] += 1
                 if not aln.is_reverse:
                     counts[CountType.ADP] += 1
-                if self.config.output_fragment_count:
+                if self.config.output_fragment_count and aln.query_name is not None:
                     if aln.query_name not in adf_map:
                         adf_map[aln.query_name] = {}
                     adf_map[aln.query_name][end_no] = adf_map[aln.query_name].get(end_no, 0) + 1
@@ -333,7 +344,7 @@ class BaseCounter:
 
         for aln in alignments:
             # Check if alignment overlaps the indel region
-            if aln.reference_start > variant.pos + 1 or aln.reference_end <= variant.pos:
+            if (aln.reference_start is not None and aln.reference_start > variant.pos + 1) or (aln.reference_end is not None and aln.reference_end <= variant.pos):
                 continue
 
             # Parse CIGAR to find indels at the variant position
@@ -345,12 +356,12 @@ class BaseCounter:
                 continue
 
             for i, (cigar_op, cigar_len) in enumerate(aln.cigartuples):
-                if ref_pos > variant.pos + 1:
+                if ref_pos is not None and ref_pos > variant.pos + 1:
                     break
 
                 if cigar_op == 0:  # Match/mismatch (M)
                     # Check if variant position is at the end of this match
-                    if ref_pos + cigar_len - 1 == variant.pos:
+                    if ref_pos is not None and ref_pos + cigar_len - 1 == variant.pos:
                         # Look ahead for insertion or deletion
                         if i + 1 < len(aln.cigartuples):
                             next_op, next_len = aln.cigartuples[i + 1]
@@ -359,19 +370,24 @@ class BaseCounter:
                                 expected_ins_len = len(variant.alt) - len(variant.ref)
                                 if next_len == expected_ins_len:
                                     # Check if insertion sequence matches
-                                    ins_seq = aln.query_sequence[
-                                        read_pos + cigar_len : read_pos + cigar_len + next_len
-                                    ]
-                                    expected_ins_seq = variant.alt[len(variant.ref) :]
-                                    if ins_seq == expected_ins_seq:
-                                        matched_indel = True
+                                    if aln.query_sequence is not None:
+                                        ins_seq = aln.query_sequence[
+                                            read_pos + cigar_len : read_pos + cigar_len + next_len
+                                        ]
+                                        expected_ins_seq = variant.alt[len(variant.ref) :]
+                                        if ins_seq == expected_ins_seq:
+                                            matched_indel = True
                             elif next_op == 2 and variant.deletion:  # Deletion (D)
                                 expected_del_len = len(variant.ref) - len(variant.alt)
                                 if next_len == expected_del_len:
                                     matched_indel = True
 
                     # Check if we can count depth at pos+1
-                    if ref_pos <= variant.pos + 1 < ref_pos + cigar_len:
+                    if ref_pos is not None and ref_pos <= variant.pos + 1 < ref_pos + cigar_len:
+                        # Check if query qualities are available
+                        if aln.query_qualities is None:
+                            continue
+
                         # Get base quality at pos+1
                         offset = variant.pos + 1 - ref_pos
                         qual = aln.query_qualities[read_pos + offset]
@@ -385,18 +401,19 @@ class BaseCounter:
                             # Track fragment
                             end_no = 1 if aln.is_read1 else 2
                             if self.config.output_fragment_count:
-                                if aln.query_name not in dpf_map:
-                                    dpf_map[aln.query_name] = {}
-                                dpf_map[aln.query_name][end_no] = (
-                                    dpf_map[aln.query_name].get(end_no, 0) + 1
-                                )
+                                if aln.query_name is not None:
+                                    if aln.query_name not in dpf_map:
+                                        dpf_map[aln.query_name] = {}
+                                    dpf_map[aln.query_name][end_no] = (
+                                        dpf_map[aln.query_name].get(end_no, 0) + 1
+                                    )
 
                             # Count ref/alt based on matched indel
                             if matched_indel:
                                 counts[CountType.AD] += 1
                                 if not aln.is_reverse:
                                     counts[CountType.ADP] += 1
-                                if self.config.output_fragment_count:
+                                if self.config.output_fragment_count and aln.query_name is not None:
                                     if aln.query_name not in adf_map:
                                         adf_map[aln.query_name] = {}
                                     adf_map[aln.query_name][end_no] = (
@@ -406,25 +423,28 @@ class BaseCounter:
                                 counts[CountType.RD] += 1
                                 if not aln.is_reverse:
                                     counts[CountType.RDP] += 1
-                                if self.config.output_fragment_count:
+                                if self.config.output_fragment_count and aln.query_name is not None:
                                     if aln.query_name not in rdf_map:
                                         rdf_map[aln.query_name] = {}
                                     rdf_map[aln.query_name][end_no] = (
                                         rdf_map[aln.query_name].get(end_no, 0) + 1
                                     )
 
-                    ref_pos += cigar_len
+                    if ref_pos is not None:
+                        ref_pos += cigar_len
                     read_pos += cigar_len
                 elif cigar_op == 1:  # Insertion (I)
                     read_pos += cigar_len
                 elif cigar_op == 2:  # Deletion (D)
-                    ref_pos += cigar_len
+                    if ref_pos is not None:
+                        ref_pos += cigar_len
                 elif cigar_op == 4:  # Soft clip (S)
                     read_pos += cigar_len
                 elif cigar_op == 5:  # Hard clip (H)
                     pass
                 elif cigar_op == 3:  # Skipped region (N)
-                    ref_pos += cigar_len
+                    if ref_pos is not None:
+                        ref_pos += cigar_len
 
         # Calculate fragment counts
         if self.config.output_fragment_count:
@@ -481,7 +501,7 @@ class BaseCounter:
                 continue
 
             # Check if alignment overlaps variant region
-            if aln.reference_end <= variant.pos or aln.reference_start > variant.end_pos:
+            if aln.reference_end is not None and (aln.reference_end <= variant.pos or aln.reference_start > variant.end_pos):
                 continue
 
             # Extract alignment allele by parsing CIGAR
@@ -489,8 +509,12 @@ class BaseCounter:
             cur_bq = float("inf")
             partially_cover = False
 
-            if aln.reference_start > variant.pos or aln.reference_end < variant.end_pos:
+            if aln.reference_start > variant.pos or (aln.reference_end is not None and aln.reference_end < variant.end_pos):
                 partially_cover = True
+
+            # Check if query sequence and qualities are available
+            if aln.query_sequence is None or aln.query_qualities is None:
+                continue
 
             # Parse CIGAR to extract allele
             ref_pos = aln.reference_start
@@ -501,11 +525,11 @@ class BaseCounter:
                 continue
 
             for i, (op, length) in enumerate(aln.cigartuples):
-                if ref_pos > variant.end_pos and not additional_insertion:
+                if aln.reference_end is not None and ref_pos > variant.end_pos and not additional_insertion:
                     break
 
                 if op == 0:  # M (match/mismatch)
-                    if ref_pos + length - 1 >= variant.pos:
+                    if ref_pos is not None and ref_pos + length - 1 >= variant.pos:
                         start_idx = read_pos + max(variant.pos, ref_pos) - ref_pos
                         str_len = min(
                             length,
@@ -519,16 +543,17 @@ class BaseCounter:
                         for bq_idx in range(str_len):
                             cur_bq = min(cur_bq, aln.query_qualities[start_idx + bq_idx])
 
-                    ref_pos += length
+                    if ref_pos is not None:
+                        ref_pos += length
                     read_pos += length
 
                     # Allow additional insertion if M falls at variant end
-                    if ref_pos == variant.end_pos + 1:
+                    if ref_pos is not None and ref_pos == variant.end_pos + 1:
                         if i + 1 < len(aln.cigartuples) and aln.cigartuples[i + 1][0] == 1:
                             additional_insertion = True
 
                 elif op == 1:  # I (insertion)
-                    if ref_pos >= variant.pos:
+                    if ref_pos is not None and ref_pos >= variant.pos:
                         alignment_allele += aln.query_sequence[read_pos : read_pos + length]
                         for bq_idx in range(length):
                             cur_bq = min(cur_bq, aln.query_qualities[read_pos + bq_idx])
@@ -539,12 +564,13 @@ class BaseCounter:
                     read_pos += length
 
                 elif op in [2, 3]:  # D or N (deletion/skip)
-                    if ref_pos + length - 1 > variant.end_pos:
+                    if aln.reference_end is not None and ref_pos is not None and ref_pos + length - 1 > variant.end_pos:
                         alignment_allele = "U"  # Unmatched deletion
-                    ref_pos += length
+                    if ref_pos is not None:
+                        ref_pos += length
 
                     # Allow additional insertion if D/N falls at variant end
-                    if ref_pos == variant.end_pos + 1:
+                    if ref_pos is not None and ref_pos == variant.end_pos + 1:
                         if i + 1 < len(aln.cigartuples) and aln.cigartuples[i + 1][0] == 1:
                             additional_insertion = True
 
@@ -562,11 +588,12 @@ class BaseCounter:
             frag_name = aln.query_name
 
             if self.config.output_fragment_count:
-                if frag_name not in dpf_map:
-                    dpf_map[frag_name] = {}
-                if end_no not in dpf_map[frag_name]:
-                    dpf_map[frag_name][end_no] = 0
-                dpf_map[frag_name][end_no] += 1
+                if frag_name is not None:
+                    if frag_name not in dpf_map:
+                        dpf_map[frag_name] = {}
+                    if end_no not in dpf_map[frag_name]:
+                        dpf_map[frag_name][end_no] = 0
+                    dpf_map[frag_name][end_no] += 1
 
             # Count ref/alt (skip if partially covered)
             if not partially_cover:
@@ -575,7 +602,7 @@ class BaseCounter:
                     if not aln.is_reverse:
                         counts[CountType.RDP] += 1
 
-                    if self.config.output_fragment_count:
+                    if self.config.output_fragment_count and frag_name is not None:
                         if frag_name not in rdf_map:
                             rdf_map[frag_name] = {}
                         if end_no not in rdf_map[frag_name]:
@@ -587,7 +614,7 @@ class BaseCounter:
                     if not aln.is_reverse:
                         counts[CountType.ADP] += 1
 
-                    if self.config.output_fragment_count:
+                    if self.config.output_fragment_count and frag_name is not None:
                         if frag_name not in adf_map:
                             adf_map[frag_name] = {}
                         if end_no not in adf_map[frag_name]:

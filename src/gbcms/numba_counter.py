@@ -367,7 +367,7 @@ def compute_base_quality_stats(
     median_qual = np.median(qualities)
     n_passing = np.sum(qualities >= min_quality)
 
-    return mean_qual, median_qual, n_passing
+    return float(mean_qual), float(median_qual), int(n_passing)
 
 
 @jit(nopython=True, cache=True, parallel=True)

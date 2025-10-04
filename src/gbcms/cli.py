@@ -83,7 +83,7 @@ def validate_input_files(
         if rich_output:
             results.add_row("FASTA", str(fasta), "❌ FAIL", "File not found")
         else:
-            console.print(f"[red]Error:[/red] FASTA file not found: {fasta}", file=sys.stderr)
+            console.print(f"[red]Error:[/red] FASTA file not found: {fasta}")
         all_valid = False
     else:
         fai_file = Path(str(fasta) + ".fai")
@@ -92,11 +92,10 @@ def validate_input_files(
                 results.add_row("FASTA", str(fasta), "⚠️  WARN", "Index (.fai) not found")
             else:
                 console.print(
-                    f"[red]Error:[/red] FASTA index (.fai) not found: {fai_file}", file=sys.stderr
+                    f"[red]Error:[/red] FASTA index (.fai) not found: {fai_file}"
                 )
                 console.print(
-                    "Please index your FASTA file with: samtools faidx reference.fa",
-                    file=sys.stderr,
+                    "Please index your FASTA file with: samtools faidx reference.fa"
                 )
             all_valid = False
         else:
@@ -110,7 +109,7 @@ def validate_input_files(
             if rich_output:
                 results.add_row("BAM", f"{sample_name}:{bam_path}", "❌ FAIL", "File not found")
             else:
-                console.print(f"[red]Error:[/red] BAM file not found: {bam_file}", file=sys.stderr)
+                console.print(f"[red]Error:[/red] BAM file not found: {bam_file}")
             all_valid = False
         else:
             # Check for BAM index files
@@ -124,12 +123,11 @@ def validate_input_files(
                     )
                 else:
                     console.print(
-                        f"[red]Error:[/red] BAM index not found for: {bam_file}", file=sys.stderr
+                        f"[red]Error:[/red] BAM index not found for: {bam_file}"
                     )
-                    console.print(f"Expected: {bai_file1} or {bai_file2}", file=sys.stderr)
+                    console.print(f"Expected: {bai_file1} or {bai_file2}")
                     console.print(
-                        "Please index your BAM file with: samtools index sample.bam",
-                        file=sys.stderr,
+                        "Please index your BAM file with: samtools index sample.bam"
                     )
                 all_valid = False
             else:
@@ -147,24 +145,11 @@ def validate_input_files(
                     "VCF" if input_is_vcf else "MAF", str(vcf), "❌ FAIL", "File not found"
                 )
             else:
-                console.print(f"[red]Error:[/red] Variant file not found: {vcf}", file=sys.stderr)
+                console.print(f"[red]Error:[/red] Variant file not found: {vcf}")
             all_valid = False
         else:
             if rich_output:
                 results.add_row("VCF" if input_is_vcf else "MAF", str(vcf), "✅ PASS", "File found")
-
-    if rich_output:
-        console.print(results)
-        console.print()
-
-    if not all_valid and not rich_output:
-        console.print()
-        console.print(
-            Panel.fit(
-                "[bold red]✗[/bold red] Input validation failed. Please fix the errors above.",
-                border_style="red",
-            )
-        )
 
     if rich_output:
         return all_valid, results

@@ -65,7 +65,7 @@ def sample_bam(temp_dir: Path, sample_fasta: Path) -> Path:
             a.reference_id = 0  # chr1
             a.reference_start = i * 2
             a.mapping_quality = 60
-            a.cigar = [(0, 20)]  # 20M
+            a.cigarstring = "20M"  # Set CIGAR string instead of cigartuples
             a.next_reference_id = 0
             a.next_reference_start = i * 2 + 100
             a.template_length = 120

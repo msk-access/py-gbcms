@@ -102,9 +102,11 @@ class ParallelProcessor:
 
                 return results
         else:
-            return Parallel(n_jobs=self.n_jobs, backend=self.backend)(
+            # Type annotation for results to avoid redefinition error
+            parallel_results: list[Any] = Parallel(n_jobs=self.n_jobs, backend=self.backend)(
                 delayed(func)(item) for item in items
             )
+            return parallel_results
 
     def _map_ray(
         self,
@@ -127,10 +129,10 @@ class ParallelProcessor:
                 task = progress.add_task(f"[cyan]{description}...", total=len(items))
 
                 # Submit all tasks
-                futures = [remote_func.remote(item) for item in items]
+                futures = [remote_func.remote(item) for item in items]  # type: ignore
 
                 # Collect results with progress
-                results = []
+                results: list[Any] = []
                 while futures:
                     # Wait for at least one task to complete
                     done, futures = ray.wait(futures, num_returns=1)
@@ -139,7 +141,7 @@ class ParallelProcessor:
 
                 return results
         else:
-            futures = [remote_func.remote(item) for item in items]
+            futures = [remote_func.remote(item) for item in items]  # type: ignore
             return ray.get(futures)
 
     def starmap(
@@ -369,7 +371,7 @@ if RAY_AVAILABLE:
         if not ray.is_initialized():
             ray.init(ignore_reinit_error=True)
 
-        actors = [VariantCounterActor.remote(config_dict) for _ in range(n_actors)]
+        actors = [VariantCounterActor.remote(config_dict) for _ in range(n_actors)]  # type: ignore
 
         logger.info(f"Created {n_actors} Ray actors")
         return actors
@@ -404,7 +406,7 @@ if RAY_AVAILABLE:
             futures = []
             for i, item in enumerate(work_items):
                 actor = actors[i % n_actors]
-                future = actor.count_variant_block.remote(item)
+                future = actor.count_variant_block.remote(item)  # type: ignore
                 futures.append(future)
 
             # Collect results

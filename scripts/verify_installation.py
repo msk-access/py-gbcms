@@ -9,7 +9,7 @@ and can be imported.
 import sys
 
 
-def check_import(module_name: str, package_name: str = None) -> tuple[bool, str]:
+def check_import(module_name: str, package_name: str | None = None) -> tuple[bool, str]:
     """
     Check if a module can be imported.
 

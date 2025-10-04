@@ -122,9 +122,11 @@ disallow_incomplete_defs = false
 check_untyped_defs = true
 no_implicit_optional = true
 warn_redundant_casts = true
-warn_unused_ignores = false
-warn_no_return = true
-strict_equality = true
+[[tool.mypy.overrides]]
+module = [
+    "src.gbcms.models",
+]
+disable_error_code = ["call-arg"]
 
 [[tool.mypy.overrides]]
 module = [

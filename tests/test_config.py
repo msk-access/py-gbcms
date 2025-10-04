@@ -9,15 +9,15 @@ from gbcms.config import Config, CountType
 
 def test_count_type_enum():
     """Test CountType enum values."""
-    assert CountType.DP == 0
-    assert CountType.RD == 1
-    assert CountType.AD == 2
-    assert CountType.DPP == 3
-    assert CountType.RDP == 4
-    assert CountType.ADP == 5
-    assert CountType.DPF == 6
-    assert CountType.RDF == 7
-    assert CountType.ADF == 8
+    assert CountType.DP.value == 0
+    assert CountType.RD.value == 1
+    assert CountType.AD.value == 2
+    assert CountType.DPP.value == 3
+    assert CountType.RDP.value == 4
+    assert CountType.ADP.value == 5
+    assert CountType.DPF.value == 6
+    assert CountType.RDF.value == 7
+    assert CountType.ADF.value == 8
     assert len(CountType) == 9
 
 
