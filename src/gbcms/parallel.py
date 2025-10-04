@@ -142,7 +142,7 @@ class ParallelProcessor:
                 return results
         else:
             futures = [remote_func.remote(item) for item in items]  # type: ignore
-            return ray.get(futures)
+            return ray.get(futures)  # type: ignore[no-any-return]
 
     def starmap(
         self,
