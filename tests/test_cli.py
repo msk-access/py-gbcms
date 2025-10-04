@@ -15,6 +15,7 @@ def test_cli_version():
     assert "py-gbcms" in result.stdout
     assert "2.0.0" in result.stdout  # Version number should be in output
 
+
 def test_cli_help():
     """Test help command."""
     result = runner.invoke(app, ["--help"])
