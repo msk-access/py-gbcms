@@ -108,7 +108,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv pip install scipy-stubs
+          uv pip install --system  scipy-stubs
           uv pip install --system -e ".[dev]"
 
       - name: Run black
