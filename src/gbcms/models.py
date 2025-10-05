@@ -122,8 +122,9 @@ class PerformanceConfig(BaseModel):
     @classmethod
     def validate_backend(cls, v: str) -> str:
         """Validate backend choice."""
-        if v.lower() not in ["joblib", "ray"]:
-            raise ValueError(f"Invalid backend: {v}. Must be 'joblib' or 'ray'")
+        valid_backends = ["joblib", "ray", "loky", "threading", "multiprocessing"]
+        if v.lower() not in valid_backends:
+            raise ValueError(f"Invalid backend: {v}. Must be one of: {', '.join(valid_backends)}")
         return v.lower()
 
 

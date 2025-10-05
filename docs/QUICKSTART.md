@@ -1,6 +1,6 @@
-# GetBaseCounts - Quick Start Guide
+# gbcms - Quick Start Guide
 
-Get up and running with GetBaseCounts in 5 minutes!
+Get up and running with gbcms in 5 minutes!
 
 ## Installation
 
@@ -10,26 +10,26 @@ Get up and running with GetBaseCounts in 5 minutes!
 # Install uv if you haven't already
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Install getbasecounts
-uv pip install getbasecounts
+# Install gbcms
+uv pip install gbcms
 ```
 
 ### Option 2: Using pip
 
 ```bash
-pip install getbasecounts
+pip install gbcms
 ```
 
 ### Option 3: Using Docker
 
 ```bash
-docker pull mskaccess/getbasecounts:latest
+docker pull mskaccess/gbcms:latest
 ```
 
 ## Verify Installation
 
 ```bash
-getbasecounts version
+gbcms version
 ```
 
 You should see a nice panel with version information.
@@ -57,7 +57,7 @@ samtools index sample2.bam
 ### 3. Validate Your Files (Optional but Recommended)
 
 ```bash
-getbasecounts validate files \
+gbcms validate files \
     --fasta reference.fa \
     --bam sample1:sample1.bam \
     --vcf variants.vcf
@@ -65,12 +65,12 @@ getbasecounts validate files \
 
 This will check if all files exist and have required indices.
 
-### 4. Run GetBaseCounts
+### 4. Run gbcms
 
 #### Simple VCF Example
 
 ```bash
-getbasecounts count run \
+gbcms count run \
     --fasta reference.fa \
     --bam sample1:sample1.bam \
     --vcf variants.vcf \
@@ -80,7 +80,7 @@ getbasecounts count run \
 #### Multiple Samples
 
 ```bash
-getbasecounts count run \
+gbcms count run \
     --fasta reference.fa \
     --bam sample1:sample1.bam \
     --bam sample2:sample2.bam \
@@ -100,7 +100,7 @@ sample3	/path/to/sample3.bam
 
 Then run:
 ```bash
-getbasecounts count run \
+gbcms count run \
     --fasta reference.fa \
     --bam-fof bam_files.txt \
     --vcf variants.vcf \
@@ -110,7 +110,7 @@ getbasecounts count run \
 #### MAF Input/Output
 
 ```bash
-getbasecounts count run \
+gbcms count run \
     --fasta reference.fa \
     --bam-fof bam_files.txt \
     --maf variants.maf \
@@ -123,7 +123,7 @@ getbasecounts count run \
 ### Quality Filters
 
 ```bash
-getbasecounts count run \
+gbcms count run \
     --fasta reference.fa \
     --bam sample1:sample1.bam \
     --vcf variants.vcf \
@@ -137,7 +137,7 @@ getbasecounts count run \
 ### Performance Options
 
 ```bash
-getbasecounts count run \
+gbcms count run \
     --fasta reference.fa \
     --bam-fof bam_files.txt \
     --vcf variants.vcf \
@@ -148,7 +148,7 @@ getbasecounts count run \
 ### Output Options
 
 ```bash
-getbasecounts count run \
+gbcms count run \
     --fasta reference.fa \
     --bam sample1:sample1.bam \
     --vcf variants.vcf \
@@ -189,7 +189,7 @@ Standard MAF format with updated count columns:
 ### Basic Run
 
 ```bash
-docker run -v /path/to/data:/data getbasecounts:latest \
+docker run -v /path/to/data:/data gbcms:latest \
     --fasta /data/reference.fa \
     --bam sample1:/data/sample1.bam \
     --vcf /data/variants.vcf \
@@ -202,8 +202,8 @@ Create `docker-compose.yml`:
 ```yaml
 version: '3.8'
 services:
-  getbasecounts:
-    image: getbasecounts:latest
+  gbcms:
+    image: gbcms:latest
     volumes:
       - ./data:/data
     command: >
@@ -251,7 +251,7 @@ samtools index sample.bam
 
 - Read the full [README.md](README.md) for detailed documentation
 - Check [CONTRIBUTING.md](CONTRIBUTING.md) to contribute
-- Report issues on [GitHub](https://github.com/msk-access/getbasecounts/issues)
+- Report issues on [GitHub](https://github.com/msk-access/gbcms/issues)
 
 ## Example Workflow
 
@@ -259,7 +259,7 @@ Complete example from start to finish:
 
 ```bash
 # 1. Install
-uv pip install getbasecounts
+uv pip install gbcms
 
 # 2. Prepare data
 samtools faidx reference.fa
@@ -273,14 +273,14 @@ normal	normal.bam
 EOF
 
 # 4. Validate files (optional)
-getbasecounts validate files \
+gbcms validate files \
     --fasta reference.fa \
     --bam tumor:tumor.bam \
     --bam normal:normal.bam \
     --vcf variants.vcf
 
 # 5. Run analysis
-getbasecounts count run \
+gbcms count run \
     --fasta reference.fa \
     --bam-fof bam_files.txt \
     --vcf variants.vcf \
@@ -298,27 +298,27 @@ head counts.txt
 
 ```bash
 # Show all commands
-getbasecounts --help
+gbcms --help
 
 # Show help for count command
-getbasecounts count --help
+gbcms count --help
 
 # Show help for count run
-getbasecounts count run --help
+gbcms count run --help
 
 # Show help for validate
-getbasecounts validate --help
+gbcms validate --help
 
 # Show version
-getbasecounts version
+gbcms version
 
 # Show tool info
-getbasecounts info
+gbcms info
 ```
 
 ## CLI Features
 
-GetBaseCounts uses **Typer** with **Rich** for a beautiful CLI experience:
+gbcms uses **Typer** with **Rich** for a beautiful CLI experience:
 
 - 📋 **Organized help panels** - Options grouped by category
 - 🎨 **Colored output** - Easy to read terminal output

@@ -28,6 +28,7 @@ dependencies = [
     "pydantic-settings>=2.0.0",
     "numba>=0.58.0",
     "joblib>=1.3.0",
+    "scipy>=1.11.0",
 ]
 
 [project.optional-dependencies]
@@ -57,7 +58,6 @@ dev = [
 
 [project.scripts]
 gbcms = "gbcms.cli:app"
-getbasecounts = "gbcms.cli:app"  # Backward compatibility
 
 [project.urls]
 Homepage = "https://github.com/msk-access/getbasecounts"
@@ -162,4 +162,5 @@ dev = [
     "pytest-cov>=4.1.0",
     "pytest-benchmark>=5.1.0",
     "ruff>=0.13.3",
+    "scipy-stubs>=1.11.0",
 ]

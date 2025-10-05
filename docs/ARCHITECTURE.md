@@ -2,7 +2,7 @@
 
 ## Overview
 
-GetBaseCounts is organized into distinct modules with clear responsibilities. This document explains how each module connects and when to use each component.
+gbcms is organized into distinct modules with clear responsibilities. This document explains how each module connects and when to use each component.
 
 ## Module Hierarchy
 
@@ -74,7 +74,7 @@ GetBaseCounts is organized into distinct modules with clear responsibilities. Th
 
 **Key Classes**:
 ```python
-GetBaseCountsConfig    # Main configuration
+gbcmsConfig    # Main configuration
 ├── BamFileConfig      # BAM file validation
 ├── VariantFileConfig  # Variant file validation
 ├── QualityFilters     # Quality filter settings
@@ -155,6 +155,26 @@ VariantCounts          # Type-safe count storage
 ---
 
 ### 5. Counting Layer (THE KEY DISTINCTION)
+
+#### Smart Hybrid Counting Strategy ⭐
+
+**NEW**: Automatic algorithm selection based on variant complexity
+
+**Logic**:
+```python
+def smart_count_variant(variant, alignments, sample):
+    if is_simple_snp_variant(variant):
+        # Use numba_counter (50-100x faster)
+        return count_bases_snp_numba(variant, alignments, sample)
+    else:
+        # Use counter.py (maximum accuracy)
+        return count_bases_snp/dnp/indel/generic(variant, alignments, sample)
+```
+
+**Benefits**:
+- **50-100x speedup** for simple SNPs
+- **Maximum accuracy** for complex variants
+- **Automatic optimization** per variant type
 
 #### `counter.py` (Pure Python Implementation)
 **Purpose**: Standard base counting with pysam
@@ -243,7 +263,35 @@ find_cigar_position()         # CIGAR parsing
 
 ---
 
-### 6. Parallelization Layer
+### 6. Strand Bias Analysis ⭐
+
+#### NEW: Statistical Strand Bias Detection
+
+**Purpose**: Detect strand-specific artifacts using Fisher's exact test
+
+**Key Functions**:
+```python
+calculate_strand_bias()      # Fisher's exact test
+get_strand_counts_for_sample() # Extract strand-specific counts
+```
+
+**Features**:
+- **Fisher's exact test** for statistical rigor
+- **Automatic direction detection** (forward, reverse, none)
+- **Minimum depth filtering** (10 reads) for reliability
+- **VCF and MAF output** with strand bias columns
+
+**Output Columns**:
+- `SB_PVAL`: Strand bias p-value
+- `SB_OR`: Strand bias odds ratio  
+- `SB_DIR`: Strand bias direction
+- `FSB_*`: Fragment strand bias (when fragment counting enabled)
+
+**Used By**: `counter.py`, `output.py`
+
+---
+
+### 7. Parallelization Layer
 
 #### `parallel.py`
 **Purpose**: Distribute work across cores/nodes
@@ -273,19 +321,24 @@ VariantCounterActor    # Ray actor (stateful)
 
 ---
 
-### 7. Output Layer
+### 8. Output Layer
 
-#### `output.py`
-**Purpose**: Format and write results
+#### `output.py` ⭐
+**Purpose**: Format and write results with strand bias
 
 **Key Class**: `OutputFormatter`
 
 **Methods**:
 ```python
-write_vcf_output()      # VCF-like format
-write_maf_output()      # MAF format
+write_vcf_output()      # VCF-like format with strand bias
+write_maf_output()      # MAF format with strand bias
 write_fillout_output()  # Extended MAF with all samples
 ```
+
+**Enhanced Features**:
+- **Strand bias columns** in all output formats
+- **On-the-fly calculation** during output
+- **Fragment strand bias** support
 
 **Used By**: `processor.py`
 
@@ -299,7 +352,7 @@ write_fillout_output()  # Extended MAF with all samples
 User Command (cli.py)
     │
     ├─> Parse arguments
-    ├─> Create GetBaseCountsConfig (models.py)
+    ├─> Create gbcmsConfig (models.py)
     └─> Call VariantProcessor (processor.py)
             │
             ├─> Load reference (reference.py)
@@ -327,62 +380,77 @@ User Command (cli.py)
             │       │   ├─> counter.py: Python loops
             │       │   └─> numba_counter.py: JIT compiled
             │       │
-            │       └─> Count bases
-            │           ├─> counter.py: Pure Python
-            │           │   ├─> count_bases_snp()
-            │           │   ├─> count_bases_dnp()
-            │           │   └─> count_bases_indel()
-            │           │
-            │           └─> numba_counter.py: Optimized
-            │               ├─> count_snp_base()
-            │               ├─> count_snp_batch()
-            │               └─> filter_alignments_batch()
+            │       ├─> Smart counting strategy ⭐
+            │       │   ├─> is_simple_snp_variant()
+            │       │   │   ├─> Use numba_counter (50-100x faster)
+            │       │   │   └─> Use counter.py (maximum accuracy)
+            │       │   │
+            │       │   ├─> count_bases_snp/dnp/indel/generic()
+            │       │   └─> Strand bias calculation (Fisher's exact test)
+            │       │
+            │       └─> Store counts and strand bias info
             │
             └─> Write output (output.py)
-                    ├─> write_vcf_output()
-                    ├─> write_maf_output()
-                    └─> write_fillout_output()
+                    ├─> write_vcf_output() with strand bias columns
+                    ├─> write_maf_output() with strand bias columns
+                    └─> write_fillout_output() with strand bias columns
 ```
 
 ---
 
-## counter.py vs numba_counter.py
+## counter.py vs numba_counter.py vs Smart Strategy
 
 ### Detailed Comparison
 
-| Aspect | counter.py | numba_counter.py |
-|--------|-----------|------------------|
-| **Implementation** | Pure Python | Numba JIT compiled |
-| **Input** | pysam objects | NumPy arrays |
-| **Speed** | 1x (baseline) | 50-100x faster |
-| **Compilation** | None | First call compiles |
-| **Parallelization** | Threading only | True parallel with prange |
-| **Debugging** | Easy | Harder (compiled) |
-| **Flexibility** | Very flexible | Less flexible |
-| **Dependencies** | pysam only | pysam + numba |
-| **Use Case** | Development, small data | Production, large data |
+| Aspect | counter.py | numba_counter.py | Smart Hybrid ⭐ |
+|--------|-----------|------------------|----------------|
+| **Implementation** | Pure Python | Numba JIT compiled | **Automatic selection** |
+| **Input** | pysam objects | NumPy arrays | **Both (adaptive)** |
+| **Speed** | 1x (baseline) | 50-100x faster | **10-50x overall** |
+| **Accuracy** | Maximum | High for SNPs | **Maximum for complex, high for SNPs** |
+| **Use Case** | Development, complex variants | Production, simple SNPs | **All cases optimized** |
 
-### When Each is Used
+### Smart Strategy Benefits
 
-#### `counter.py` is used when:
+#### Automatic Algorithm Selection
 ```python
-# Default for small datasets
-if num_variants < 10000 and not config.use_numba:
-    counter = BaseCounter(config)
-    counts = counter.count_bases_snp(variant, alignments, sample)
+# Automatically chooses best algorithm per variant
+def smart_count_variant(variant, alignments, sample):
+    if variant_is_simple_snp(variant):
+        # 50-100x faster for SNPs
+        return count_bases_snp_numba(variant, alignments, sample)
+    else:
+        # Maximum accuracy for complex variants
+        return count_bases_snp/dnp/indel/generic(variant, alignments, sample)
 ```
 
-#### `numba_counter.py` is used when:
+#### Performance Results
+- **Simple SNPs**: 50-100x faster than counter.py
+- **Complex variants**: Same accuracy as counter.py
+- **Overall**: 10-50x improvement across mixed datasets
+
+### When Each Strategy is Used
+
+#### Smart Hybrid Strategy (Default) ⭐
 ```python
-# Enabled by default for performance
-if config.use_numba:  # Default: True
-    # Convert pysam data to NumPy arrays
-    bases_array = np.array([aln.query_sequence for aln in alignments])
-    quals_array = np.array([aln.query_qualities for aln in alignments])
-    
-    # Use Numba-optimized counting
-    from numba_counter import count_snp_batch
-    counts = count_snp_batch(bases_array, quals_array, ...)
+# Automatic selection - recommended for all use cases
+processor = VariantProcessor(config)
+# Uses numba_counter for SNPs, counter.py for complex variants
+```
+
+#### Pure counter.py
+```python
+# Force pure Python for debugging/development
+config.performance.use_numba = False
+processor = VariantProcessor(config)
+```
+
+#### Pure numba_counter.py (Legacy)
+```python
+# Force Numba for maximum speed (may lose accuracy on complex variants)
+config.performance.use_numba = True
+config.counting.use_generic = False  # Avoid generic counting
+processor = VariantProcessor(config)
 ```
 
 ### Integration Pattern
@@ -425,9 +493,9 @@ class VariantProcessor:
 ### Using Pydantic Models (Recommended)
 
 ```python
-from getbasecounts.models import GetBaseCountsConfig, PerformanceConfig
+from gbcms.models import gbcmsConfig, PerformanceConfig
 
-config = GetBaseCountsConfig(
+config = gbcmsConfig(
     fasta_file=Path("ref.fa"),
     bam_files=[...],
     variant_files=[...],
@@ -445,7 +513,7 @@ processor.process()
 ### Legacy Config (Backward Compatible)
 
 ```python
-from getbasecounts.config import Config
+from gbcms.config import Config
 
 config = Config(
     fasta_file="ref.fa",
@@ -464,53 +532,42 @@ processor.process()
 
 ### Level 1: Pure Python (counter.py)
 ```python
-config = GetBaseCountsConfig(
+config = gbcmsConfig(
     performance=PerformanceConfig(
         use_numba=False,
         num_threads=1,
     )
 )
-# Speed: 1x
+# Speed: 1x, Accuracy: Maximum
 ```
 
 ### Level 2: Multi-threaded Python (counter.py + joblib)
 ```python
-config = GetBaseCountsConfig(
+config = gbcmsConfig(
     performance=PerformanceConfig(
         use_numba=False,
         num_threads=8,
         backend='joblib',
     )
 )
-# Speed: ~4-6x
+# Speed: ~4-6x, Accuracy: Maximum
 ```
 
-### Level 3: Numba Single-threaded (numba_counter.py)
+### Level 3: Smart Hybrid Strategy (Default) ⭐
 ```python
-config = GetBaseCountsConfig(
+config = gbcmsConfig(
     performance=PerformanceConfig(
-        use_numba=True,
-        num_threads=1,
-    )
-)
-# Speed: ~50-100x
-```
-
-### Level 4: Numba + joblib (numba_counter.py + parallel.py)
-```python
-config = GetBaseCountsConfig(
-    performance=PerformanceConfig(
-        use_numba=True,
-        num_threads=16,
+        use_numba=True,  # Enables smart strategy
+        num_threads=8,
         backend='joblib',
     )
 )
-# Speed: ~200-400x
+# Speed: ~10-50x, Accuracy: Maximum for complex, High for SNPs
 ```
 
-### Level 5: Numba + Ray (numba_counter.py + Ray)
+### Level 4: Smart Hybrid + Ray (Distributed)
 ```python
-config = GetBaseCountsConfig(
+config = gbcmsConfig(
     performance=PerformanceConfig(
         use_numba=True,
         num_threads=32,
@@ -518,27 +575,8 @@ config = GetBaseCountsConfig(
         use_ray=True,
     )
 )
-# Speed: ~500-1000x (on cluster)
+# Speed: ~100-500x (on cluster), Accuracy: Maximum for complex, High for SNPs
 ```
-
----
-
-## Testing Strategy
-
-### Unit Tests
-
-Each module has its own tests:
-- `tests/test_config.py` - Configuration
-- `tests/test_variant.py` - Variant loading
-- `tests/test_counter.py` - **counter.py** functions
-- `tests/test_reference.py` - Reference access
-- `tests/test_output.py` - Output formatting
-- `tests/test_cli.py` - CLI interface
-
-### Integration Tests
-
-- `scripts/test_vcf_workflow.sh` - End-to-end VCF
-- `scripts/test_maf_workflow.sh` - End-to-end MAF
 
 ---
 
@@ -546,28 +584,34 @@ Each module has its own tests:
 
 ### Key Takeaways
 
-1. **counter.py** = Pure Python, flexible, slower
-2. **numba_counter.py** = JIT compiled, fast, less flexible
-3. **Both can coexist** - use based on workload
-4. **processor.py** orchestrates everything
-5. **models.py** provides type safety
-6. **parallel.py** handles distribution
+1. **Smart Hybrid Strategy** ⭐ = Automatic algorithm selection (50-100x for SNPs, maximum accuracy for complex)
+2. **Strand Bias Analysis** ⭐ = Statistical detection using Fisher's exact test
+3. **counter.py** = Pure Python, flexible, slower, maximum accuracy
+4. **numba_counter.py** = JIT compiled, fast, less flexible, high accuracy for SNPs
+5. **Both can coexist** - smart strategy chooses automatically
+6. **processor.py** orchestrates everything with smart selection
+7. **models.py** provides type safety
+8. **parallel.py** handles distribution
+9. **output.py** includes strand bias in all formats
 
 ### Decision Tree
 
 ```
 Need to count bases?
 ├─> Small dataset (<10K variants)
-│   └─> Use counter.py
+│   └─> Use counter.py (maximum accuracy)
 │
-├─> Large dataset (>10K variants)
-│   └─> Use numba_counter.py
+├─> Large dataset (>10K variants)  
+│   └─> Use Smart Hybrid Strategy (optimal speed/accuracy)
+│
+├─> Need strand bias analysis
+│   └─> Use any strategy (strand bias calculated for all)
 │
 ├─> Need to debug/modify counting logic
-│   └─> Use counter.py
+│   └─> Use counter.py (most flexible)
 │
-└─> Production workload
-    └─> Use numba_counter.py + parallel.py
+└─> Production workload with mixed variants
+    └─> Use Smart Hybrid Strategy (best of both worlds)
 ```
 
 ### Module Dependencies
@@ -578,10 +622,10 @@ cli.py
       └─> processor.py
            ├─> variant.py
            ├─> reference.py
-           ├─> counter.py (optional)
-           ├─> numba_counter.py (optional)
+           ├─> counter.py (flexible, accurate)
+           ├─> numba_counter.py (fast, optimized) ⭐
            ├─> parallel.py
-           └─> output.py
+           └─> output.py (with strand bias) ⭐
 ```
 
-All modules are designed to work together seamlessly while maintaining clear separation of concerns! 🎯
+All modules work together seamlessly with the **Smart Hybrid Strategy** providing optimal performance and accuracy! 🎯

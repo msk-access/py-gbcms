@@ -1,5 +1,3 @@
-"""Command-line interface for GetBaseCounts using Typer and Rich."""
-
 from pathlib import Path
 from typing import Annotated
 
@@ -41,7 +39,7 @@ def validate_input_files(
     rich_output: bool = False,
 ) -> tuple[bool, Table | None]:
     """
-    Validate input files for GetBaseCounts processing.
+    Validate input files for gbcms processing.
 
     Args:
         fasta: Path to reference FASTA file
@@ -67,7 +65,7 @@ def validate_input_files(
 
         console.print(
             Panel.fit(
-                "[bold cyan]File Validation[/bold cyan]\n" "Checking input files for GetBaseCounts",
+                "[bold cyan]File Validation[/bold cyan]\n" "Checking input files for gbcms",
                 border_style="cyan",
             )
         )
@@ -403,6 +401,14 @@ def count_run(
             rich_help_panel="⚡ Performance",
         ),
     ] = 1,
+    backend: Annotated[
+        str,
+        typer.Option(
+            "--backend",
+            help="Parallelization backend: 'joblib' (default), 'loky', 'threading', or 'multiprocessing'",
+            rich_help_panel="⚡ Performance",
+        ),
+    ] = "joblib",
     max_block_size: Annotated[
         int,
         typer.Option(
@@ -539,6 +545,7 @@ def count_run(
     config_table.add_row("Input format", "MAF" if input_is_maf else "VCF")
     config_table.add_row("Output file", str(output))
     config_table.add_row("Threads", str(thread))
+    config_table.add_row("Backend", backend)
     config_table.add_row("Mapping quality threshold", str(maq))
     config_table.add_row("Base quality threshold", str(baq))
 
@@ -546,7 +553,7 @@ def count_run(
     console.print()
 
     try:
-        # Create configuration
+        # Create configuration using legacy Config format (processor expects this)
         config = Config(
             fasta_file=str(fasta),
             bam_files=bam_files,
@@ -566,6 +573,7 @@ def count_run(
             max_block_size=max_block_size,
             max_block_dist=max_block_dist,
             num_threads=thread,
+            backend=backend,
             input_is_maf=input_is_maf,
             input_is_vcf=input_is_vcf,
             output_maf=omaf,
@@ -637,7 +645,7 @@ def validate_files(
     ] = None,
 ) -> None:
     """
-    Validate input files for GetBaseCounts.
+    Validate input files for gbcms.
 
     Checks:
     - File existence
@@ -648,7 +656,7 @@ def validate_files(
 
     console.print(
         Panel.fit(
-            "[bold cyan]File Validation[/bold cyan]\n" "Checking input files for GetBaseCounts",
+            "[bold cyan]File Validation[/bold cyan]\n" "Checking input files for gbcms",
             border_style="cyan",
         )
     )
@@ -704,10 +712,10 @@ def validate_files(
         raise typer.Exit(1)
 
 
-@app.command(name="info", help="Show information about GetBaseCounts")
+@app.command(name="info", help="Show information about gbcms")
 def show_info() -> None:
-    """Display information about GetBaseCounts capabilities."""
-    info_table = Table(title="GetBaseCounts Information", show_header=False, border_style="cyan")
+    """Display information about gbcms capabilities."""
+    info_table = Table(title="gbcms Information", show_header=False, border_style="cyan")
     info_table.add_column("Category", style="bold cyan")
     info_table.add_column("Details", style="white")
 
@@ -727,10 +735,10 @@ def show_info() -> None:
 
     console.print("[bold cyan]Example Usage:[/bold cyan]")
     console.print(
-        "  getbasecounts count run --fasta ref.fa --bam s1:s1.bam --vcf vars.vcf --output out.txt"
+        "  gbcms count run --fasta ref.fa --bam s1:s1.bam --vcf vars.vcf --output out.txt"
     )
-    console.print("  getbasecounts validate files --fasta ref.fa --bam s1:s1.bam")
-    console.print("  getbasecounts version")
+    console.print("  gbcms validate files --fasta ref.fa --bam s1:s1.bam")
+    console.print("  gbcms version")
 
 
 if __name__ == "__main__":

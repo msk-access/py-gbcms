@@ -57,12 +57,16 @@ def test_output_formatter_vcf(config_vcf, temp_dir):
     # Check output file exists
     assert Path(config_vcf.output_file).exists()
 
-    # Read and verify content
+    # Read and verify content (proper VCF format)
     with open(config_vcf.output_file) as f:
         lines = f.readlines()
-        assert len(lines) == 2  # Header + 1 variant
-        assert "Chrom" in lines[0]
-        assert "chr1" in lines[1]
+        # Should have header lines + 1 variant line
+        assert len(lines) >= 3  # Multiple header lines + 1 variant
+        # Check for proper VCF headers
+        content = "\n".join(lines)
+        assert "##fileformat=VCFv4.2" in content
+        assert "#CHROM" in content
+        assert "chr1" in content
 
 
 def test_output_formatter_maf(config_maf, temp_dir):
@@ -157,10 +161,10 @@ def test_output_formatter_with_strand_counts(config_vcf, temp_dir):
 
     formatter.write_vcf_output([variant])
 
-    # Check output includes strand counts
+    # Check output includes strand counts in FORMAT field
     with open(config_vcf.output_file) as f:
-        header = f.readline()
-        assert "DPP" in header
+        content = f.read()
+        assert "DPP" in content  # Should be in FORMAT field
 
 
 def test_output_formatter_with_fragment_counts(config_vcf, temp_dir):
@@ -181,7 +185,7 @@ def test_output_formatter_with_fragment_counts(config_vcf, temp_dir):
 
     formatter.write_vcf_output([variant])
 
-    # Check output includes fragment counts
+    # Check output includes fragment counts in FORMAT field
     with open(config_vcf.output_file) as f:
-        header = f.readline()
-        assert "DPF" in header
+        content = f.read()
+        assert "DPF" in content  # Should be in FORMAT field

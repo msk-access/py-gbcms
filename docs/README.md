@@ -1,6 +1,6 @@
 # 📚 gbcms Documentation Hub
 
-Welcome to the comprehensive documentation for **gbcms** - the Python implementation of GetBaseCountsMultiSample.
+Welcome to the comprehensive documentation for **gbcms** - the Python implementation of gbcms.
 
 ## 🚀 Quick Start
 
@@ -8,7 +8,7 @@ Welcome to the comprehensive documentation for **gbcms** - the Python implementa
 |--------|---------|---------------|
 | **Install** | `uv pip install "gbcms[all]"` | [Installation Guide](INSTALLATION.md) |
 | **Basic Usage** | `gbcms count run --fasta ref.fa --bam sample1.bam --vcf variants.vcf --output counts.txt` | [Quick Start](QUICKSTART.md) |
-| **Docker** | `docker run ghcr.io/msk-access/getbasecounts:latest gbcms count run --omaf --fasta /data/ref.fa --bam sample1:/data/sample1.bam --vcf /data/variants.vcf --output /data/counts.maf` | [Docker Guide](DOCKER_GUIDE.md) |
+| **Docker** | `docker run ghcr.io/msk-access/gbcms:latest gbcms count run --omaf --fasta /data/ref.fa --bam sample1:/data/sample1.bam --vcf /data/variants.vcf --output /data/counts.maf` | [Docker Guide](DOCKER_GUIDE.md) |
 
 ## 📖 Documentation Sections
 
@@ -22,6 +22,7 @@ Welcome to the comprehensive documentation for **gbcms** - the Python implementa
 
 ### ⚡ **Advanced Features**
 - **[Advanced Features](ADVANCED_FEATURES.md)** - Pydantic, Numba, Ray deep dive
+- **[Parallelization Guide](PARALLELIZATION_GUIDE.md)** - When and how to use joblib vs Ray
 - **[Fast VCF Parsing (cyvcf2)](CYVCF2_SUPPORT.md)** - High-performance VCF processing
 
 ### 🏗️ **Architecture & Development**
@@ -81,7 +82,7 @@ If you use gbcms in your research, please cite:
 
 ```bibtex
 @software{gbcms,
-  title={gbcms: Python implementation of GetBaseCountsMultiSample},
+  title={gbcms: Python implementation of gbcms},
   author={MSK-ACCESS Team},
   url={https://github.com/msk-access/py-gbcms},
   version={2.0.0}

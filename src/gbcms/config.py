@@ -43,6 +43,7 @@ class Config:
     max_block_size: int = 10000
     max_block_dist: int = 100000
     num_threads: int = 1
+    backend: str = "joblib"  # Parallelization backend
     input_is_maf: bool = False
     input_is_vcf: bool = False
     output_maf: bool = False

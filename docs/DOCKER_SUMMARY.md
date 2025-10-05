@@ -2,7 +2,7 @@
 
 ## ✅ Docker Configuration Complete
 
-All Docker files have been reviewed, updated, and optimized for GetBaseCounts with full dependency support.
+All Docker files have been reviewed, updated, and optimized for gbcms with full dependency support.
 
 ---
 
@@ -27,7 +27,7 @@ All Docker files have been reviewed, updated, and optimized for GetBaseCounts wi
 
 **Build**:
 ```bash
-docker build -t getbasecounts:latest .
+docker build -t gbcms:latest .
 ```
 
 **Size**: ~800 MB (final image)
@@ -47,8 +47,8 @@ docker build -t getbasecounts:latest .
 
 **Build & Run**:
 ```bash
-docker build -f Dockerfile.test -t getbasecounts:test .
-docker run --rm getbasecounts:test
+docker build -f Dockerfile.test -t gbcms:test .
+docker run --rm gbcms:test
 ```
 
 ### 3. Docker Compose ✅
@@ -56,12 +56,12 @@ docker run --rm getbasecounts:test
 **File**: `docker-compose.yml`
 
 **Services**:
-- `getbasecounts` - Production service
+- `gbcms` - Production service
 - `test` - Testing service
 
 **Usage**:
 ```bash
-docker-compose run --rm getbasecounts count run ...
+docker-compose run --rm gbcms count run ...
 docker-compose run --rm test
 ```
 
@@ -155,7 +155,7 @@ Only what's needed to run the application:
 ### Pull Image (When Published)
 
 ```bash
-docker pull mskaccess/getbasecounts:latest
+docker pull mskaccess/gbcms:latest
 ```
 
 ### Build Locally
@@ -175,15 +175,15 @@ make docker-test-full
 
 ```bash
 # Show version
-docker run --rm getbasecounts:latest version
+docker run --rm gbcms:latest version
 
 # Show help
-docker run --rm getbasecounts:latest --help
+docker run --rm gbcms:latest --help
 
 # Process variants
 docker run --rm \
     -v $(pwd)/data:/data \
-    getbasecounts:latest \
+    gbcms:latest \
     count run \
     --fasta /data/reference.fa \
     --bam sample1:/data/sample1.bam \
@@ -201,7 +201,7 @@ The Dockerfile includes verification:
 
 ```dockerfile
 # Verify installation
-RUN getbasecounts version
+RUN gbcms version
 ```
 
 This ensures the package is correctly installed before the image is finalized.
@@ -243,7 +243,7 @@ bash scripts/test_docker.sh
 ### 1. Local Development
 
 ```bash
-docker-compose run --rm getbasecounts count run ...
+docker-compose run --rm gbcms count run ...
 ```
 
 ### 2. CI/CD Pipeline
@@ -260,8 +260,8 @@ docker-compose run --rm getbasecounts count run ...
 
 ```bash
 # On server
-docker pull mskaccess/getbasecounts:latest
-docker run --rm -v /data:/data getbasecounts:latest count run ...
+docker pull mskaccess/gbcms:latest
+docker run --rm -v /data:/data gbcms:latest count run ...
 ```
 
 ### 4. Cluster Computing
@@ -271,7 +271,7 @@ docker run --rm -v /data:/data getbasecounts:latest count run ...
 docker run --rm \
     -e RAY_ADDRESS=ray://cluster:10001 \
     -v /data:/data \
-    getbasecounts:latest \
+    gbcms:latest \
     count run --backend ray --use-ray ...
 ```
 
@@ -384,8 +384,8 @@ make docker-build
 make docker-test-full
 
 # Use
-docker run --rm getbasecounts:latest version
-docker run --rm -v $(pwd)/data:/data getbasecounts:latest count run ...
+docker run --rm gbcms:latest version
+docker run --rm -v $(pwd)/data:/data gbcms:latest count run ...
 
 # Clean up
 make docker-clean

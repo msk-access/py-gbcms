@@ -1,6 +1,6 @@
 # C++ vs Python Feature Comparison
 
-Complete comparison of GetBaseCountsMultiSample C++ implementation vs Python implementation.
+Complete comparison of gbcms C++ implementation vs Python implementation.
 
 ## Global Variables / Configuration
 
@@ -258,10 +258,10 @@ Complete comparison of GetBaseCountsMultiSample C++ implementation vs Python imp
 ### 1. Side-by-Side Comparison
 ```bash
 # Run C++ version
-GetBaseCountsMultiSample --fasta ref.fa --bam s1:s1.bam --vcf vars.vcf --output cpp_out.txt
+gbcms --fasta ref.fa --bam s1:s1.bam --vcf vars.vcf --output cpp_out.txt
 
 # Run Python version
-getbasecounts count run --fasta ref.fa --bam s1:s1.bam --vcf vars.vcf --output py_out.txt
+gbcms count run --fasta ref.fa --bam s1:s1.bam --vcf vars.vcf --output py_out.txt
 
 # Compare
 diff cpp_out.txt py_out.txt
@@ -270,10 +270,10 @@ diff cpp_out.txt py_out.txt
 ### 2. Generic Counting Comparison
 ```bash
 # C++ with generic counting
-GetBaseCountsMultiSample ... --generic_counting --output cpp_generic.txt
+gbcms ... --generic_counting --output cpp_generic.txt
 
 # Python with generic counting
-getbasecounts count run ... --generic-counting --output py_generic.txt
+gbcms count run ... --generic-counting --output py_generic.txt
 
 # Compare
 diff cpp_generic.txt py_generic.txt
@@ -282,10 +282,10 @@ diff cpp_generic.txt py_generic.txt
 ### 3. Fragment Counting Comparison
 ```bash
 # C++ with fragment counting
-GetBaseCountsMultiSample ... --fragment_count 1 --output cpp_frag.txt
+gbcms ... --fragment_count 1 --output cpp_frag.txt
 
 # Python with fragment counting
-getbasecounts count run ... --fragment-count --output py_frag.txt
+gbcms count run ... --fragment-count --output py_frag.txt
 
 # Compare
 diff cpp_frag.txt py_frag.txt
@@ -294,10 +294,10 @@ diff cpp_frag.txt py_frag.txt
 ### 4. MAF Workflow Comparison
 ```bash
 # C++ MAF workflow
-GetBaseCountsMultiSample ... --maf vars.maf --omaf --output cpp_maf.maf
+gbcms ... --maf vars.maf --omaf --output cpp_maf.maf
 
 # Python MAF workflow
-getbasecounts count run ... --maf vars.maf --omaf --output py_maf.maf
+gbcms count run ... --maf vars.maf --omaf --output py_maf.maf
 
 # Compare
 diff cpp_maf.maf py_maf.maf

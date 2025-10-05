@@ -1,13 +1,13 @@
-# CLI Features - GetBaseCounts
+# CLI Features - gbcms
 
-GetBaseCounts leverages **Typer** and **Rich** to provide a modern, user-friendly command-line interface with advanced features.
+gbcms leverages **Typer** and **Rich** to provide a modern, user-friendly command-line interface with advanced features.
 
 ## Command Structure
 
 The CLI uses a hierarchical subcommand structure for better organization:
 
 ```
-getbasecounts
+gbcms
 ├── count
 │   └── run          # Main counting command
 ├── validate
@@ -48,7 +48,7 @@ Multiple BAM files and variant files can be specified:
 
 ```bash
 # Multiple --bam options
-getbasecounts count run \
+gbcms count run \
     --bam sample1:s1.bam \
     --bam sample2:s2.bam \
     --bam sample3:s3.bam \
@@ -56,7 +56,7 @@ getbasecounts count run \
     --output out.txt
 
 # Multiple variant files
-getbasecounts count run \
+gbcms count run \
     --vcf variants1.vcf \
     --vcf variants2.vcf \
     --vcf variants3.vcf \
@@ -75,22 +75,22 @@ bam: Annotated[
 
 #### Main Counting Command
 ```bash
-getbasecounts count run --fasta ref.fa --bam s1:s1.bam --vcf vars.vcf --output out.txt
+gbcms count run --fasta ref.fa --bam s1:s1.bam --vcf vars.vcf --output out.txt
 ```
 
 #### File Validation
 ```bash
-getbasecounts validate files --fasta ref.fa --bam s1:s1.bam --vcf vars.vcf
+gbcms validate files --fasta ref.fa --bam s1:s1.bam --vcf vars.vcf
 ```
 
 #### Version Information
 ```bash
-getbasecounts version
+gbcms version
 ```
 
 #### Tool Information
 ```bash
-getbasecounts info
+gbcms info
 ```
 
 ### 4. **Boolean Flags with Toggle Options**
@@ -176,7 +176,7 @@ app = typer.Typer(
 ```python
 console.print(
     Panel.fit(
-        "[bold cyan]GetBaseCounts[/bold cyan]\n"
+        "[bold cyan]gbcms[/bold cyan]\n"
         "Version: [green]2.0.0[/green]",
         border_style="cyan",
     )
@@ -228,7 +228,7 @@ logging.basicConfig(
 ### Basic Command with Organized Help
 
 ```bash
-$ getbasecounts count run --help
+$ gbcms count run --help
 ```
 
 Shows help organized into panels:
@@ -243,7 +243,7 @@ Shows help organized into panels:
 ### File Validation
 
 ```bash
-$ getbasecounts validate files \
+$ gbcms validate files \
     --fasta reference.fa \
     --bam tumor:tumor.bam \
     --bam normal:normal.bam \
@@ -254,7 +254,7 @@ Output:
 ```
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃                          File Validation                                ┃
-┃                  Checking input files for GetBaseCounts                 ┃
+┃                  Checking input files for gbcms                 ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
                           Validation Results
@@ -275,7 +275,7 @@ Output:
 ### Version Information
 
 ```bash
-$ getbasecounts version
+$ gbcms version
 ```
 
 Output:
@@ -283,21 +283,21 @@ Output:
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃                              Version Info                               ┃
 ┃                                                                          ┃
-┃                          GetBaseCounts                                  ┃
+┃                          gbcms                                  ┃
 ┃                        Version: 2.0.0                                   ┃
-┃          Python implementation of GetBaseCountsMultiSample              ┃
+┃          Python implementation of gbcms              ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
 ### Tool Information
 
 ```bash
-$ getbasecounts info
+$ gbcms info
 ```
 
 Output:
 ```
-                    GetBaseCounts Information
+                    gbcms Information
 ┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ Version             ┃ 2.0.0                                            ┃
 ┃ Supported Input     ┃ VCF, MAF                                         ┃
@@ -310,21 +310,21 @@ Output:
 ┗━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 Example Usage:
-  getbasecounts count run --fasta ref.fa --bam s1:s1.bam --vcf vars.vcf --output out.txt
-  getbasecounts validate files --fasta ref.fa --bam s1:s1.bam
-  getbasecounts version
+  gbcms count run --fasta ref.fa --bam s1:s1.bam --vcf vars.vcf --output out.txt
+  gbcms validate files --fasta ref.fa --bam s1:s1.bam
+  gbcms version
 ```
 
 ### Processing with Progress Bar
 
 ```bash
-$ getbasecounts count run --fasta ref.fa --bam s1:s1.bam --vcf vars.vcf --output out.txt
+$ gbcms count run --fasta ref.fa --bam s1:s1.bam --vcf vars.vcf --output out.txt
 ```
 
 Output:
 ```
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃                          GetBaseCounts v2.0.0                           ┃
+┃                          gbcms v2.0.0                           ┃
 ┃                Calculate base counts in multiple BAM files              ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 

@@ -46,7 +46,7 @@ All tests in the `tests/` folder and integration scripts in the `scripts/` folde
 - **macOS**: Python 3.9, 3.10, 3.11, 3.12
 
 **What runs**:
-1. ✅ **Unit tests**: `pytest --cov=getbasecounts` (all `tests/` files)
+1. ✅ **Unit tests**: `pytest --cov=gbcms` (all `tests/` files)
 2. ✅ **Integration tests**: `bash scripts/test_vcf_workflow.sh` + `test_maf_workflow.sh`
 3. ✅ **Docker tests**: Build and test Docker images
 4. ✅ **Docker integration**: `bash scripts/test_docker.sh`
@@ -63,7 +63,7 @@ All tests in the `tests/` folder and integration scripts in the `scripts/` folde
 - **Docker job**: Docker build and test
 
 **What runs**:
-1. ✅ **Unit tests**: `pytest --cov=getbasecounts`
+1. ✅ **Unit tests**: `pytest --cov=gbcms`
 2. ✅ **Integration tests**: `bash scripts/test_vcf_workflow.sh` + `test_maf_workflow.sh` + `test_docker.sh`
 3. ✅ **Coverage**: Upload to Codecov
 4. ✅ **Linting**: black, ruff, mypy
@@ -109,7 +109,7 @@ All tests in the `tests/` folder and integration scripts in the `scripts/` folde
 ```yaml
 # ci.yml and test.yml
 - name: Run tests with coverage
-  run: pytest --cov=getbasecounts --cov-report=xml --cov-report=term-missing -v
+  run: pytest --cov=gbcms --cov-report=xml --cov-report=term-missing -v
 
 - name: Upload coverage to Codecov
   uses: codecov/codecov-action@v4

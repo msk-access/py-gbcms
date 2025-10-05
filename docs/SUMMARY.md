@@ -11,6 +11,7 @@
 
 * **[CLI Features](CLI_FEATURES.md)** - Complete command-line reference
 * **[Input & Output Formats](INPUT_OUTPUT.md)** - Supported file formats and specifications
+* **[Parallelization Guide](PARALLELIZATION_GUIDE.md)** - When and how to use joblib vs Ray
 * **[Docker Guide](DOCKER_GUIDE.md)** - Containerization and deployment
 
 ## ⚡ Advanced Features
@@ -21,6 +22,7 @@
 ## 🔧 Development
 
 * **[Contributing Guide](../../../CONTRIBUTING.md)** - Development workflow
+* **[Package Structure](PACKAGE_STRUCTURE.md)** - Understanding the codebase organization
 * **[Testing Guide](TESTING_GUIDE.md)** - Testing strategy
 
 ## 📚 Reference
@@ -28,6 +30,10 @@
 * **[Architecture Overview](ARCHITECTURE.md)** - Module relationships and design decisions
 * **[C++ Feature Comparison](CPP_FEATURE_COMPARISON.md)** - Python vs C++ comparison
 * **[Complete Features](COMPLETE_FEATURES_SUMMARY.md)** - Feature completeness matrix
+
+## 🐳 Docker & Deployment
+
+* **[Docker Summary](DOCKER_SUMMARY.md)** - Quick reference for Docker usage
 
 ---
 

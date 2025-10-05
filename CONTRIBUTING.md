@@ -6,8 +6,8 @@ Thank you for your interest in contributing to GetBaseCounts! This document prov
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/msk-access/getbasecounts.git
-   cd getbasecounts
+   git clone https://github.com/msk-access/py-gbcms.git
+   cd py-gbcms
    ```
 
 2. **Install uv** (if not already installed)
@@ -34,7 +34,7 @@ Thank you for your interest in contributing to GetBaseCounts! This document prov
 pytest
 
 # Run with coverage
-pytest --cov=getbasecounts --cov-report=html
+pytest --cov=gbcms --cov-report=html
 
 # Run specific test file
 pytest tests/test_counter.py
@@ -63,11 +63,11 @@ mypy src/
 
 ```bash
 # Build Docker image
-docker build -t getbasecounts:latest .
+docker build -t gbcms:latest .
 
 # Run tests in Docker
-docker build -f Dockerfile.test -t getbasecounts:test .
-docker run --rm getbasecounts:test
+docker build -f Dockerfile.test -t gbcms:test .
+docker run --rm gbcms:test
 ```
 
 ## Code Style

@@ -6,10 +6,11 @@ This document explains how to leverage advanced features for type safety, perfor
 
 1. [Pydantic for Type Safety](#pydantic-for-type-safety)
 2. [Numba for Performance](#numba-for-performance)
-3. [joblib for Parallelization](#joblib-for-parallelization)
-4. [Ray for Distributed Computing](#ray-for-distributed-computing)
-5. [Performance Benchmarks](#performance-benchmarks)
-6. [Best Practices](#best-practices)
+3. [Strand Bias Analysis](#strand-bias-analysis)
+4. [joblib for Parallelization](#joblib-for-parallelization)
+5. [Ray for Distributed Computing](#ray-for-distributed-computing)
+6. [Performance Benchmarks](#performance-benchmarks)
+7. [Best Practices](#best-practices)
 
 ---
 
@@ -24,10 +25,10 @@ Pydantic provides runtime type validation and settings management, ensuring data
 #### 1. **Validated Configuration**
 
 ```python
-from getbasecounts.models import GetBaseCountsConfig, BamFileConfig, VariantFileConfig
+from gbcms.models import gbcmsConfig, BamFileConfig, VariantFileConfig
 
 # Create type-safe configuration
-config = GetBaseCountsConfig(
+config = gbcmsConfig(
     fasta_file=Path("reference.fa"),
     bam_files=[
         BamFileConfig(sample_name="tumor", bam_path=Path("tumor.bam")),
@@ -48,7 +49,7 @@ config = GetBaseCountsConfig(
 #### 2. **Type-Safe Variants**
 
 ```python
-from getbasecounts.models import VariantModel, VariantCounts
+from gbcms.models import VariantModel, VariantCounts
 
 # Create validated variant
 variant = VariantModel(
@@ -72,7 +73,7 @@ dp = variant.get_count("tumor", CountType.DP)
 ```python
 # This will raise ValidationError
 try:
-    config = GetBaseCountsConfig(
+    config = gbcmsConfig(
         fasta_file=Path("nonexistent.fa"),  # File doesn't exist
         bam_files=[],  # Empty list
         variant_files=[],
@@ -94,11 +95,11 @@ except ValidationError as e:
 
 ```python
 # CLI automatically uses Pydantic models
-from getbasecounts.models import GetBaseCountsConfig
+from gbcms.models import gbcmsConfig
 
 def process_with_validation(args):
     # Convert CLI args to Pydantic model
-    config = GetBaseCountsConfig(
+    config = gbcmsConfig(
         fasta_file=Path(args.fasta),
         bam_files=[
             BamFileConfig.parse_obj({"sample_name": s, "bam_path": p})
@@ -109,6 +110,154 @@ def process_with_validation(args):
     
     # All validation happens here!
     # If successful, config is guaranteed valid
+```
+
+---
+
+## Strand Bias Analysis
+
+### Overview
+
+Strand bias analysis detects systematic differences in variant allele frequencies between forward and reverse strands, which can indicate sequencing artifacts or other technical issues.
+
+### Key Features
+
+#### 1. **Fisher's Exact Test**
+
+```python
+from gbcms.counter import BaseCounter
+
+# Automatically calculated for all variants
+counter = BaseCounter(config)
+
+# Strand bias uses Fisher's exact test for statistical rigor
+# 2x2 contingency table:
+# [[ref_forward, ref_reverse],
+#  [alt_forward, alt_reverse]]
+
+p_value, odds_ratio, direction = counter.calculate_strand_bias(
+    ref_forward=15, ref_reverse=5,   # Reference allele counts
+    alt_forward=2, alt_reverse=18    # Alternate allele counts
+)
+
+# p_value: 0.001234 (significant bias)
+# odds_ratio: 2.5 (2.5x more likely on reverse strand)
+# direction: "reverse" (bias toward reverse strand)
+```
+
+#### 2. **Automatic Direction Detection**
+
+```python
+# Direction determined by 10% threshold
+if forward_ratio > reverse_ratio + 0.1:
+    direction = "forward"
+elif reverse_ratio > forward_ratio + 0.1:
+    direction = "reverse"
+else:
+    direction = "none"
+```
+
+#### 3. **Quality Filtering**
+
+```python
+# Minimum depth requirement (default: 10 reads)
+if total_depth < min_depth:
+    return 1.0, 1.0, "insufficient_depth"
+
+# Only calculate for variants with sufficient coverage
+```
+
+### Output Integration
+
+#### VCF Format
+```bash
+# Columns added for each sample
+Chrom  Pos  Ref  Alt  sample1_DP  sample1_RD  sample1_AD  sample1_SB_PVAL  sample1_SB_OR  sample1_SB_DIR
+chr1   100  A    T    40          15          25          0.001234         2.500          reverse
+```
+
+#### MAF Format
+```bash
+# Columns added for tumor/normal
+Hugo_Symbol  t_strand_bias_pval  t_strand_bias_or  t_strand_bias_dir  n_strand_bias_pval
+GENE1        0.001234             2.500             reverse            0.950000
+```
+
+### Fragment Strand Bias
+
+```python
+# When fragment counting is enabled
+if config.output_fragment_count:
+    # Fragment strand bias uses same forward/reverse logic
+    # since fragments inherit orientation from constituent reads
+    fragment_sb_pval, fragment_sb_or, fragment_sb_dir = calculate_strand_bias(
+        fragment_ref_forward, fragment_ref_reverse,
+        fragment_alt_forward, fragment_alt_reverse
+    )
+```
+
+### Usage in Pipeline
+
+```python
+# Strand bias is calculated automatically during counting
+from gbcms.processor import VariantProcessor
+
+processor = VariantProcessor(config)
+results = processor.process()  # Includes strand bias
+
+# Access strand bias results
+for variant in results.variants:
+    for sample, bias_info in variant.strand_bias.items():
+        p_value = bias_info["p_value"]
+        direction = bias_info["direction"]
+        
+        if p_value < 0.05 and direction != "none":
+            print(f"Significant strand bias in {sample}: {direction}")
+```
+
+### Interpretation
+
+#### P-value Interpretation
+- **p < 0.05**: Significant strand bias (potential artifact)
+- **p < 0.01**: Strong evidence of strand bias
+- **p < 0.001**: Very strong strand bias
+
+#### Odds Ratio Interpretation
+- **OR > 1**: Bias toward reverse strand
+- **OR < 1**: Bias toward forward strand
+- **OR = 1**: No bias
+
+#### Direction Meaning
+- **"forward"**: More alternate alleles on forward strand
+- **"reverse"**: More alternate alleles on reverse strand
+- **"none"**: No significant bias
+
+### Best Practices
+
+1. **Filter by Significance**
+```python
+# Only consider statistically significant bias
+if strand_bias_pval < 0.05:
+    if strand_bias_direction in ["forward", "reverse"]:
+        # Flag variant for manual review
+        print(f"Potential artifact: {variant.chrom}:{variant.pos}")
+```
+
+2. **Combine with Other Metrics**
+```python
+# Strand bias + low mapping quality = likely artifact
+if (strand_bias_pval < 0.05 and 
+    variant.get_count(sample, CountType.MAPQ) < 30):
+    # Very likely sequencing artifact
+```
+
+3. **Use with Fragment Counts**
+```python
+# Fragment-level strand bias can be more reliable
+if config.output_fragment_count:
+    fragment_bias = variant.fragment_strand_bias.get(sample, {})
+    if fragment_bias.get("p_value", 1.0) < 0.01:
+        # Use fragment-level assessment
 ```
 
 ---
@@ -124,7 +273,7 @@ Numba JIT-compiles Python functions to machine code for near-C performance, espe
 #### 1. **JIT-Compiled Counting**
 
 ```python
-from getbasecounts.numba_counter import count_snp_base
+from gbcms.numba_counter import count_snp_base
 
 # This function is compiled to machine code on first call
 dp, rd, ad, dpp, rdp, adp = count_snp_base(
@@ -142,7 +291,7 @@ dp, rd, ad, dpp, rdp, adp = count_snp_base(
 #### 2. **Parallel Batch Processing**
 
 ```python
-from getbasecounts.numba_counter import count_snp_batch
+from gbcms.numba_counter import count_snp_batch
 
 # Process multiple variants in parallel with Numba
 counts = count_snp_batch(
@@ -161,7 +310,7 @@ counts = count_snp_batch(
 #### 3. **Fast Filtering**
 
 ```python
-from getbasecounts.numba_counter import filter_alignments_batch
+from gbcms.numba_counter import filter_alignments_batch
 
 # Vectorized filtering - much faster than Python loops
 keep_mask = filter_alignments_batch(
@@ -213,7 +362,7 @@ joblib provides easy-to-use parallel processing with multiple backends (threadin
 #### 1. **Simple Parallel Map**
 
 ```python
-from getbasecounts.parallel import parallel_map
+from gbcms.parallel import parallel_map
 
 # Process variants in parallel
 def count_variant(variant):
@@ -233,7 +382,7 @@ results = parallel_map(
 #### 2. **Batch Processing**
 
 ```python
-from getbasecounts.parallel import BatchProcessor
+from gbcms.parallel import BatchProcessor
 
 # Process in batches for better memory usage
 processor = BatchProcessor(
@@ -258,7 +407,7 @@ processor.shutdown()
 #### 3. **Starmap for Multiple Arguments**
 
 ```python
-from getbasecounts.parallel import parallel_starmap
+from gbcms.parallel import parallel_starmap
 
 # When function needs multiple arguments
 def count_variant_with_config(variant, config, reference):
@@ -288,7 +437,7 @@ results = parallel_starmap(
 
 ```bash
 # Use joblib backend (default)
-getbasecounts count run \
+gbcms count run \
     --fasta ref.fa \
     --bam s1:s1.bam \
     --vcf vars.vcf \
@@ -297,7 +446,7 @@ getbasecounts count run \
     --backend joblib
 
 # Or use threading for I/O-heavy workloads
-getbasecounts count run \
+gbcms count run \
     ... \
     --backend threading
 ```
@@ -314,10 +463,10 @@ Ray enables distributed computing across multiple machines, perfect for large-sc
 
 ```bash
 # Install with Ray support
-uv pip install "getbasecounts[ray]"
+uv pip install "gbcms[ray]"
 
 # Or with all features
-uv pip install "getbasecounts[all]"
+uv pip install "gbcms[all]"
 ```
 
 ### Key Features
@@ -325,7 +474,7 @@ uv pip install "getbasecounts[all]"
 #### 1. **Distributed Processing**
 
 ```python
-from getbasecounts.parallel import ParallelProcessor
+from gbcms.parallel import ParallelProcessor
 
 # Initialize with Ray
 processor = ParallelProcessor(
@@ -347,7 +496,7 @@ processor.shutdown()
 #### 2. **Ray Actors for Stateful Processing**
 
 ```python
-from getbasecounts.parallel import create_ray_actors, distribute_work_to_actors
+from gbcms.parallel import create_ray_actors, distribute_work_to_actors
 
 # Create actors (one per worker)
 actors = create_ray_actors(
@@ -383,7 +532,7 @@ results = processor.map(count_variant, variants)
 
 ```bash
 # Use Ray for distributed processing
-getbasecounts count run \
+gbcms count run \
     --fasta ref.fa \
     --bam s1:s1.bam \
     --vcf vars.vcf \
@@ -393,7 +542,7 @@ getbasecounts count run \
     --use-ray
 
 # Connect to Ray cluster
-RAY_ADDRESS='ray://cluster:10001' getbasecounts count run ...
+RAY_ADDRESS='ray://cluster:10001' gbcms count run ...
 ```
 
 ### Ray Dashboard
@@ -455,7 +604,7 @@ ray start --head --dashboard-host=0.0.0.0
 
 ```python
 # ✅ DO: Use Pydantic models for configuration
-config = GetBaseCountsConfig(**config_dict)
+config = gbcmsConfig(**config_dict)
 
 # ❌ DON'T: Use plain dictionaries
 config = {"fasta": "ref.fa", "bam_files": [...]}
@@ -504,7 +653,7 @@ all_data = [load_variant(v) for v in all_variants]  # OOM risk
 ```python
 # ✅ DO: Use Pydantic validation
 try:
-    config = GetBaseCountsConfig(**user_input)
+    config = gbcmsConfig(**user_input)
 except ValidationError as e:
     logger.error(f"Invalid configuration: {e}")
     sys.exit(1)
@@ -519,18 +668,18 @@ config = user_input  # No validation
 
 ```python
 from pathlib import Path
-from getbasecounts.models import (
-    GetBaseCountsConfig,
+from gbcms.models import (
+    gbcmsConfig,
     BamFileConfig,
     VariantFileConfig,
     OutputOptions,
     PerformanceConfig,
 )
-from getbasecounts.parallel import ParallelProcessor
-from getbasecounts.numba_counter import count_snp_batch
+from gbcms.parallel import ParallelProcessor
+from gbcms.numba_counter import count_snp_batch
 
 # 1. Create type-safe configuration with Pydantic
-config = GetBaseCountsConfig(
+config = gbcmsConfig(
     fasta_file=Path("reference.fa"),
     bam_files=[
         BamFileConfig(sample_name="tumor", bam_path=Path("tumor.bam")),
@@ -585,6 +734,7 @@ processor.shutdown()
 |---------|---------|-------------|
 | **Pydantic** | Type safety, validation | Always - catches errors early |
 | **Numba** | Performance (50-100x) | CPU-intensive counting operations |
+| **Strand Bias** | Statistical artifact detection | Quality control, artifact filtering |
 | **joblib** | Local parallelization | Multi-core machines, <1M variants |
 | **Ray** | Distributed computing | Clusters, >1M variants, fault tolerance |
 
@@ -592,5 +742,6 @@ processor.shutdown()
 - Small jobs: Pydantic + Python
 - Medium jobs: Pydantic + Numba + joblib
 - Large jobs: Pydantic + Numba + Ray
+- Quality control: Add Strand Bias analysis
 
 All features work together seamlessly for maximum performance and reliability! 🚀
