@@ -300,19 +300,19 @@ get_strand_counts_for_sample() # Extract strand-specific counts
 ```python
 ParallelProcessor      # Unified interface
 ├── joblib backend     # Local parallelization
-└── Ray backend        # Distributed computing
+└── joblib/loky        # Multi-threading backends
 
 BatchProcessor         # Process in batches
-VariantCounterActor    # Ray actor (stateful)
+
 ```
 
 **Backends**:
-1. **joblib** (default)
+1. **joblib** (default) - Multi-threading with joblib
    - Local multi-core
    - Multiple backends (loky, threading, multiprocessing)
    - Best for single machine
 
-2. **Ray** (optional)
+2. **loky** - Robust joblib backend
    - Distributed across nodes
    - Fault tolerant
    - Best for clusters
@@ -370,7 +370,7 @@ User Command (cli.py)
             │   │
             │   ├─> Parallel processing (parallel.py)
             │   │       ├─> joblib: Local threads
-            │   │       └─> Ray: Distributed workers
+            │   │       └─> joblib: Multi-threaded workers
             │   │
             │   └─> For each block:
             │       │
@@ -405,7 +405,7 @@ User Command (cli.py)
 | Aspect | counter.py | numba_counter.py | Smart Hybrid ⭐ |
 |--------|-----------|------------------|----------------|
 | **Implementation** | Pure Python | Numba JIT compiled | **Automatic selection** |
-| **Input** | pysam objects | NumPy arrays | **Both (adaptive)** |
+| **Input** | pysam objects | NumPy arrays | **Adaptive processing** |
 | **Speed** | 1x (baseline) | 50-100x faster | **10-50x overall** |
 | **Accuracy** | Maximum | High for SNPs | **Maximum for complex, high for SNPs** |
 | **Use Case** | Development, complex variants | Production, simple SNPs | **All cases optimized** |
@@ -565,14 +565,14 @@ config = gbcmsConfig(
 # Speed: ~10-50x, Accuracy: Maximum for complex, High for SNPs
 ```
 
-### Level 4: Smart Hybrid + Ray (Distributed)
+### Level 3: Multi-threaded (joblib)
 ```python
 config = gbcmsConfig(
     performance=PerformanceConfig(
         use_numba=True,
         num_threads=32,
-        backend='ray',
-        use_ray=True,
+        backend='joblib',
+        
     )
 )
 # Speed: ~100-500x (on cluster), Accuracy: Maximum for complex, High for SNPs

@@ -36,13 +36,9 @@ fast = [
     "cyvcf2>=0.30.0",
 ]
 
-ray = [
-    "ray>=2.7.0",
-]
 
 all = [
     "cyvcf2>=0.30.0",
-    "ray>=2.7.0",
 ]
 
 dev = [
@@ -133,7 +129,6 @@ module = [
     "pysam.*",
     "numba.*",
     "joblib.*",
-    "ray.*",
     "cyvcf2.*",
 ]
 ignore_missing_imports = true

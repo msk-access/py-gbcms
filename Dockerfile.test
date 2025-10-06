@@ -29,7 +29,7 @@ COPY src/ ./src/
 COPY tests/ ./tests/
 
 # Install package with dev and all dependencies
-# This includes cyvcf2, Ray, and all dev tools
+# This includes cyvcf2 and all dev tools
 RUN uv pip install --system --no-cache ".[dev,all]"
 
 # Verify installation

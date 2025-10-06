@@ -114,15 +114,13 @@ class PerformanceConfig(BaseModel):
     num_threads: int = Field(1, ge=1, description="Number of threads")
     max_block_size: int = Field(10000, ge=1, description="Maximum variants per block")
     max_block_dist: int = Field(100000, ge=1, description="Maximum block distance in bp")
-    use_ray: bool = Field(False, description="Use Ray for distributed processing")
     use_numba: bool = Field(True, description="Use Numba JIT compilation")
-    backend: str = Field("joblib", description="Parallelization backend (joblib or ray)")
 
     @field_validator("backend")
     @classmethod
     def validate_backend(cls, v: str) -> str:
         """Validate backend choice."""
-        valid_backends = ["joblib", "ray", "loky", "threading", "multiprocessing"]
+        valid_backends = ["joblib", "loky", "threading", "multiprocessing"]
         if v.lower() not in valid_backends:
             raise ValueError(f"Invalid backend: {v}. Must be one of: {', '.join(valid_backends)}")
         return v.lower()

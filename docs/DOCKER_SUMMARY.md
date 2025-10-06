@@ -20,7 +20,7 @@ All Docker files have been reviewed, updated, and optimized for gbcms with full 
 - ✅ All system dependencies (samtools, libhts, etc.)
 - ✅ Full package installation with `[all]` extras
 - ✅ cyvcf2 for fast VCF parsing (100x faster)
-- ✅ Ray for distributed computing
+- ✅ joblib for multi-threading
 - ✅ Numba for JIT compilation (50-100x faster)
 - ✅ Installation verification during build
 - ✅ Proper labels and metadata
@@ -40,7 +40,7 @@ docker build -t gbcms:latest .
 
 **Features**:
 - ✅ Includes dev dependencies (pytest, coverage)
-- ✅ All optional features (cyvcf2, Ray)
+- ✅ All optional features (cyvcf2)
 - ✅ Test fixtures included
 - ✅ Installation verification
 - ✅ Runs tests by default
@@ -99,7 +99,7 @@ Only what's needed to run the application:
 | libssl3 | SSL/TLS (runtime) | pysam, cyvcf2 |
 | **libhts3** | HTSlib (runtime) | **cyvcf2** ⭐ |
 | **samtools** | BAM/FASTA indexing | **User workflows** ⭐ |
-| procps | Process management | Ray, monitoring |
+| procps | Process management | Monitoring |
 
 ### Why These Dependencies?
 
@@ -137,7 +137,7 @@ Only what's needed to run the application:
 
 ### Optional (Included with `[all]`)
 - **cyvcf2>=0.30.0** - Fast VCF parsing
-- **ray>=2.7.0** - Distributed computing
+
 
 ### Dev (Test Image Only)
 - pytest
@@ -219,7 +219,7 @@ bash scripts/test_docker.sh
 2. ✅ Verify installation
 3. ✅ Test help command
 4. ✅ Check cyvcf2 availability
-5. ✅ Check Ray availability
+5. ✅ Check installation
 6. ✅ Check Numba availability
 7. ✅ Check samtools
 8. ✅ Build test image
@@ -232,7 +232,7 @@ bash scripts/test_docker.sh
 
 | Image | Size | Purpose | Includes |
 |-------|------|---------|----------|
-| **Production** | ~800 MB | Runtime | Core + cyvcf2 + Ray |
+| **Production** | ~750 MB | Runtime | Core + cyvcf2 |
 | **Test** | ~1.2 GB | Testing | Production + dev tools |
 | **Builder** | ~1.5 GB | Build only | All build dependencies |
 
@@ -267,12 +267,12 @@ docker run --rm -v /data:/data gbcms:latest count run ...
 ### 4. Cluster Computing
 
 ```bash
-# With Ray cluster
+# Multi-threading configuration
 docker run --rm \
-    -e RAY_ADDRESS=ray://cluster:10001 \
+    -e THREADS=16 \
     -v /data:/data \
     gbcms:latest \
-    count run --backend ray --use-ray ...
+    count run --backend joblib --thread 16 ...
 ```
 
 ---
@@ -316,7 +316,7 @@ make docker-clean        # Remove Docker images
 - [x] Multi-stage build
 - [x] System dependencies installed
 - [x] cyvcf2 support (libhts)
-- [x] Ray support
+- [x] Multi-threading support
 - [x] Numba included
 - [x] samtools included
 - [x] Installation verified
@@ -353,7 +353,7 @@ make docker-clean        # Remove Docker images
 
 1. **Dockerfile**:
    - Added libhts-dev/libhts3 for cyvcf2
-   - Changed to install `.[all]` (includes cyvcf2 + Ray)
+   - Changed to install `.[all]` (includes cyvcf2)
    - Added installation verification
    - Added proper labels
 
@@ -369,7 +369,7 @@ make docker-clean        # Remove Docker images
 
 ### Features
 
-✅ **Full dependency support** - cyvcf2, Ray, Numba  
+✅ **Full dependency support** - cyvcf2, Numba
 ✅ **Optimized build** - Multi-stage for smaller image  
 ✅ **Verified installation** - Checked during build  
 ✅ **Well documented** - Complete guide with examples  
