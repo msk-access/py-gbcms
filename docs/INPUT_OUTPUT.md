@@ -161,45 +161,59 @@ gbcms count run --output counts.vcf ...
 - ✅ GATK tools
 - ✅ VCF parsing libraries
 
-### MAF Format
+### MAF vs Fillout Format Comparison
+
+| **Aspect** | **MAF Format** | **Fillout Format** |
+|------------|----------------|-------------------|
+| **Best For** | Tumor-normal studies | Multi-sample cohorts |
+| **Structure** | Tumor-Normal pairs | All samples as columns |
+| **Layout** | Long format (t_*, n_*) | Wide format (sample:DP) |
+| **Compatibility** | TCGA standard | gbcms-specific |
+| **Use Case** | \`--omaf\` flag | Default with MAF input |
+
+#### When to Use MAF Format
+- ✅ **Tumor-Normal Studies**: Matched tumor-normal sample pairs
+- ✅ **TCGA Integration**: Compatible with TCGA tools and standards
+- ✅ **Standard Workflows**: Traditional cancer genomics analysis
+
+#### When to Use Fillout Format
+- ✅ **Cohort Studies**: Multiple samples analyzed together
+- ✅ **Population Genomics**: Large-scale sample collections
+- ✅ **Research Pipelines**: Complex multi-sample analysis workflows
+
+### MAF Format (Tumor-Normal Structure)
 
 **Extension**: `.maf`
 
-**Columns**: All original MAF columns plus count columns
+**Structure**: Standard TCGA-compatible MAF with tumor-normal columns
+
+**Example Output**:
+```tsv
+Hugo_Symbol  Chromosome  Start_Position  t_depth  t_ref_count  t_alt_count  n_depth  n_ref_count  n_alt_count
+TP53        chr17       7577120        150      75           75           120      110          10
+```
 
 **Usage**:
 ```bash
-gbcms count run --maf variants.maf --output counts.maf --omaf
+gbcms count run --fasta ref.fa --bam tumor.bam --maf variants.maf --omaf --output results.maf
 ```
 
-**Count columns added**:
-- `{sample}_DP`, `{sample}_RD`, `{sample}_AD`
-- `{sample}_DPP`, `{sample}_RDP`, `{sample}_ADP` (if `--positive-count`)
-- `{sample}_DPN`, `{sample}_RDN`, `{sample}_ADN` (if `--negative-count`)
-- `{sample}_DPF`, `{sample}_RDF`, `{sample}_ADF` (if `--fragment-count`)
-
-**Strand bias columns added**:
-- `{sample}_strand_bias_pval`: Strand bias p-value
-- `{sample}_strand_bias_or`: Strand bias odds ratio
-- `{sample}_strand_bias_dir`: Strand bias direction
-- `{sample}_fragment_strand_bias_*`: Fragment strand bias (if fragment counting enabled)
-
-### Fillout Format
+### Fillout Format (Multi-Sample Structure)
 
 **Extension**: `.txt` or `.maf`
 
-**Description**: Extended MAF format with counts for ALL samples
+**Structure**: Extended MAF with all samples represented as columns
+
+**Example Output**:
+```tsv
+Hugo_Symbol  sample1_DP  sample1_RD  sample1_AD  sample2_DP  sample2_RD  sample2_AD
+TP53        150         75          75          200         180         20
+```
 
 **Usage**:
 ```bash
-gbcms count run \
-    --maf variants.maf \
-    --bam-fof all_samples.txt \
-    --output fillout.txt \
-    --omaf
+gbcms count run --fasta ref.fa --bam sample_*.bam --maf variants.maf --output results.fillout
 ```
-
-**Use case**: Genotyping all samples at variant positions
 
 ---
 

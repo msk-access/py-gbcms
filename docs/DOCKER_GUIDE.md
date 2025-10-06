@@ -37,7 +37,7 @@ docker run --rm \
 ### Features
 
 ✅ **Multi-stage build** - Smaller final image  
-✅ **All dependencies** - Includes cyvcf2 and Ray  
+✅ **All dependencies** - Includes cyvcf2 for fast VCF parsing  
 ✅ **Optimized** - Only runtime dependencies in final image  
 ✅ **Verified** - Installation checked during build  
 
@@ -51,7 +51,7 @@ docker run --rm \
 **Python packages**:
 - gbcms with `[all]` extras
 - cyvcf2 (fast VCF parsing)
-- Ray (distributed computing)
+
 - Numba (JIT compilation)
 - All core dependencies
 
@@ -219,7 +219,7 @@ For running tests in a containerized environment.
 ### Features
 
 ✅ **Dev dependencies** - pytest, coverage, linters  
-✅ **All features** - cyvcf2, Ray, Numba  
+✅ **All features** - cyvcf2, Numba  
 ✅ **Test fixtures** - Includes test data  
 
 ### Build and Run Tests
@@ -332,10 +332,10 @@ docker run --rm \
 ```bash
 docker run --rm \
     -e NUMBA_NUM_THREADS=4 \
-    -e RAY_ADDRESS=ray://cluster:10001 \
+    -e THREADS=16 \
     -v $(pwd)/data:/data \
     gbcms:latest \
-    count run ...
+    count run --thread 16 --backend joblib ...
 ```
 
 ### Using .env File
@@ -344,7 +344,7 @@ docker run --rm \
 # Create .env file
 cat > .env << EOF
 NUMBA_NUM_THREADS=8
-RAY_ADDRESS=auto
+THREADS=16
 EOF
 
 # Use with docker run
@@ -556,7 +556,7 @@ docker push ghcr.io/msk-access/gbcms:2.0.0
 ### Dockerfile Features
 
 ✅ **Multi-stage build** - Optimized size  
-✅ **All dependencies** - cyvcf2, Ray, Numba  
+✅ **All dependencies** - cyvcf2, Numba  
 ✅ **System tools** - samtools included  
 ✅ **Verified** - Installation checked  
 ✅ **Documented** - Clear labels  

@@ -41,6 +41,23 @@ uv pip install "gbcms[all]"
 uv pip install gbcms
 ```
 
+
+## Asymmetric Optimization Strategy
+
+gbcms uses cyvcf2 strategically for maximum benefit:
+
+### VCF Reading (Input)
+- **Uses cyvcf2**: 10-100× faster parsing
+- **Critical Path**: VCF loading is performance bottleneck
+- **High Impact**: Major speedup for large files
+
+### VCF Writing (Output)
+- **Uses Pure Python**: Optimal for custom formatting
+- **Not Bottleneck**: Writing is fast with standard I/O
+- **Full Control**: Complete flexibility for gbcms-specific fields
+
+**Result**: Maximum performance where it matters most!
+
 ## How It Works
 
 ### Automatic Detection
