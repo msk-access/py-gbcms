@@ -105,8 +105,8 @@ class OutputOptions(BaseModel):
 
     output_file: Path = Field(..., description="Output file path")
     output_maf: bool = Field(False, description="Output in MAF format")
-    output_forward_count: bool = Field(True, description="Output forward strand counts")
-    output_reverse_count: bool = Field(False, description="Output reverse strand counts")
+    output_strand_count: bool = Field(True, description="Output strand-specific counts")
+    
     output_fragment_count: bool = Field(False, description="Output fragment counts")
     fragment_fractional_weight: bool = Field(
         False, description="Use fractional weights for fragments"

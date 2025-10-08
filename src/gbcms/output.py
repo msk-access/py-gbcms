@@ -183,10 +183,10 @@ class OutputFormatter:
                 # Build FORMAT field
                 format_parts = ["DP", "RD", "AD", "VAF"]
 
-                if self.config.output_forward_count:
+                if self.config.output_strand_count:
                     format_parts.extend(["DP_FORWARD", "RD_FORWARD", "AD_FORWARD"])
 
-                if self.config.output_reverse_count:
+                if self.config.output_strand_count:
                     format_parts.extend(["DP_REVERSE", "RD_REVERSE", "AD_REVERSE"])
 
                 if self.config.output_fragment_count:
@@ -232,17 +232,14 @@ class OutputFormatter:
 
                     sample_data = [str(dp), str(rd), str(ad), f"{vaf:.6f}"]
 
-                    if self.config.output_forward_count:
+                    if self.config.output_strand_count:
                         dp_forward = int(variant.get_count(sample, CountType.DP_FORWARD))
                         rd_forward = int(variant.get_count(sample, CountType.RD_FORWARD))
                         ad_forward = int(variant.get_count(sample, CountType.AD_FORWARD))
-                        sample_data.extend([str(dp_forward), str(rd_forward), str(ad_forward)])
-
-                    if self.config.output_reverse_count:
                         dp_reverse = int(variant.get_count(sample, CountType.DP_REVERSE))
                         rd_reverse = int(variant.get_count(sample, CountType.RD_REVERSE))
                         ad_reverse = int(variant.get_count(sample, CountType.AD_REVERSE))
-                        sample_data.extend([str(dp_reverse), str(rd_reverse), str(ad_reverse)])
+                        sample_data.extend([str(dp_forward), str(rd_forward), str(ad_forward), str(dp_reverse), str(rd_reverse), str(ad_reverse)])
 
                     if self.config.output_fragment_count:
                         dpf = int(variant.get_count(sample, CountType.DPF))
@@ -446,7 +443,7 @@ class OutputFormatter:
                     "n_alt_count",
                 ]
 
-                if self.config.output_forward_count:
+                if self.config.output_strand_count:
                     count_cols.extend(
                         [
                             "t_depth_forward",
@@ -548,7 +545,7 @@ class OutputFormatter:
                     ]
                 )
 
-                if self.config.output_forward_count:
+                if self.config.output_strand_count:
                     t_dp_forward = int(
                         variant.get_count(variant.tumor_sample, CountType.DP_FORWARD)
                     )
@@ -571,7 +568,7 @@ class OutputFormatter:
                         [str(t_dp_forward), str(t_rd_forward), str(t_ad_forward), str(n_dp_forward), str(n_rd_forward), str(n_ad_forward)]
                     )
 
-                if self.config.output_reverse_count:
+                if self.config.output_strand_count:
                     t_dp_reverse = int(
                         variant.get_count(variant.tumor_sample, CountType.DP_REVERSE)
                     )
@@ -715,11 +712,11 @@ class OutputFormatter:
                 header_cols.extend(
                     [f"{sample}:DP", f"{sample}:RD", f"{sample}:AD", f"{sample}:VAF"]
                 )
-                if self.config.output_forward_count:
+                if self.config.output_strand_count:
                     header_cols.extend(
                         [f"{sample}:DP_FORWARD", f"{sample}:RD_FORWARD", f"{sample}:AD_FORWARD"]
                     )
-                if self.config.output_reverse_count:
+                if self.config.output_strand_count:
                     header_cols.extend(
                         [f"{sample}:DP_REVERSE", f"{sample}:RD_REVERSE", f"{sample}:AD_REVERSE"]
                     )
@@ -771,13 +768,13 @@ class OutputFormatter:
 
                     row.extend([str(dp), str(rd), str(ad), f"{vaf:.6f}"])
 
-                    if self.config.output_forward_count:
+                    if self.config.output_strand_count:
                         dp_forward = int(variant.get_count(sample, CountType.DP_FORWARD))
                         rd_forward = int(variant.get_count(sample, CountType.RD_FORWARD))
                         ad_forward = int(variant.get_count(sample, CountType.AD_FORWARD))
                         row.extend([str(dp_forward), str(rd_forward), str(ad_forward)])
 
-                    if self.config.output_reverse_count:
+                    if self.config.output_strand_count:
                         dp_reverse = int(variant.get_count(sample, CountType.DP_REVERSE))
                         rd_reverse = int(variant.get_count(sample, CountType.RD_REVERSE))
                         ad_reverse = int(variant.get_count(sample, CountType.AD_REVERSE))

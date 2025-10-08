@@ -39,8 +39,7 @@ class Config:
     filter_qc_failed: bool = False
     filter_indel: bool = False
     filter_non_primary: bool = False
-    output_forward_count: bool = True
-    output_reverse_count: bool = False
+    output_strand_count: bool = True
     output_fragment_count: bool = False
     fragment_fractional_weight: bool = False
     max_block_size: int = 10000
