@@ -28,12 +28,11 @@ which provides 50-100x speedup through JIT compilation.
 """
 
 import logging
-from collections import defaultdict
 
 import numpy as np
 import pysam
 
-from .config import Config, CountType
+from .config import CountType
 from .variant import VariantEntry
 
 logger = logging.getLogger(__name__)
@@ -62,19 +61,9 @@ class BaseCounter:
         warning_counts: Track warnings to avoid spam
     """
 
-    def __init__(self, config: Config):
+    def _should_filter_alignment(self, aln: pysam.AlignedSegment) -> bool:
         """
-        Initialize base counter.
-
-        Args:
-            config: Configuration object with quality filters and thresholds
-        """
-        self.config = config
-        self.warning_counts: dict[str, int] = defaultdict(int)
-
-    def filter_alignment(self, aln: pysam.AlignedSegment) -> bool:
-        """
-        Check if alignment should be filtered.
+        Check if alignment should be filtered based on configuration.
 
         Args:
             aln: BAM alignment
@@ -96,6 +85,16 @@ class BaseCounter:
             return True
         if self.config.filter_indel and self._has_indel(aln):
             return True
+        return False
+
+    @staticmethod
+    def _has_indel(aln: pysam.AlignedSegment) -> bool:
+        """Check if alignment has indels."""
+        if aln.cigartuples is None:
+            return False
+        for op, _length in aln.cigartuples:
+            if op in (1, 2):  # Insertion or deletion
+                return True
         return False
 
     @staticmethod
@@ -165,6 +164,9 @@ class BaseCounter:
         adf_map: dict[str, dict[int, int]] = {}
 
         for aln in alignments:
+            if self._should_filter_alignment(aln):
+                continue
+
             # Check if alignment overlaps variant position
             if (aln.reference_start is not None and aln.reference_start > variant.pos) or (
                 aln.reference_end is not None and aln.reference_end <= variant.pos
@@ -296,6 +298,9 @@ class BaseCounter:
         adf_map: dict[str, dict[int, int]] = {}
 
         for aln in alignments:
+            if self._should_filter_alignment(aln):
+                continue
+
             # Check if alignment fully covers the DNP
             if (aln.reference_start is not None and aln.reference_start > variant.pos) or (
                 aln.reference_end is not None
@@ -400,6 +405,9 @@ class BaseCounter:
         adf_map: dict[str, dict[int, int]] = {}
 
         for aln in alignments:
+            if self._should_filter_alignment(aln):
+                continue
+
             # Check if alignment overlaps the indel region
             if (aln.reference_start is not None and aln.reference_start > variant.pos + 1) or (
                 aln.reference_end is not None and aln.reference_end <= variant.pos
@@ -556,7 +564,9 @@ class BaseCounter:
         adf_map: dict[str, dict[int, int]] = {}
 
         for aln in alignments:
-            if self.filter_alignment(aln):
+            if self._should_filter_alignment(aln):
+                continue
+
                 continue
 
             # Check if alignment overlaps variant region
@@ -756,6 +766,9 @@ class BaseCounter:
             is_reverse_flags = []
 
             for aln in alignments:
+                if self._should_filter_alignment(aln):
+                    continue
+
                 # Find the base at variant position
                 for read_idx, ref_idx in aln.get_aligned_pairs(matches_only=False):
                     if ref_idx == variant.pos:
@@ -852,6 +865,9 @@ class BaseCounter:
 
         # Group by fragment and track ref/alt
         for aln in alignments:
+            if self._should_filter_alignment(aln):
+                continue
+
             if aln.query_name is None:
                 continue
 
