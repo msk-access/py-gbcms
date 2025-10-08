@@ -47,8 +47,9 @@ WORKDIR /data
 ENTRYPOINT ["gbcms"]
 CMD ["--help"]
 
-LABEL maintainer="MSK-ACCESS <access@mskcc.org>"
-LABEL description="Python implementation of GetBaseCountsMultiSample (gbcms) for calculating base counts in BAM files"
+LABEL org.opencontainers.image.title="py-gbcms"
+LABEL org.opencontainers.image.maintainer="MSK-ACCESS <shahr2@mskcc.org>"
+LABEL org.opencontainers.image.description="Python implementation of GetBaseCountsMultiSample (gbcms) for calculating base counts in BAM files"
 LABEL org.opencontainers.image.source="https://github.com/msk-access/py-gbcms"
 LABEL org.opencontainers.image.documentation="https://github.com/msk-access/py-gbcms/blob/main/README.md"
 LABEL org.opencontainers.image.licenses="AGPL-3.0"
