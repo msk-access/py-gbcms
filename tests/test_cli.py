@@ -1,6 +1,5 @@
 """Tests for CLI module."""
 
-import pytest
 from typer.testing import CliRunner
 
 from gbcms.cli import app
@@ -14,6 +13,7 @@ def test_cli_version():
     assert result.exit_code == 0
     assert "py-gbcms" in result.stdout
     assert "2.0.0" in result.stdout  # Version number should be in output
+
 
 def test_cli_help():
     """Test help command."""

@@ -2,7 +2,7 @@
 
 ## ✅ Docker Configuration Complete
 
-All Docker files have been reviewed, updated, and optimized for GetBaseCounts with full dependency support.
+All Docker files have been reviewed, updated, and optimized for gbcms with full dependency support.
 
 ---
 
@@ -20,14 +20,14 @@ All Docker files have been reviewed, updated, and optimized for GetBaseCounts wi
 - ✅ All system dependencies (samtools, libhts, etc.)
 - ✅ Full package installation with `[all]` extras
 - ✅ cyvcf2 for fast VCF parsing (100x faster)
-- ✅ Ray for distributed computing
+- ✅ joblib for multi-threading
 - ✅ Numba for JIT compilation (50-100x faster)
 - ✅ Installation verification during build
 - ✅ Proper labels and metadata
 
 **Build**:
 ```bash
-docker build -t getbasecounts:latest .
+docker build -t gbcms:latest .
 ```
 
 **Size**: ~800 MB (final image)
@@ -40,15 +40,15 @@ docker build -t getbasecounts:latest .
 
 **Features**:
 - ✅ Includes dev dependencies (pytest, coverage)
-- ✅ All optional features (cyvcf2, Ray)
+- ✅ All optional features (cyvcf2)
 - ✅ Test fixtures included
 - ✅ Installation verification
 - ✅ Runs tests by default
 
 **Build & Run**:
 ```bash
-docker build -f Dockerfile.test -t getbasecounts:test .
-docker run --rm getbasecounts:test
+docker build -f Dockerfile.test -t gbcms:test .
+docker run --rm gbcms:test
 ```
 
 ### 3. Docker Compose ✅
@@ -56,12 +56,12 @@ docker run --rm getbasecounts:test
 **File**: `docker-compose.yml`
 
 **Services**:
-- `getbasecounts` - Production service
+- `gbcms` - Production service
 - `test` - Testing service
 
 **Usage**:
 ```bash
-docker-compose run --rm getbasecounts count run ...
+docker-compose run --rm gbcms count run ...
 docker-compose run --rm test
 ```
 
@@ -99,7 +99,7 @@ Only what's needed to run the application:
 | libssl3 | SSL/TLS (runtime) | pysam, cyvcf2 |
 | **libhts3** | HTSlib (runtime) | **cyvcf2** ⭐ |
 | **samtools** | BAM/FASTA indexing | **User workflows** ⭐ |
-| procps | Process management | Ray, monitoring |
+| procps | Process management | Monitoring |
 
 ### Why These Dependencies?
 
@@ -137,7 +137,7 @@ Only what's needed to run the application:
 
 ### Optional (Included with `[all]`)
 - **cyvcf2>=0.30.0** - Fast VCF parsing
-- **ray>=2.7.0** - Distributed computing
+
 
 ### Dev (Test Image Only)
 - pytest
@@ -155,7 +155,7 @@ Only what's needed to run the application:
 ### Pull Image (When Published)
 
 ```bash
-docker pull mskaccess/getbasecounts:latest
+docker pull mskaccess/gbcms:latest
 ```
 
 ### Build Locally
@@ -175,15 +175,15 @@ make docker-test-full
 
 ```bash
 # Show version
-docker run --rm getbasecounts:latest version
+docker run --rm gbcms:latest version
 
 # Show help
-docker run --rm getbasecounts:latest --help
+docker run --rm gbcms:latest --help
 
 # Process variants
 docker run --rm \
     -v $(pwd)/data:/data \
-    getbasecounts:latest \
+    gbcms:latest \
     count run \
     --fasta /data/reference.fa \
     --bam sample1:/data/sample1.bam \
@@ -201,7 +201,7 @@ The Dockerfile includes verification:
 
 ```dockerfile
 # Verify installation
-RUN getbasecounts version
+RUN gbcms version
 ```
 
 This ensures the package is correctly installed before the image is finalized.
@@ -219,7 +219,7 @@ bash scripts/test_docker.sh
 2. ✅ Verify installation
 3. ✅ Test help command
 4. ✅ Check cyvcf2 availability
-5. ✅ Check Ray availability
+5. ✅ Check installation
 6. ✅ Check Numba availability
 7. ✅ Check samtools
 8. ✅ Build test image
@@ -232,7 +232,7 @@ bash scripts/test_docker.sh
 
 | Image | Size | Purpose | Includes |
 |-------|------|---------|----------|
-| **Production** | ~800 MB | Runtime | Core + cyvcf2 + Ray |
+| **Production** | ~750 MB | Runtime | Core + cyvcf2 |
 | **Test** | ~1.2 GB | Testing | Production + dev tools |
 | **Builder** | ~1.5 GB | Build only | All build dependencies |
 
@@ -243,7 +243,7 @@ bash scripts/test_docker.sh
 ### 1. Local Development
 
 ```bash
-docker-compose run --rm getbasecounts count run ...
+docker-compose run --rm gbcms count run ...
 ```
 
 ### 2. CI/CD Pipeline
@@ -260,19 +260,19 @@ docker-compose run --rm getbasecounts count run ...
 
 ```bash
 # On server
-docker pull mskaccess/getbasecounts:latest
-docker run --rm -v /data:/data getbasecounts:latest count run ...
+docker pull mskaccess/gbcms:latest
+docker run --rm -v /data:/data gbcms:latest count run ...
 ```
 
 ### 4. Cluster Computing
 
 ```bash
-# With Ray cluster
+# Multi-threading configuration
 docker run --rm \
-    -e RAY_ADDRESS=ray://cluster:10001 \
+    -e THREADS=16 \
     -v /data:/data \
-    getbasecounts:latest \
-    count run --backend ray --use-ray ...
+    gbcms:latest \
+    count run --backend joblib --thread 16 ...
 ```
 
 ---
@@ -316,7 +316,7 @@ make docker-clean        # Remove Docker images
 - [x] Multi-stage build
 - [x] System dependencies installed
 - [x] cyvcf2 support (libhts)
-- [x] Ray support
+- [x] Multi-threading support
 - [x] Numba included
 - [x] samtools included
 - [x] Installation verified
@@ -353,7 +353,7 @@ make docker-clean        # Remove Docker images
 
 1. **Dockerfile**:
    - Added libhts-dev/libhts3 for cyvcf2
-   - Changed to install `.[all]` (includes cyvcf2 + Ray)
+   - Changed to install `.[all]` (includes cyvcf2)
    - Added installation verification
    - Added proper labels
 
@@ -369,7 +369,7 @@ make docker-clean        # Remove Docker images
 
 ### Features
 
-✅ **Full dependency support** - cyvcf2, Ray, Numba  
+✅ **Full dependency support** - cyvcf2, Numba
 ✅ **Optimized build** - Multi-stage for smaller image  
 ✅ **Verified installation** - Checked during build  
 ✅ **Well documented** - Complete guide with examples  
@@ -384,8 +384,8 @@ make docker-build
 make docker-test-full
 
 # Use
-docker run --rm getbasecounts:latest version
-docker run --rm -v $(pwd)/data:/data getbasecounts:latest count run ...
+docker run --rm gbcms:latest version
+docker run --rm -v $(pwd)/data:/data gbcms:latest count run ...
 
 # Clean up
 make docker-clean

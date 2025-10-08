@@ -1,22 +1,23 @@
 """Tests for configuration module."""
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from gbcms.config import Config, CountType
 
 
 def test_count_type_enum():
     """Test CountType enum values."""
-    assert CountType.DP == 0
-    assert CountType.RD == 1
-    assert CountType.AD == 2
-    assert CountType.DPP == 3
-    assert CountType.RDP == 4
-    assert CountType.ADP == 5
-    assert CountType.DPF == 6
-    assert CountType.RDF == 7
-    assert CountType.ADF == 8
+    assert CountType.DP.value == 0
+    assert CountType.RD.value == 1
+    assert CountType.AD.value == 2
+    assert CountType.DPP.value == 3
+    assert CountType.RDP.value == 4
+    assert CountType.ADP.value == 5
+    assert CountType.DPF.value == 6
+    assert CountType.RDF.value == 7
+    assert CountType.ADF.value == 8
     assert len(CountType) == 9
 
 
@@ -34,8 +35,8 @@ def test_config_validation_missing_fasta(temp_dir: Path, sample_bam: Path, sampl
 
 def test_config_validation_missing_fai(temp_dir: Path, sample_bam: Path, sample_vcf: Path):
     """Test config validation with missing FASTA index."""
-    # Create FASTA without index
-    fasta_file = temp_dir / "reference.fa"
+    # Create FASTA without index (use different name to avoid fixture conflicts)
+    fasta_file = temp_dir / "test_reference.fa"
     with open(fasta_file, "w") as f:
         f.write(">chr1\nATCG\n")
 
@@ -92,7 +93,7 @@ def test_config_validation_mutually_exclusive(
         )
 
 
-def test_config_validation_no_input_format(
+def test_config_validation_missing_input_format(
     temp_dir: Path, sample_fasta: Path, sample_bam: Path, sample_vcf: Path
 ):
     """Test config validation without input format specified."""

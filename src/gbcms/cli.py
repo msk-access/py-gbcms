@@ -1,15 +1,11 @@
-"""Command-line interface for GetBaseCounts using Typer and Rich."""
-
-import logging
-import sys
 from pathlib import Path
-from typing import Annotated, Dict, List, Optional, Tuple
+from typing import Annotated
+
+import typer
 from rich.console import Console
-from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.table import Table
-from typing_extensions import Annotated
-import typer
+
 from . import __version__
 from .config import Config
 from .processor import VariantProcessor
@@ -41,9 +37,9 @@ def validate_input_files(
     input_is_maf: bool,
     input_is_vcf: bool,
     rich_output: bool = False,
-) -> tuple[bool, Optional[Table]]:
+) -> tuple[bool, Table | None]:
     """
-    Validate input files for GetBaseCounts processing.
+    Validate input files for gbcms processing.
 
     Args:
         fasta: Path to reference FASTA file
@@ -69,7 +65,7 @@ def validate_input_files(
 
         console.print(
             Panel.fit(
-                "[bold cyan]File Validation[/bold cyan]\n" "Checking input files for GetBaseCounts",
+                "[bold cyan]File Validation[/bold cyan]\n" "Checking input files for gbcms",
                 border_style="cyan",
             )
         )
@@ -84,7 +80,7 @@ def validate_input_files(
         if rich_output:
             results.add_row("FASTA", str(fasta), "❌ FAIL", "File not found")
         else:
-            console.print(f"[red]Error:[/red] FASTA file not found: {fasta}", file=sys.stderr)
+            console.print(f"[red]Error:[/red] FASTA file not found: {fasta}")
         all_valid = False
     else:
         fai_file = Path(str(fasta) + ".fai")
@@ -92,13 +88,8 @@ def validate_input_files(
             if rich_output:
                 results.add_row("FASTA", str(fasta), "⚠️  WARN", "Index (.fai) not found")
             else:
-                console.print(
-                    f"[red]Error:[/red] FASTA index (.fai) not found: {fai_file}", file=sys.stderr
-                )
-                console.print(
-                    "Please index your FASTA file with: samtools faidx reference.fa",
-                    file=sys.stderr,
-                )
+                console.print(f"[red]Error:[/red] FASTA index (.fai) not found: {fai_file}")
+                console.print("Please index your FASTA file with: samtools faidx reference.fa")
             all_valid = False
         else:
             if rich_output:
@@ -111,7 +102,7 @@ def validate_input_files(
             if rich_output:
                 results.add_row("BAM", f"{sample_name}:{bam_path}", "❌ FAIL", "File not found")
             else:
-                console.print(f"[red]Error:[/red] BAM file not found: {bam_file}", file=sys.stderr)
+                console.print(f"[red]Error:[/red] BAM file not found: {bam_file}")
             all_valid = False
         else:
             # Check for BAM index files
@@ -124,14 +115,9 @@ def validate_input_files(
                         "BAM", f"{sample_name}:{bam_path}", "⚠️  WARN", "Index (.bai) not found"
                     )
                 else:
-                    console.print(
-                        f"[red]Error:[/red] BAM index not found for: {bam_file}", file=sys.stderr
-                    )
-                    console.print(f"Expected: {bai_file1} or {bai_file2}", file=sys.stderr)
-                    console.print(
-                        "Please index your BAM file with: samtools index sample.bam",
-                        file=sys.stderr,
-                    )
+                    console.print(f"[red]Error:[/red] BAM index not found for: {bam_file}")
+                    console.print(f"Expected: {bai_file1} or {bai_file2}")
+                    console.print("Please index your BAM file with: samtools index sample.bam")
                 all_valid = False
             else:
                 if rich_output:
@@ -148,24 +134,11 @@ def validate_input_files(
                     "VCF" if input_is_vcf else "MAF", str(vcf), "❌ FAIL", "File not found"
                 )
             else:
-                console.print(f"[red]Error:[/red] Variant file not found: {vcf}", file=sys.stderr)
+                console.print(f"[red]Error:[/red] Variant file not found: {vcf}")
             all_valid = False
         else:
             if rich_output:
                 results.add_row("VCF" if input_is_vcf else "MAF", str(vcf), "✅ PASS", "File found")
-
-    if rich_output:
-        console.print(results)
-        console.print()
-
-    if not all_valid and not rich_output:
-        console.print()
-        console.print(
-            Panel.fit(
-                "[bold red]✗[/bold red] Input validation failed. Please fix the errors above.",
-                border_style="red",
-            )
-        )
 
     if rich_output:
         return all_valid, results
@@ -219,7 +192,7 @@ def load_bam_fof(bam_fof_path: str) -> dict[str, str]:
         Dictionary mapping sample names to BAM paths
     """
     bam_files = {}
-    with open(bam_fof_path, "r") as f:
+    with open(bam_fof_path) as f:
         for line_num, line in enumerate(f, 1):
             line = line.strip()
             if not line or line.startswith("#"):
@@ -272,7 +245,7 @@ def count_run(
     ],
     # BAM input options
     bam: Annotated[
-        Optional[List[str]],
+        list[str] | None,
         typer.Option(
             "--bam",
             "-b",
@@ -281,7 +254,7 @@ def count_run(
         ),
     ] = None,
     bam_fof: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--bam-fof",
             help="File containing sample names and BAM paths (tab-separated)",
@@ -294,7 +267,7 @@ def count_run(
     ] = None,
     # Variant input options (mutually exclusive)
     maf: Annotated[
-        Optional[List[Path]],
+        list[Path] | None,
         typer.Option(
             "--maf",
             help="Input variant file in [green]MAF format[/green] (can be specified multiple times)",
@@ -306,7 +279,7 @@ def count_run(
         ),
     ] = None,
     vcf: Annotated[
-        Optional[List[Path]],
+        list[Path] | None,
         typer.Option(
             "--vcf",
             help="Input variant file in [green]VCF format[/green] (can be specified multiple times)",
@@ -428,6 +401,14 @@ def count_run(
             rich_help_panel="⚡ Performance",
         ),
     ] = 1,
+    backend: Annotated[
+        str,
+        typer.Option(
+            "--backend",
+            help="Parallelization backend: 'joblib' (default), 'loky', 'threading', or 'multiprocessing'",
+            rich_help_panel="⚡ Performance",
+        ),
+    ] = "joblib",
     max_block_size: Annotated[
         int,
         typer.Option(
@@ -564,6 +545,7 @@ def count_run(
     config_table.add_row("Input format", "MAF" if input_is_maf else "VCF")
     config_table.add_row("Output file", str(output))
     config_table.add_row("Threads", str(thread))
+    config_table.add_row("Backend", backend)
     config_table.add_row("Mapping quality threshold", str(maq))
     config_table.add_row("Base quality threshold", str(baq))
 
@@ -571,7 +553,7 @@ def count_run(
     console.print()
 
     try:
-        # Create configuration
+        # Create configuration using legacy Config format (processor expects this)
         config = Config(
             fasta_file=str(fasta),
             bam_files=bam_files,
@@ -591,6 +573,7 @@ def count_run(
             max_block_size=max_block_size,
             max_block_dist=max_block_dist,
             num_threads=thread,
+            backend=backend,
             input_is_maf=input_is_maf,
             input_is_vcf=input_is_vcf,
             output_maf=omaf,
@@ -621,13 +604,13 @@ def count_run(
         )
         if verbose:
             console.print_exception()
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @validate_app.command(name="files", help="Validate input files")
 def validate_files(
     fasta: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--fasta",
             "-f",
@@ -636,7 +619,7 @@ def validate_files(
         ),
     ] = None,
     bam: Annotated[
-        Optional[List[str]],
+        list[str] | None,
         typer.Option(
             "--bam",
             "-b",
@@ -645,7 +628,7 @@ def validate_files(
         ),
     ] = None,
     vcf: Annotated[
-        Optional[List[Path]],
+        list[Path] | None,
         typer.Option(
             "--vcf",
             help="VCF files to validate",
@@ -653,7 +636,7 @@ def validate_files(
         ),
     ] = None,
     maf: Annotated[
-        Optional[List[Path]],
+        list[Path] | None,
         typer.Option(
             "--maf",
             help="MAF files to validate",
@@ -662,7 +645,7 @@ def validate_files(
     ] = None,
 ) -> None:
     """
-    Validate input files for GetBaseCounts.
+    Validate input files for gbcms.
 
     Checks:
     - File existence
@@ -673,7 +656,7 @@ def validate_files(
 
     console.print(
         Panel.fit(
-            "[bold cyan]File Validation[/bold cyan]\n" "Checking input files for GetBaseCounts",
+            "[bold cyan]File Validation[/bold cyan]\n" "Checking input files for gbcms",
             border_style="cyan",
         )
     )
@@ -683,8 +666,6 @@ def validate_files(
     results.add_column("File Path", style="white")
     results.add_column("Status", style="white")
     results.add_column("Details", style="yellow")
-
-    all_valid = True
 
     # Parse BAM files if provided
     bam_files = {}
@@ -731,10 +712,10 @@ def validate_files(
         raise typer.Exit(1)
 
 
-@app.command(name="info", help="Show information about GetBaseCounts")
+@app.command(name="info", help="Show information about gbcms")
 def show_info() -> None:
-    """Display information about GetBaseCounts capabilities."""
-    info_table = Table(title="GetBaseCounts Information", show_header=False, border_style="cyan")
+    """Display information about gbcms capabilities."""
+    info_table = Table(title="gbcms Information", show_header=False, border_style="cyan")
     info_table.add_column("Category", style="bold cyan")
     info_table.add_column("Details", style="white")
 
@@ -754,10 +735,10 @@ def show_info() -> None:
 
     console.print("[bold cyan]Example Usage:[/bold cyan]")
     console.print(
-        "  getbasecounts count run --fasta ref.fa --bam s1:s1.bam --vcf vars.vcf --output out.txt"
+        "  gbcms count run --fasta ref.fa --bam s1:s1.bam --vcf vars.vcf --output out.txt"
     )
-    console.print("  getbasecounts validate files --fasta ref.fa --bam s1:s1.bam")
-    console.print("  getbasecounts version")
+    console.print("  gbcms validate files --fasta ref.fa --bam s1:s1.bam")
+    console.print("  gbcms version")
 
 
 if __name__ == "__main__":

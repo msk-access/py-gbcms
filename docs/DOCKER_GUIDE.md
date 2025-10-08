@@ -1,10 +1,10 @@
 # Docker Guide
 
-Complete guide to using GetBaseCounts with Docker.
+Complete guide to using gbcms with Docker.
 
 ## Overview
 
-GetBaseCounts provides Docker images for:
+gbcms provides Docker images for:
 - **Production use** - Optimized runtime image
 - **Testing** - Image with dev dependencies
 - **Development** - Local development with docker-compose
@@ -14,7 +14,7 @@ GetBaseCounts provides Docker images for:
 ### Pull Pre-built Image
 
 ```bash
-docker pull mskaccess/getbasecounts:latest
+docker pull mskaccess/gbcms:latest
 ```
 
 ### Run with Docker
@@ -22,7 +22,7 @@ docker pull mskaccess/getbasecounts:latest
 ```bash
 docker run --rm \
     -v /path/to/data:/data \
-    mskaccess/getbasecounts:latest \
+    mskaccess/gbcms:latest \
     count run \
     --fasta /data/reference.fa \
     --bam sample1:/data/sample1.bam \
@@ -37,7 +37,7 @@ docker run --rm \
 ### Features
 
 ✅ **Multi-stage build** - Smaller final image  
-✅ **All dependencies** - Includes cyvcf2 and Ray  
+✅ **All dependencies** - Includes cyvcf2 for fast VCF parsing  
 ✅ **Optimized** - Only runtime dependencies in final image  
 ✅ **Verified** - Installation checked during build  
 
@@ -49,9 +49,9 @@ docker run --rm \
 - All required libraries
 
 **Python packages**:
-- GetBaseCounts with `[all]` extras
+- gbcms with `[all]` extras
 - cyvcf2 (fast VCF parsing)
-- Ray (distributed computing)
+
 - Numba (JIT compilation)
 - All core dependencies
 
@@ -59,13 +59,13 @@ docker run --rm \
 
 ```bash
 # Build production image
-docker build -t getbasecounts:latest .
+docker build -t gbcms:latest .
 
 # Build with specific tag
-docker build -t getbasecounts:2.0.0 .
+docker build -t gbcms:2.0.0 .
 
 # Build with no cache
-docker build --no-cache -t getbasecounts:latest .
+docker build --no-cache -t gbcms:latest .
 ```
 
 ### Image Size
@@ -82,7 +82,7 @@ docker build --no-cache -t getbasecounts:latest .
 ```bash
 docker run --rm \
     -v $(pwd)/data:/data \
-    getbasecounts:latest \
+    gbcms:latest \
     count run \
     --fasta /data/reference.fa \
     --bam sample1:/data/sample1.bam \
@@ -96,7 +96,7 @@ docker run --rm \
 ```bash
 docker run --rm \
     -v $(pwd)/data:/data \
-    getbasecounts:latest \
+    gbcms:latest \
     count run \
     --fasta /data/reference.fa \
     --bam sample1:/data/sample1.bam \
@@ -111,7 +111,7 @@ docker run --rm \
 ```bash
 docker run --rm \
     -v $(pwd)/data:/data \
-    getbasecounts:latest \
+    gbcms:latest \
     count run \
     --fasta /data/reference.fa \
     --bam-fof /data/bam_files.txt \
@@ -125,7 +125,7 @@ docker run --rm \
 ```bash
 docker run --rm \
     -v $(pwd)/data:/data \
-    getbasecounts:latest \
+    gbcms:latest \
     count run \
     --fasta /data/reference.fa \
     --bam-fof /data/bam_files.txt \
@@ -144,7 +144,7 @@ docker run --rm \
 ```bash
 docker run --rm \
     -v $(pwd)/data:/data \
-    getbasecounts:latest \
+    gbcms:latest \
     validate files \
     --fasta /data/reference.fa \
     --bam sample1:/data/sample1.bam \
@@ -154,13 +154,13 @@ docker run --rm \
 ### Example 6: Show Version
 
 ```bash
-docker run --rm getbasecounts:latest version
+docker run --rm gbcms:latest version
 ```
 
 ### Example 7: Show Help
 
 ```bash
-docker run --rm getbasecounts:latest --help
+docker run --rm gbcms:latest --help
 ```
 
 ---
@@ -171,7 +171,7 @@ docker run --rm getbasecounts:latest --help
 
 ```bash
 # Run production container
-docker-compose run --rm getbasecounts count run \
+docker-compose run --rm gbcms count run \
     --fasta /data/reference.fa \
     --bam sample1:/data/sample1.bam \
     --vcf /data/variants.vcf \
@@ -193,8 +193,8 @@ docker-compose build --no-cache
 version: '3.8'
 
 services:
-  getbasecounts:
-    image: mskaccess/getbasecounts:latest
+  gbcms:
+    image: mskaccess/gbcms:latest
     volumes:
       - ./data:/data
       - ./reference:/reference:ro
@@ -219,30 +219,30 @@ For running tests in a containerized environment.
 ### Features
 
 ✅ **Dev dependencies** - pytest, coverage, linters  
-✅ **All features** - cyvcf2, Ray, Numba  
+✅ **All features** - cyvcf2, Numba  
 ✅ **Test fixtures** - Includes test data  
 
 ### Build and Run Tests
 
 ```bash
 # Build test image
-docker build -f Dockerfile.test -t getbasecounts:test .
+docker build -f Dockerfile.test -t gbcms:test .
 
 # Run tests
-docker run --rm getbasecounts:test
+docker run --rm gbcms:test
 
 # Run specific tests
-docker run --rm getbasecounts:test pytest tests/test_counter.py -v
+docker run --rm gbcms:test pytest tests/test_counter.py -v
 
 # Run with coverage report
-docker run --rm getbasecounts:test \
-    pytest --cov=getbasecounts --cov-report=html
+docker run --rm gbcms:test \
+    pytest --cov=gbcms --cov-report=html
 
 # Get coverage report
 docker run --rm \
     -v $(pwd)/htmlcov:/app/htmlcov \
-    getbasecounts:test \
-    pytest --cov=getbasecounts --cov-report=html
+    gbcms:test \
+    pytest --cov=gbcms --cov-report=html
 ```
 
 ---
@@ -258,7 +258,7 @@ docker run --rm \
     -v $(pwd)/reference:/reference:ro \
     -v $(pwd)/bams:/bams:ro \
     -v $(pwd)/output:/output \
-    getbasecounts:latest \
+    gbcms:latest \
     count run \
     --fasta /reference/genome.fa \
     --bam sample1:/bams/sample1.bam \
@@ -274,7 +274,7 @@ docker run --rm \
     -v $(pwd)/bams:/bams:ro \
     -v $(pwd)/variants:/variants:ro \
     -v $(pwd)/output:/output \
-    getbasecounts:latest \
+    gbcms:latest \
     count run \
     --fasta /reference/genome.fa \
     --bam-fof /bams/bam_files.txt \
@@ -293,14 +293,14 @@ docker run --rm \
 docker run --rm \
     --cpus=4 \
     -v $(pwd)/data:/data \
-    getbasecounts:latest \
+    gbcms:latest \
     count run --thread 4 ...
 
 # CPU shares (relative weight)
 docker run --rm \
     --cpu-shares=512 \
     -v $(pwd)/data:/data \
-    getbasecounts:latest \
+    gbcms:latest \
     count run ...
 ```
 
@@ -311,7 +311,7 @@ docker run --rm \
 docker run --rm \
     --memory=8g \
     -v $(pwd)/data:/data \
-    getbasecounts:latest \
+    gbcms:latest \
     count run ...
 
 # Memory with swap
@@ -319,7 +319,7 @@ docker run --rm \
     --memory=8g \
     --memory-swap=12g \
     -v $(pwd)/data:/data \
-    getbasecounts:latest \
+    gbcms:latest \
     count run ...
 ```
 
@@ -332,10 +332,10 @@ docker run --rm \
 ```bash
 docker run --rm \
     -e NUMBA_NUM_THREADS=4 \
-    -e RAY_ADDRESS=ray://cluster:10001 \
+    -e THREADS=16 \
     -v $(pwd)/data:/data \
-    getbasecounts:latest \
-    count run ...
+    gbcms:latest \
+    count run --thread 16 --backend joblib ...
 ```
 
 ### Using .env File
@@ -344,14 +344,14 @@ docker run --rm \
 # Create .env file
 cat > .env << EOF
 NUMBA_NUM_THREADS=8
-RAY_ADDRESS=auto
+THREADS=16
 EOF
 
 # Use with docker run
 docker run --rm \
     --env-file .env \
     -v $(pwd)/data:/data \
-    getbasecounts:latest \
+    gbcms:latest \
     count run ...
 ```
 
@@ -369,7 +369,7 @@ docker run --rm \
 docker run --rm \
     --user $(id -u):$(id -g) \
     -v $(pwd)/data:/data \
-    getbasecounts:latest \
+    gbcms:latest \
     count run ...
 ```
 
@@ -383,7 +383,7 @@ docker run --rm \
 docker run --rm \
     --memory=16g \
     -v $(pwd)/data:/data \
-    getbasecounts:latest \
+    gbcms:latest \
     count run ...
 ```
 
@@ -406,7 +406,7 @@ docker run --rm \
 # List files in container
 docker run --rm \
     -v $(pwd)/data:/data \
-    getbasecounts:latest \
+    gbcms:latest \
     bash -c "ls -la /data"
 ```
 
@@ -417,7 +417,7 @@ docker run --rm \
 **Check**: Image includes cyvcf2
 
 ```bash
-docker run --rm getbasecounts:latest \
+docker run --rm gbcms:latest \
     python -c "import cyvcf2; print(cyvcf2.__version__)"
 ```
 
@@ -429,10 +429,10 @@ docker run --rm getbasecounts:latest \
 
 ```bash
 # Good ✅
-docker pull mskaccess/getbasecounts:2.0.0
+docker pull mskaccess/gbcms:2.0.0
 
 # Avoid ⚠️
-docker pull mskaccess/getbasecounts:latest
+docker pull mskaccess/gbcms:latest
 ```
 
 ### 2. Mount Data as Read-Only When Possible
@@ -493,15 +493,15 @@ jobs:
       - uses: actions/checkout@v2
       
       - name: Build Docker image
-        run: docker build -t getbasecounts:latest .
+        run: docker build -t gbcms:latest .
       
       - name: Test Docker image
-        run: docker run --rm getbasecounts:latest version
+        run: docker run --rm gbcms:latest version
       
       - name: Run tests
         run: |
-          docker build -f Dockerfile.test -t getbasecounts:test .
-          docker run --rm getbasecounts:test
+          docker build -f Dockerfile.test -t gbcms:test .
+          docker run --rm gbcms:test
 ```
 
 ### GitLab CI
@@ -510,14 +510,14 @@ jobs:
 docker-build:
   stage: build
   script:
-    - docker build -t getbasecounts:latest .
-    - docker run --rm getbasecounts:latest version
+    - docker build -t gbcms:latest .
+    - docker run --rm gbcms:latest version
   
 docker-test:
   stage: test
   script:
-    - docker build -f Dockerfile.test -t getbasecounts:test .
-    - docker run --rm getbasecounts:test
+    - docker build -f Dockerfile.test -t gbcms:test .
+    - docker run --rm gbcms:test
 ```
 
 ---
@@ -528,25 +528,25 @@ docker-test:
 
 ```bash
 # Tag image
-docker tag getbasecounts:latest mskaccess/getbasecounts:2.0.0
-docker tag getbasecounts:latest mskaccess/getbasecounts:latest
+docker tag gbcms:latest mskaccess/gbcms:2.0.0
+docker tag gbcms:latest mskaccess/gbcms:latest
 
 # Push to Docker Hub
-docker push mskaccess/getbasecounts:2.0.0
-docker push mskaccess/getbasecounts:latest
+docker push mskaccess/gbcms:2.0.0
+docker push mskaccess/gbcms:latest
 ```
 
 ### GitHub Container Registry
 
 ```bash
 # Tag for GHCR
-docker tag getbasecounts:latest ghcr.io/msk-access/getbasecounts:2.0.0
+docker tag gbcms:latest ghcr.io/msk-access/gbcms:2.0.0
 
 # Login to GHCR
 echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
 
 # Push
-docker push ghcr.io/msk-access/getbasecounts:2.0.0
+docker push ghcr.io/msk-access/gbcms:2.0.0
 ```
 
 ---
@@ -556,7 +556,7 @@ docker push ghcr.io/msk-access/getbasecounts:2.0.0
 ### Dockerfile Features
 
 ✅ **Multi-stage build** - Optimized size  
-✅ **All dependencies** - cyvcf2, Ray, Numba  
+✅ **All dependencies** - cyvcf2, Numba  
 ✅ **System tools** - samtools included  
 ✅ **Verified** - Installation checked  
 ✅ **Documented** - Clear labels  
@@ -565,17 +565,17 @@ docker push ghcr.io/msk-access/getbasecounts:2.0.0
 
 ```bash
 # Build
-docker build -t getbasecounts:latest .
+docker build -t gbcms:latest .
 
 # Run
-docker run --rm -v $(pwd)/data:/data getbasecounts:latest count run ...
+docker run --rm -v $(pwd)/data:/data gbcms:latest count run ...
 
 # Test
-docker build -f Dockerfile.test -t getbasecounts:test .
-docker run --rm getbasecounts:test
+docker build -f Dockerfile.test -t gbcms:test .
+docker run --rm gbcms:test
 
 # Compose
-docker-compose run --rm getbasecounts count run ...
+docker-compose run --rm gbcms count run ...
 ```
 
 ### Best Practices

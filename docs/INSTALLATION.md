@@ -33,20 +33,25 @@ pip install "py-gbcms[all]"
 ### From source
 
 ```bash
-git clone https://github.com/msk-access/getbasecounts.git
-cd getbasecounts
+git clone https://github.com/msk-access/gbcms.git
+cd gbcms
+
+# For production use
+uv pip install .
+
+# For development (includes scipy-stubs for type checking)
 uv pip install -e ".[dev]"
 ```
 
 ### Using Docker
 
 ```bash
-docker pull mskaccess/getbasecounts:latest
+docker pull mskaccess/gbcms:latest
 
 # Run the container
 docker run --rm \
     -v $(pwd)/data:/data \
-    mskaccess/getbasecounts:latest \
+    mskaccess/gbcms:latest \
     gbcms count run \
     --fasta /data/reference.fa \
     --bam sample1:/data/sample1.bam \
@@ -69,7 +74,7 @@ Expected output:
 ┃                                                                          ┃
 ┃                           py-gbcms                                      ┃
 ┃                        Version: 2.0.0                                   ┃
-┃          Python implementation of GetBaseCountsMultiSample (gbcms)     ┃
+┃          Python implementation of gbcms (gbcms)     ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
@@ -91,10 +96,13 @@ This checks:
 pytest
 
 # With coverage
-pytest --cov=getbasecounts
+pytest --cov=gbcms
 
 # End-to-end workflow tests
 make test-workflows
+
+# Type checking (requires scipy-stubs)
+mypy src/
 ```
 
 ## Complete Setup
@@ -108,7 +116,7 @@ make setup
 This will:
 1. Check Python version
 2. Install/verify uv
-3. Install py-gbcms with all dependencies
+3. Install py-gbcms with all dependencies (including scipy-stubs for type checking)
 4. Verify installation
 5. Check CLI
 6. Run unit tests

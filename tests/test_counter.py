@@ -1,7 +1,7 @@
 """Tests for counter module."""
 
-import pytest
 import pysam
+import pytest
 
 from gbcms.config import Config, CountType
 from gbcms.counter import BaseCounter

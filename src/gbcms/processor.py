@@ -2,10 +2,9 @@
 
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, List, Tuple
 
 import pysam
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
 
 from .config import Config
 from .counter import BaseCounter
@@ -64,7 +63,7 @@ class VariantProcessor:
         self.reference.close()
         logger.info("Finished processing")
 
-    def _load_all_variants(self, loader: VariantLoader) -> List[VariantEntry]:
+    def _load_all_variants(self, loader: VariantLoader) -> list[VariantEntry]:
         """Load all variants from input files."""
         all_variants = []
 
@@ -78,13 +77,13 @@ class VariantProcessor:
         logger.info(f"Total variants loaded: {len(all_variants)}")
         return all_variants
 
-    def _sort_and_index_variants(self, variants: List[VariantEntry]) -> List[VariantEntry]:
+    def _sort_and_index_variants(self, variants: list[VariantEntry]) -> list[VariantEntry]:
         """Sort variants and identify duplicates."""
         logger.info("Sorting variants")
         variants.sort()
 
         logger.info("Indexing variants")
-        duplicate_map: Dict[Tuple, VariantEntry] = {}
+        duplicate_map: dict[tuple, VariantEntry] = {}
 
         for variant in variants:
             key = variant.get_variant_key()
@@ -96,7 +95,7 @@ class VariantProcessor:
 
         return variants
 
-    def _create_variant_blocks(self, variants: List[VariantEntry]) -> List[Tuple[int, int]]:
+    def _create_variant_blocks(self, variants: list[VariantEntry]) -> list[tuple[int, int]]:
         """
         Create blocks of variants for parallel processing.
 
@@ -139,8 +138,8 @@ class VariantProcessor:
         self,
         sample_name: str,
         bam_path: str,
-        variants: List[VariantEntry],
-        variant_blocks: List[Tuple[int, int]],
+        variants: list[VariantEntry],
+        variant_blocks: list[tuple[int, int]],
     ) -> None:
         """
         Process a single BAM file.
@@ -162,8 +161,8 @@ class VariantProcessor:
         self,
         sample_name: str,
         bam_path: str,
-        variants: List[VariantEntry],
-        variant_blocks: List[Tuple[int, int]],
+        variants: list[VariantEntry],
+        variant_blocks: list[tuple[int, int]],
     ) -> None:
         """Process BAM file sequentially."""
         with pysam.AlignmentFile(bam_path, "rb") as bam:
@@ -185,8 +184,8 @@ class VariantProcessor:
         self,
         sample_name: str,
         bam_path: str,
-        variants: List[VariantEntry],
-        variant_blocks: List[Tuple[int, int]],
+        variants: list[VariantEntry],
+        variant_blocks: list[tuple[int, int]],
     ) -> None:
         """Process BAM file in parallel."""
         with Progress(
@@ -221,7 +220,7 @@ class VariantProcessor:
         self,
         bam_path: str,
         sample_name: str,
-        variants: List[VariantEntry],
+        variants: list[VariantEntry],
         start_idx: int,
         end_idx: int,
     ) -> None:
@@ -234,7 +233,7 @@ class VariantProcessor:
         self,
         bam: pysam.AlignmentFile,
         sample_name: str,
-        variants: List[VariantEntry],
+        variants: list[VariantEntry],
         start_idx: int,
         end_idx: int,
     ) -> None:
@@ -281,7 +280,7 @@ class VariantProcessor:
             # Count bases for this variant
             self.counter.count_variant(variant, filtered_alignments, sample_name)
 
-    def _write_output(self, variants: List[VariantEntry]) -> None:
+    def _write_output(self, variants: list[VariantEntry]) -> None:
         """Write output file."""
         formatter = OutputFormatter(self.config, self.sample_order)
 

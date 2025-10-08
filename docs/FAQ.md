@@ -2,9 +2,9 @@
 
 ## General Questions
 
-### What is GetBaseCounts?
+### What is gbcms?
 
-GetBaseCounts is a tool for calculating base counts in BAM files at variant positions specified in VCF or MAF files. It counts how many reads support the reference allele vs. alternate allele at each position.
+gbcms is a tool for calculating base counts in BAM files at variant positions specified in VCF or MAF files. It counts how many reads support the reference allele vs. alternate allele at each position.
 
 ### Why use the Python version instead of C++?
 
@@ -23,14 +23,14 @@ Yes! The Python version replicates 100% of C++ functionality and produces identi
 
 ## Installation
 
-### How do I install GetBaseCounts?
+### How do I install gbcms?
 
 ```bash
 # Basic installation
-uv pip install getbasecounts
+uv pip install gbcms
 
 # With all features (recommended)
-uv pip install "getbasecounts[all]"
+uv pip install "gbcms[all]"
 ```
 
 ### What Python version do I need?
@@ -51,13 +51,13 @@ sudo apt-get install samtools
 ### How do I install with Ray support?
 
 ```bash
-uv pip install "getbasecounts[ray]"
+uv pip install "gbcms[ray]"
 ```
 
 ### How do I install with fast VCF parsing?
 
 ```bash
-uv pip install "getbasecounts[fast]"
+uv pip install "gbcms[fast]"
 ```
 
 ---
@@ -67,7 +67,7 @@ uv pip install "getbasecounts[fast]"
 ### What's the basic command?
 
 ```bash
-getbasecounts count run \
+gbcms count run \
     --fasta reference.fa \
     --bam sample1:sample1.bam \
     --vcf variants.vcf \
@@ -78,20 +78,20 @@ getbasecounts count run \
 
 ```bash
 # Option 1: Multiple --bam flags
-getbasecounts count run \
+gbcms count run \
     --bam sample1:sample1.bam \
     --bam sample2:sample2.bam \
     --bam sample3:sample3.bam \
     ...
 
 # Option 2: BAM file-of-files
-getbasecounts count run --bam-fof bam_files.txt ...
+gbcms count run --bam-fof bam_files.txt ...
 ```
 
 ### How do I use MAF files instead of VCF?
 
 ```bash
-getbasecounts count run \
+gbcms count run \
     --fasta reference.fa \
     --bam-fof bam_files.txt \
     --maf variants.maf \
@@ -106,7 +106,7 @@ No, `--vcf` and `--maf` are mutually exclusive. Choose one format.
 ### How do I validate files before processing?
 
 ```bash
-getbasecounts validate files \
+gbcms validate files \
     --fasta reference.fa \
     --bam sample1:sample1.bam \
     --vcf variants.vcf
@@ -120,18 +120,18 @@ getbasecounts validate files \
 
 1. **Install with all features**:
    ```bash
-   uv pip install "getbasecounts[all]"
+   uv pip install "gbcms[all]"
    ```
 
 2. **Use more threads**:
    ```bash
-   getbasecounts count run --thread 16 ...
+   gbcms count run --thread 16 ...
    ```
 
 3. **Use compressed VCF**:
    ```bash
    bgzip variants.vcf
-   getbasecounts count run --vcf variants.vcf.gz ...
+   gbcms count run --vcf variants.vcf.gz ...
    ```
 
 ### What's the difference between counter.py and numba_counter.py?
@@ -210,7 +210,7 @@ With `--fragment-fractional-weight`:
 ### How do I disable duplicate filtering?
 
 ```bash
-getbasecounts count run --no-filter-duplicate ...
+gbcms count run --no-filter-duplicate ...
 ```
 
 ---
@@ -236,20 +236,20 @@ getbasecounts count run --no-filter-duplicate ...
 
 ```bash
 # Positive strand
-getbasecounts count run --positive-count ...
+gbcms count run --positive-count ...
 
 # Negative strand
-getbasecounts count run --negative-count ...
+gbcms count run --negative-count ...
 
 # Both
-getbasecounts count run --positive-count --negative-count ...
+gbcms count run --positive-count --negative-count ...
 ```
 
 ---
 
 ## Troubleshooting
 
-### Error: "command not found: getbasecounts"
+### Error: "command not found: gbcms"
 
 **Solution**: Add installation directory to PATH:
 ```bash
@@ -275,12 +275,12 @@ samtools index sample.bam
 
 **Solution**: Install with fast VCF parsing:
 ```bash
-uv pip install "getbasecounts[fast]"
+uv pip install "gbcms[fast]"
 ```
 
 Or skip cyvcf2 (uses pure Python):
 ```bash
-uv pip install getbasecounts
+uv pip install gbcms
 ```
 
 ### Warning: "overlapping multimapped alignment"
@@ -305,10 +305,10 @@ uv pip install getbasecounts
 
 ```bash
 # Pull image
-docker pull mskaccess/getbasecounts:latest
+docker pull mskaccess/gbcms:latest
 
 # Run
-docker run -v /data:/data mskaccess/getbasecounts:latest \
+docker run -v /data:/data mskaccess/gbcms:latest \
     count run \
     --fasta /data/reference.fa \
     --bam sample1:/data/sample1.bam \
@@ -319,20 +319,20 @@ docker run -v /data:/data mskaccess/getbasecounts:latest \
 ### How do I build the Docker image?
 
 ```bash
-docker build -t getbasecounts:latest .
+docker build -t gbcms:latest .
 ```
 
 ---
 
 ## Advanced
 
-### Can I use GetBaseCounts as a Python library?
+### Can I use gbcms as a Python library?
 
 Yes!
 
 ```python
-from getbasecounts.config import Config
-from getbasecounts.processor import VariantProcessor
+from gbcms.config import Config
+from gbcms.processor import VariantProcessor
 
 config = Config(
     fasta_file="reference.fa",
@@ -351,14 +351,14 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines.
 
 ### Where can I report bugs?
 
-[GitHub Issues](https://github.com/msk-access/getbasecounts/issues)
+[GitHub Issues](https://github.com/msk-access/gbcms/issues)
 
 ### How do I get help?
 
 1. Check this FAQ
 2. Read the [documentation](README.md)
-3. Search [GitHub Issues](https://github.com/msk-access/getbasecounts/issues)
-4. Ask on [GitHub Discussions](https://github.com/msk-access/getbasecounts/discussions)
+3. Search [GitHub Issues](https://github.com/msk-access/gbcms/issues)
+4. Ask on [GitHub Discussions](https://github.com/msk-access/gbcms/discussions)
 5. Email: access@mskcc.org
 
 ---
@@ -389,7 +389,7 @@ Almost! CLI flags are similar but use dashes instead of underscores:
 ### What's the recommended installation?
 
 ```bash
-uv pip install "getbasecounts[all]"
+uv pip install "gbcms[all]"
 ```
 
 This includes all performance features.
@@ -398,12 +398,12 @@ This includes all performance features.
 
 1. **Validate files**:
    ```bash
-   getbasecounts validate files ...
+   gbcms validate files ...
    ```
 
 2. **Run with optimizations**:
    ```bash
-   getbasecounts count run \
+   gbcms count run \
        --thread 16 \
        --backend joblib \
        ...
@@ -438,12 +438,12 @@ project/
 
 ### Installation
 ```bash
-uv pip install "getbasecounts[all]"
+uv pip install "gbcms[all]"
 ```
 
 ### Basic Usage
 ```bash
-getbasecounts count run \
+gbcms count run \
     --fasta ref.fa \
     --bam s1:s1.bam \
     --vcf vars.vcf \
@@ -452,7 +452,7 @@ getbasecounts count run \
 
 ### With All Features
 ```bash
-getbasecounts count run \
+gbcms count run \
     --fasta ref.fa \
     --bam-fof bams.txt \
     --vcf vars.vcf.gz \
@@ -465,7 +465,7 @@ getbasecounts count run \
 
 ### Validation
 ```bash
-getbasecounts validate files \
+gbcms validate files \
     --fasta ref.fa \
     --bam s1:s1.bam \
     --vcf vars.vcf
@@ -473,4 +473,4 @@ getbasecounts validate files \
 
 ---
 
-Still have questions? Check the [full documentation](README.md) or [open an issue](https://github.com/msk-access/getbasecounts/issues)!
+Still have questions? Check the [full documentation](README.md) or [open an issue](https://github.com/msk-access/gbcms/issues)!

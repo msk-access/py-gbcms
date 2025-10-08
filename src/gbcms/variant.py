@@ -2,8 +2,7 @@
 
 import logging
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Optional
 
 import numpy as np
 
@@ -49,15 +48,15 @@ class VariantEntry:
     maf_ref: str = ""
     maf_alt: str = ""
     caller: str = ""
-    base_count: Dict[str, np.ndarray] = field(default_factory=dict)
+    base_count: dict[str, np.ndarray] = field(default_factory=dict)
     duplicate_variant_ptr: Optional["VariantEntry"] = None
     maf_line: str = ""  # Store original MAF line for output
 
-    def get_variant_key(self) -> Tuple[str, int, str, str]:
+    def get_variant_key(self) -> tuple[str, int, str, str]:
         """Return unique key for variant identification."""
         return (self.chrom, self.pos, self.ref, self.alt)
 
-    def initialize_counts(self, sample_names: List[str]) -> None:
+    def initialize_counts(self, sample_names: list[str]) -> None:
         """Initialize count arrays for all samples."""
         for sample in sample_names:
             if sample not in self.base_count:
@@ -75,7 +74,7 @@ class VariantEntry:
             return self._chrom_sort_key() < other._chrom_sort_key()
         return self.pos < other.pos
 
-    def _chrom_sort_key(self) -> Tuple:
+    def _chrom_sort_key(self) -> tuple:
         """Generate sort key for chromosome."""
         chrom = self.chrom.replace("chr", "")
         try:
@@ -103,7 +102,7 @@ class VariantLoader:
         """
         self.reference_getter = reference_getter
 
-    def load_vcf(self, vcf_file: str) -> List[VariantEntry]:
+    def load_vcf(self, vcf_file: str) -> list[VariantEntry]:
         """
         Load variants from VCF file.
 
@@ -120,7 +119,7 @@ class VariantLoader:
         else:
             return self._load_vcf_python(vcf_file)
 
-    def _load_vcf_cyvcf2(self, vcf_file: str) -> List[VariantEntry]:
+    def _load_vcf_cyvcf2(self, vcf_file: str) -> list[VariantEntry]:
         """
         Load variants from VCF using cyvcf2 (fast, C-based parser).
 
@@ -173,7 +172,7 @@ class VariantLoader:
         logger.info(f"{len(variants)} variants loaded from file: {vcf_file}")
         return variants
 
-    def _load_vcf_python(self, vcf_file: str) -> List[VariantEntry]:
+    def _load_vcf_python(self, vcf_file: str) -> list[VariantEntry]:
         """
         Load variants from VCF using pure Python (slower but always works).
 
@@ -182,7 +181,7 @@ class VariantLoader:
         logger.info(f"Loading variants file with Python parser: {vcf_file}")
         variants = []
 
-        with open(vcf_file, "r") as f:
+        with open(vcf_file) as f:
             for line in f:
                 line = line.strip()
                 if not line or line.startswith("#"):
@@ -228,13 +227,13 @@ class VariantLoader:
         logger.info(f"{len(variants)} variants loaded from file: {vcf_file}")
         return variants
 
-    def load_maf(self, maf_file: str) -> List[VariantEntry]:
+    def load_maf(self, maf_file: str) -> list[VariantEntry]:
         """Load variants from MAF file."""
         logger.info(f"Loading variants file: {maf_file}")
         variants = []
         header_map = {}
 
-        with open(maf_file, "r") as f:
+        with open(maf_file) as f:
             # Find header line
             for line in f:
                 line = line.strip()
@@ -282,8 +281,8 @@ class VariantLoader:
         return variants
 
     def _parse_maf_line(
-        self, fields: List[str], header_map: Dict[str, int], original_line: str
-    ) -> Optional[VariantEntry]:
+        self, fields: list[str], header_map: dict[str, int], original_line: str
+    ) -> VariantEntry | None:
         """Parse a single MAF line into VariantEntry."""
         try:
             gene = fields[header_map["Hugo_Symbol"]]

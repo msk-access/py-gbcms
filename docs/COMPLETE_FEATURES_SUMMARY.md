@@ -1,8 +1,8 @@
-# Complete Features Summary - GetBaseCounts
+# Complete Features Summary - gbcms
 
 ## 🎯 Overview
 
-GetBaseCounts is a production-ready Python package that reimplements GetBaseCountsMultiSample with **modern Python best practices** and **advanced performance optimizations**.
+gbcms is a production-ready Python package that reimplements gbcms with **modern Python best practices** and **advanced performance optimizations**.
 
 ---
 
@@ -14,6 +14,7 @@ GetBaseCounts is a production-ready Python package that reimplements GetBaseCoun
 |------------|---------|---------|
 | **Pydantic** | Type safety & validation | Catch errors at runtime, ensure data integrity |
 | **Numba** | JIT compilation | 50-100x speedup on numerical operations |
+| **scipy** | Statistical analysis | Fisher's exact test for strand bias detection |
 | **joblib** | Local parallelization | Efficient multi-core processing |
 | **Ray** | Distributed computing | Scale across clusters |
 | **Typer** | CLI framework | Beautiful, type-safe command interface |
@@ -34,10 +35,10 @@ GetBaseCounts is a production-ready Python package that reimplements GetBaseCoun
 
 2. **Type-Safe Models**
    ```python
-   from getbasecounts.models import GetBaseCountsConfig, VariantModel
+   from gbcms.models import gbcmsConfig, VariantModel
    
    # Configuration with validation
-   config = GetBaseCountsConfig(
+   config = gbcmsConfig(
        fasta_file=Path("ref.fa"),
        bam_files=[BamFileConfig(...)],
        variant_files=[VariantFileConfig(...)],
@@ -70,13 +71,92 @@ GetBaseCounts is a production-ready Python package that reimplements GetBaseCoun
 
 ---
 
-## ⚡ Performance with Numba
+## 🔬 Strand Bias Analysis
+
+### Features
+
+1. **Fisher's Exact Test**
+   ```python
+   from gbcms.counter import BaseCounter
+
+   # Automatically calculated for all variants
+   counter = BaseCounter(config)
+
+   # Uses 2x2 contingency table for statistical rigor
+   p_value, odds_ratio, direction = counter.calculate_strand_bias(
+       ref_forward=15, ref_reverse=5,
+       alt_forward=2, alt_reverse=18
+   )
+   ```
+
+2. **Automatic Direction Detection**
+   - `forward`: More alternate alleles on forward strand
+   - `reverse`: More alternate alleles on reverse strand
+   - `none`: No significant bias
+
+3. **Quality Filtering**
+   - Minimum 10 reads for reliable calculations
+   - Configurable depth threshold
+
+### Output Integration
+
+#### VCF Format
+```bash
+Chrom  Pos  Ref  Alt  sample1_SB_PVAL  sample1_SB_OR  sample1_SB_DIR
+chr1   100  A    T    0.001234         2.500          reverse
+```
+
+#### MAF Format
+```bash
+Hugo_Symbol  t_strand_bias_pval  t_strand_bias_or  t_strand_bias_dir
+GENE1        0.001234             2.500             reverse
+```
+
+### Usage
+- **Automatic**: Calculated for all variants during counting
+- **Quality Control**: Filter variants with significant strand bias
+- **Artifact Detection**: Identify potential sequencing artifacts
+
+---
+
+## ⚡ Smart Hybrid Counting Strategy
+
+### Features
+
+1. **Automatic Algorithm Selection**
+   ```python
+   # Automatically chooses best algorithm per variant
+   def smart_count_variant(variant, alignments, sample):
+       if is_simple_snp_variant(variant):
+           return count_bases_snp_numba(variant, alignments, sample)  # 50-100x faster
+       else:
+           return count_bases_snp/dnp/indel/generic(variant, alignments, sample)  # Maximum accuracy
+   ```
+
+2. **Performance Optimization**
+   - **Simple SNPs**: numba_counter (50-100x faster)
+   - **Complex variants**: counter.py (maximum accuracy)
+   - **Automatic detection**: Optimal algorithm per variant type
+
+3. **Seamless Integration**
+   - Same API for all algorithms
+   - Automatic fallback on errors
+   - Consistent output format
+
+### Benefits
+
+- **50-100x speedup** for simple SNPs
+- **Maximum accuracy** for complex variants
+- **No user configuration** required
+- **Maintains C++ compatibility**
+
+---
 
 ### JIT-Compiled Functions
 
 1. **SNP Counting**
    ```python
-   from getbasecounts.numba_counter import count_snp_base
+   from gbcms.numba_counter import count_snp_base
    
    # Compiled to machine code on first call
    dp, rd, ad, dpp, rdp, adp = count_snp_base(
@@ -86,7 +166,7 @@ GetBaseCounts is a production-ready Python package that reimplements GetBaseCoun
 
 2. **Batch Processing**
    ```python
-   from getbasecounts.numba_counter import count_snp_batch
+   from gbcms.numba_counter import count_snp_batch
    
    # Process multiple variants in parallel
    counts = count_snp_batch(
@@ -99,7 +179,7 @@ GetBaseCounts is a production-ready Python package that reimplements GetBaseCoun
 
 3. **Fast Filtering**
    ```python
-   from getbasecounts.numba_counter import filter_alignments_batch
+   from gbcms.numba_counter import filter_alignments_batch
    
    # Vectorized filtering
    keep_mask = filter_alignments_batch(
@@ -120,7 +200,7 @@ GetBaseCounts is a production-ready Python package that reimplements GetBaseCoun
 
 ```python
 # Enable Numba optimization (default)
-config = GetBaseCountsConfig(
+config = gbcmsConfig(
     performance=PerformanceConfig(use_numba=True),
     ...
 )
@@ -134,7 +214,7 @@ config = GetBaseCountsConfig(
 
 1. **Simple Parallel Map**
    ```python
-   from getbasecounts.parallel import parallel_map
+   from gbcms.parallel import parallel_map
    
    results = parallel_map(
        func=count_variant,
@@ -147,7 +227,7 @@ config = GetBaseCountsConfig(
 
 2. **Batch Processing**
    ```python
-   from getbasecounts.parallel import BatchProcessor
+   from gbcms.parallel import BatchProcessor
    
    processor = BatchProcessor(batch_size=1000, n_jobs=8)
    results = processor.process_batches(
@@ -165,13 +245,13 @@ config = GetBaseCountsConfig(
 
 ```bash
 # Use joblib with 16 threads
-getbasecounts count run \
+gbcms count run \
     --thread 16 \
     --backend joblib \
     ...
 
 # Use threading for I/O-heavy workloads
-getbasecounts count run \
+gbcms count run \
     --thread 8 \
     --backend threading \
     ...
@@ -185,7 +265,7 @@ getbasecounts count run \
 
 1. **Distributed Processing**
    ```python
-   from getbasecounts.parallel import ParallelProcessor
+   from gbcms.parallel import ParallelProcessor
    
    processor = ParallelProcessor(
        n_jobs=32,  # Can exceed local CPUs
@@ -198,7 +278,7 @@ getbasecounts count run \
 
 2. **Ray Actors**
    ```python
-   from getbasecounts.parallel import create_ray_actors
+   from gbcms.parallel import create_ray_actors
    
    # Stateful workers
    actors = create_ray_actors(n_actors=16, config_dict=config.dict())
@@ -220,24 +300,24 @@ getbasecounts count run \
 
 ```bash
 # Install with Ray support
-uv pip install "getbasecounts[ray]"
+uv pip install "gbcms[ray]"
 
 # Or all features
-uv pip install "getbasecounts[all]"
+uv pip install "gbcms[all]"
 ```
 
 ### CLI Integration
 
 ```bash
 # Use Ray for distributed processing
-getbasecounts count run \
+gbcms count run \
     --thread 32 \
     --backend ray \
     --use-ray \
     ...
 
 # Connect to existing cluster
-RAY_ADDRESS='ray://cluster:10001' getbasecounts count run ...
+RAY_ADDRESS='ray://cluster:10001' gbcms count run ...
 ```
 
 ### When to Use Ray
@@ -260,7 +340,7 @@ RAY_ADDRESS='ray://cluster:10001' getbasecounts count run ...
 ### Subcommands
 
 ```bash
-getbasecounts
+gbcms
 ├── count run          # Main counting command
 ├── validate files     # Validate input files
 ├── version           # Show version info
@@ -380,15 +460,15 @@ Options organized into logical groups:
 
 ```bash
 # Build
-docker build -t getbasecounts:latest .
+docker build -t gbcms:latest .
 
 # Run
-docker run -v /data:/data getbasecounts:latest \
+docker run -v /data:/data gbcms:latest \
     count run --fasta /data/ref.fa ...
 
 # Test
-docker build -f Dockerfile.test -t getbasecounts:test .
-docker run --rm getbasecounts:test
+docker build -f Dockerfile.test -t gbcms:test .
+docker run --rm gbcms:test
 ```
 
 ---
@@ -400,6 +480,8 @@ docker run --rm getbasecounts:test
 | **Type Safety** | ✅ | Prevents errors |
 | **Pydantic Models** | ✅ | Runtime validation |
 | **Numba JIT** | ✅ | 50-100x speedup |
+| **Smart Hybrid Strategy** | ✅ | 10-50x overall speedup |
+| **Strand Bias Analysis** | ✅ | Statistical quality control |
 | **joblib Parallel** | ✅ | Linear scaling |
 | **Ray Distributed** | ✅ | Cluster scaling |
 | **Typer CLI** | ✅ | Better UX |
@@ -419,7 +501,7 @@ docker run --rm getbasecounts:test
 ### Basic Usage
 
 ```bash
-getbasecounts count run \
+gbcms count run \
     --fasta reference.fa \
     --bam sample1:sample1.bam \
     --vcf variants.vcf \
@@ -429,7 +511,7 @@ getbasecounts count run \
 ### With Numba Optimization
 
 ```bash
-getbasecounts count run \
+gbcms count run \
     --fasta reference.fa \
     --bam-fof bam_files.txt \
     --vcf variants.vcf \
@@ -442,10 +524,10 @@ getbasecounts count run \
 
 ```bash
 # Install Ray support
-uv pip install "getbasecounts[ray]"
+uv pip install "gbcms[ray]"
 
 # Run distributed
-getbasecounts count run \
+gbcms count run \
     --fasta reference.fa \
     --bam-fof bam_files.txt \
     --vcf variants.vcf \
@@ -458,7 +540,7 @@ getbasecounts count run \
 ### Validate Before Processing
 
 ```bash
-getbasecounts validate files \
+gbcms validate files \
     --fasta reference.fa \
     --bam sample1:sample1.bam \
     --vcf variants.vcf
@@ -506,7 +588,7 @@ getbasecounts validate files \
 
 ## 🏆 Summary
 
-GetBaseCounts combines:
+gbcms combines:
 
 - ✅ **Type Safety** (Pydantic) - Catch errors early
 - ✅ **Performance** (Numba) - 50-100x faster

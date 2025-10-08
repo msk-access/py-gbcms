@@ -1,28 +1,28 @@
 # Python Package Structure - Complete ✅
 
-## 🎉 GetBaseCounts Python Package - Production Ready
+## 🎉 gbcms Python Package - Production Ready
 
-Complete overview of the GetBaseCounts Python package structure and organization.
+Complete overview of the gbcms Python package structure and organization.
 
 ---
 
 ## 📦 Current Project Structure
 
 ### Repository: `windsurf-project` (GitHub)
-**Contains**: Python package `getbasecounts`
+**Contains**: Python package `gbcms`
 
 **This is correct!** ✅
 - Repository name can be different from package name
 - Follows Python packaging best practices
-- `pyproject.toml` defines the package name as `getbasecounts`
+- `pyproject.toml` defines the package name as `gbcms`
 
-### Package: `getbasecounts` (Python)
-**Location**: `src/getbasecounts/`
+### Package: `gbcms` (Python)
+**Location**: `src/gbcms/`
 
 **This is correct!** ✅
 - `src/` layout is modern Python standard
 - Package name matches `pyproject.toml`
-- Can be installed as `pip install getbasecounts`
+- Can be installed as `pip install gbcms`
 
 ---
 
@@ -32,7 +32,7 @@ Complete overview of the GetBaseCounts Python package structure and organization
 
 ```toml
 [project]
-name = "getbasecounts"           # Package name
+name = "gbcms"           # Package name
 version = "2.0.0"
 description = "Calculate base counts..."
 authors = [{name = "MSK-ACCESS", email = "access@mskcc.org"}]
@@ -40,19 +40,19 @@ readme = "README.md"
 requires-python = ">=3.9"
 
 [project.scripts]
-getbasecounts = "getbasecounts.cli:app"
+gbcms = "gbcms.cli:app"
 
 [project.urls]
-Homepage = "https://github.com/msk-access/getbasecounts"
-Repository = "https://github.com/msk-access/getbasecounts"
+Homepage = "https://github.com/msk-access/gbcms"
+Repository = "https://github.com/msk-access/gbcms"
 ```
 
 ### Package Structure ✅
 
 ```
-src/getbasecounts/
+src/gbcms/
 ├── __init__.py
-├── cli.py                    # Entry point (getbasecounts command)
+├── cli.py                    # Entry point (gbcms command)
 ├── config.py                 # Configuration management
 ├── models.py                 # Pydantic models
 ├── processor.py              # Main processing logic
@@ -78,32 +78,32 @@ pip install -e .
 pip install -e ".[all]"
 
 # Run the command
-getbasecounts --help
+gbcms --help
 ```
 
 ### Install from PyPI (After Publishing)
 
 ```bash
 # Basic installation
-pip install getbasecounts
+pip install gbcms
 
 # With fast VCF parsing
-pip install "getbasecounts[fast]"
+pip install "gbcms[fast]"
 
 # With all features
-pip install "getbasecounts[all]"
+pip install "gbcms[all]"
 ```
 
 ### Docker Usage
 
 ```bash
 # Pull from GHCR
-docker pull ghcr.io/msk-access/getbasecounts:latest
+docker pull ghcr.io/msk-access/gbcms:latest
 
 # Run
 docker run --rm \
     -v $(pwd)/data:/data \
-    ghcr.io/msk-access/getbasecounts:latest \
+    ghcr.io/msk-access/gbcms:latest \
     count run \
     --fasta /data/reference.fa \
     --bam sample1:/data/sample1.bam \
@@ -153,11 +153,11 @@ docker run --rm \
 **PyPI**:
 - Tag format: `2.0.0` (no 'v' prefix)
 - Trigger: `git tag 2.0.0 && git push origin 2.0.0`
-- Result: `pip install getbasecounts==2.0.0`
+- Result: `pip install gbcms==2.0.0`
 
 **Docker**:
 - Same tag trigger
-- Result: `docker pull ghcr.io/msk-access/getbasecounts:2.0.0`
+- Result: `docker pull ghcr.io/msk-access/gbcms:2.0.0`
 
 ---
 
@@ -167,25 +167,25 @@ docker run --rm \
 
 ```python
 # Should work after installation
-import getbasecounts
-from getbasecounts.cli import app
-from getbasecounts.config import Config
+import gbcms
+from gbcms.cli import app
+from gbcms.config import Config
 ```
 
 ### Entry Point Test
 
 ```bash
 # Should work after installation
-getbasecounts --help
-getbasecounts version
+gbcms --help
+gbcms version
 ```
 
 ### Package Metadata
 
 ```python
-import getbasecounts
-print(getbasecounts.__version__)  # Should show 2.0.0
-print(getbasecounts.__author__)   # Should show MSK-ACCESS
+import gbcms
+print(gbcms.__version__)  # Should show 2.0.0
+print(gbcms.__author__)   # Should show MSK-ACCESS
 ```
 
 ---
@@ -196,17 +196,17 @@ print(getbasecounts.__author__)   # Should show MSK-ACCESS
 
 | Aspect | Repository | Package | Status |
 |--------|------------|---------|--------|
-| **Name** | `windsurf-project` | `getbasecounts` | ✅ Correct |
+| **Name** | `windsurf-project` | `gbcms` | ✅ Correct |
 | **GitHub URL** | `msk-access/windsurf-project` | N/A | ✅ Fine |
-| **Package URL** | N/A | `msk-access/getbasecounts` | ✅ Correct |
-| **Install Command** | N/A | `pip install getbasecounts` | ✅ Correct |
+| **Package URL** | N/A | `msk-access/gbcms` | ✅ Correct |
+| **Install Command** | N/A | `pip install gbcms` | ✅ Correct |
 
 **This is the correct structure!** ✅
 
 ### Why This Works
 
 1. **Repository name** can be descriptive (`windsurf-project`)
-2. **Package name** is what users install (`getbasecounts`)
+2. **Package name** is what users install (`gbcms`)
 3. **URLs** point to correct GitHub repository
 4. **No conflicts** with existing packages
 
@@ -217,9 +217,9 @@ print(getbasecounts.__author__)   # Should show MSK-ACCESS
 ### Package Structure ✅
 
 - [x] `pyproject.toml` has correct package name
-- [x] Package in `src/getbasecounts/`
+- [x] Package in `src/gbcms/`
 - [x] Entry point defined in `pyproject.toml`
-- [x] All imports use `getbasecounts` package name
+- [x] All imports use `gbcms` package name
 
 ### URLs and References ✅
 
@@ -243,10 +243,10 @@ print(getbasecounts.__author__)   # Should show MSK-ACCESS
 
 ```bash
 # Install
-pip install getbasecounts
+pip install gbcms
 
 # Use
-getbasecounts count run \
+gbcms count run \
     --fasta reference.fa \
     --bam sample1:sample1.bam \
     --vcf variants.vcf \
@@ -267,7 +267,7 @@ pip install -e ".[dev]"
 pytest -v
 
 # Run the package
-python -m getbasecounts.cli --help
+python -m gbcms.cli --help
 ```
 
 ---
@@ -277,10 +277,10 @@ python -m getbasecounts.cli --help
 ### Package Structure ✅
 
 ✅ **Repository**: `windsurf-project` (descriptive name)  
-✅ **Package**: `getbasecounts` (what users install)  
-✅ **Structure**: `src/getbasecounts/` (modern Python)  
+✅ **Package**: `gbcms` (what users install)  
+✅ **Structure**: `src/gbcms/` (modern Python)  
 ✅ **Configuration**: Proper `pyproject.toml`  
-✅ **Entry Point**: `getbasecounts` command  
+✅ **Entry Point**: `gbcms` command  
 
 ### Publishing Ready ✅
 
@@ -292,8 +292,8 @@ python -m getbasecounts.cli --help
 ### URLs Consistent ✅
 
 ✅ **Repository**: `github.com/msk-access/windsurf-project`  
-✅ **Package**: `github.com/msk-access/getbasecounts`  
-✅ **PyPI**: `pypi.org/project/getbasecounts/`  
-✅ **Docker**: `ghcr.io/msk-access/getbasecounts`  
+✅ **Package**: `github.com/msk-access/gbcms`  
+✅ **PyPI**: `pypi.org/project/gbcms/`  
+✅ **Docker**: `ghcr.io/msk-access/gbcms`  
 
 **The project follows proper Python package conventions and is ready for production!** 🚀✨

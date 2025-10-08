@@ -1,7 +1,6 @@
 """Reference sequence handling."""
 
 import logging
-from typing import Optional
 
 import pysam
 
@@ -19,7 +18,7 @@ class ReferenceSequence:
             fasta_file: Path to reference FASTA file (must be indexed)
         """
         self.fasta_file = fasta_file
-        self.fasta: Optional[pysam.FastaFile] = None
+        self.fasta: pysam.FastaFile | None = None
         self._load_reference()
 
     def _load_reference(self) -> None:

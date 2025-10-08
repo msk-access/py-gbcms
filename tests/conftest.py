@@ -1,11 +1,18 @@
 """Pytest configuration and fixtures."""
 
+import sys
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 import pysam
 import pytest
+
+# Add src directory to path so tests use local code, not installed package
+project_root = Path(__file__).parent.parent
+src_dir = project_root / "src"
+if str(src_dir) not in sys.path:
+    sys.path.insert(0, str(src_dir))
 
 
 @pytest.fixture
@@ -58,7 +65,7 @@ def sample_bam(temp_dir: Path, sample_fasta: Path) -> Path:
             a.reference_id = 0  # chr1
             a.reference_start = i * 2
             a.mapping_quality = 60
-            a.cigar = [(0, 20)]  # 20M
+            a.cigarstring = "20M"  # Set CIGAR string instead of cigartuples
             a.next_reference_id = 0
             a.next_reference_start = i * 2 + 100
             a.template_length = 120

@@ -2,7 +2,7 @@
 
 ## Overview
 
-GetBaseCounts now supports **cyvcf2** for ultra-fast VCF parsing. This provides **10-100x speedup** for VCF file loading compared to pure Python parsing.
+gbcms now supports **cyvcf2** for ultra-fast VCF parsing. This provides **10-100x speedup** for VCF file loading compared to pure Python parsing.
 
 ## Performance Comparison
 
@@ -21,31 +21,48 @@ GetBaseCounts now supports **cyvcf2** for ultra-fast VCF parsing. This provides 
 
 ```bash
 # Using uv
-uv pip install "getbasecounts[fast]"
+uv pip install "gbcms[fast]"
 
 # Using pip
-pip install "getbasecounts[fast]"
+pip install "gbcms[fast]"
 ```
 
 ### Option 2: All Features
 
 ```bash
 # Includes cyvcf2 + Ray
-uv pip install "getbasecounts[all]"
+uv pip install "gbcms[all]"
 ```
 
 ### Option 3: Basic (No cyvcf2)
 
 ```bash
 # Falls back to pure Python VCF parsing
-uv pip install getbasecounts
+uv pip install gbcms
 ```
+
+
+## Asymmetric Optimization Strategy
+
+gbcms uses cyvcf2 strategically for maximum benefit:
+
+### VCF Reading (Input)
+- **Uses cyvcf2**: 10-100× faster parsing
+- **Critical Path**: VCF loading is performance bottleneck
+- **High Impact**: Major speedup for large files
+
+### VCF Writing (Output)
+- **Uses Pure Python**: Optimal for custom formatting
+- **Not Bottleneck**: Writing is fast with standard I/O
+- **Full Control**: Complete flexibility for gbcms-specific fields
+
+**Result**: Maximum performance where it matters most!
 
 ## How It Works
 
 ### Automatic Detection
 
-GetBaseCounts automatically detects if cyvcf2 is available:
+gbcms automatically detects if cyvcf2 is available:
 
 ```python
 # In variant.py
@@ -60,7 +77,7 @@ except ImportError:
 
 ### Automatic Fallback
 
-If cyvcf2 is not installed or encounters an error, GetBaseCounts automatically falls back to pure Python parsing:
+If cyvcf2 is not installed or encounters an error, gbcms automatically falls back to pure Python parsing:
 
 ```python
 def load_vcf(self, vcf_file: str) -> List[VariantEntry]:
@@ -93,14 +110,14 @@ cyvcf2 automatically handles:
 
 ### No Code Changes Required!
 
-Just install with `[fast]` and use GetBaseCounts normally:
+Just install with `[fast]` and use gbcms normally:
 
 ```bash
 # Install with cyvcf2
-uv pip install "getbasecounts[fast]"
+uv pip install "gbcms[fast]"
 
 # Use as normal - automatically uses cyvcf2
-getbasecounts count run \
+gbcms count run \
     --fasta reference.fa \
     --bam sample1:sample1.bam \
     --vcf variants.vcf.gz \
@@ -112,7 +129,7 @@ getbasecounts count run \
 Enable verbose logging to see which parser is used:
 
 ```bash
-getbasecounts count run --verbose ...
+gbcms count run --verbose ...
 ```
 
 Output:
@@ -185,12 +202,12 @@ INFO: 100000 variants loaded from file: variants.vcf
 
 3. **Use Docker** (includes cyvcf2):
    ```bash
-   docker pull mskaccess/getbasecounts:latest
+   docker pull mskaccess/gbcms:latest
    ```
 
 4. **Skip cyvcf2** (use pure Python):
    ```bash
-   uv pip install getbasecounts  # Without [fast]
+   uv pip install gbcms  # Without [fast]
    ```
 
 #### Issue: "ImportError: libhts.so.3: cannot open shared object file"
@@ -224,7 +241,7 @@ conda install -c bioconda htslib
 **Check**:
 1. Is cyvcf2 actually being used?
    ```bash
-   getbasecounts count run --verbose ... 2>&1 | grep cyvcf2
+   gbcms count run --verbose ... 2>&1 | grep cyvcf2
    ```
 
 2. Is VCF compressed?
@@ -284,14 +301,14 @@ bgzip variants.vcf
 tabix -p vcf variants.vcf.gz
 
 # Use compressed VCF (faster with cyvcf2)
-getbasecounts count run --vcf variants.vcf.gz ...
+gbcms count run --vcf variants.vcf.gz ...
 ```
 
 ### 2. Install with [all]
 
 ```bash
 # Get all performance features
-uv pip install "getbasecounts[all]"
+uv pip install "gbcms[all]"
 ```
 
 This includes:
@@ -313,10 +330,10 @@ python3 scripts/verify_installation.py
 
 ```bash
 # Time your runs
-time getbasecounts count run ...
+time gbcms count run ...
 
 # With verbose logging
-getbasecounts count run --verbose ... 2>&1 | tee run.log
+gbcms count run --verbose ... 2>&1 | tee run.log
 ```
 
 ## Integration with Other Features
@@ -327,10 +344,10 @@ Best performance combination:
 
 ```bash
 # Install both
-uv pip install "getbasecounts[all]"
+uv pip install "gbcms[all]"
 
 # Use together
-getbasecounts count run \
+gbcms count run \
     --vcf variants.vcf.gz \
     --thread 16 \
     --backend joblib \
@@ -349,10 +366,10 @@ For massive datasets:
 
 ```bash
 # Install all features
-uv pip install "getbasecounts[all]"
+uv pip install "gbcms[all]"
 
 # Use on cluster
-getbasecounts count run \
+gbcms count run \
     --vcf huge_variants.vcf.gz \
     --thread 64 \
     --backend ray \
@@ -366,7 +383,7 @@ getbasecounts count run \
 
 | Feature | Command | Benefit |
 |---------|---------|---------|
-| Install cyvcf2 | `uv pip install "getbasecounts[fast]"` | 100x faster VCF loading |
+| Install cyvcf2 | `uv pip install "gbcms[fast]"` | 100x faster VCF loading |
 | Check if available | `python3 -c "import cyvcf2"` | Verify installation |
 | Use compressed VCF | `--vcf file.vcf.gz` | Even faster |
 | Combine with Numba | Install `[all]` | Maximum performance |

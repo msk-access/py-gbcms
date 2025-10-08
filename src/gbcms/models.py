@@ -2,10 +2,9 @@
 
 from enum import IntEnum
 from pathlib import Path
-from typing import Dict, List, Optional
 
-from pydantic import BaseModel, Field, field_validator, model_validator
 import numpy as np
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class CountType(IntEnum):
@@ -27,7 +26,7 @@ class BamFileConfig(BaseModel):
 
     sample_name: str = Field(..., description="Sample name")
     bam_path: Path = Field(..., description="Path to BAM file")
-    bai_path: Optional[Path] = Field(None, description="Path to BAM index")
+    bai_path: Path | None = Field(None, description="Path to BAM index")
 
     @field_validator("bam_path")
     @classmethod
@@ -115,16 +114,15 @@ class PerformanceConfig(BaseModel):
     num_threads: int = Field(1, ge=1, description="Number of threads")
     max_block_size: int = Field(10000, ge=1, description="Maximum variants per block")
     max_block_dist: int = Field(100000, ge=1, description="Maximum block distance in bp")
-    use_ray: bool = Field(False, description="Use Ray for distributed processing")
     use_numba: bool = Field(True, description="Use Numba JIT compilation")
-    backend: str = Field("joblib", description="Parallelization backend (joblib or ray)")
 
     @field_validator("backend")
     @classmethod
     def validate_backend(cls, v: str) -> str:
         """Validate backend choice."""
-        if v.lower() not in ["joblib", "ray"]:
-            raise ValueError(f"Invalid backend: {v}. Must be 'joblib' or 'ray'")
+        valid_backends = ["joblib", "loky", "threading", "multiprocessing"]
+        if v.lower() not in valid_backends:
+            raise ValueError(f"Invalid backend: {v}. Must be one of: {', '.join(valid_backends)}")
         return v.lower()
 
 
@@ -133,16 +131,16 @@ class GetBaseCountsConfig(BaseModel):
 
     # Input files
     fasta_file: Path = Field(..., description="Reference FASTA file")
-    bam_files: List[BamFileConfig] = Field(..., description="BAM files to process")
-    variant_files: List[VariantFileConfig] = Field(..., description="Variant files")
+    bam_files: list[BamFileConfig] = Field(..., description="BAM files to process")
+    variant_files: list[VariantFileConfig] = Field(..., description="Variant files")
 
     # Options
     quality_filters: QualityFilters = Field(
-        default_factory=QualityFilters, description="Quality filtering options"
+        default_factory=QualityFilters, description="Quality filtering options"  # type: ignore[arg-type]
     )
     output_options: OutputOptions = Field(..., description="Output options")
     performance: PerformanceConfig = Field(
-        default_factory=PerformanceConfig, description="Performance options"
+        default_factory=PerformanceConfig, description="Performance options"  # type: ignore[arg-type]
     )
 
     # Advanced
@@ -175,7 +173,7 @@ class GetBaseCountsConfig(BaseModel):
 
         return self
 
-    def get_sample_names(self) -> List[str]:
+    def get_sample_names(self) -> list[str]:
         """Get list of sample names in order."""
         return [bam.sample_name for bam in self.bam_files]
 
@@ -247,7 +245,7 @@ class VariantModel(BaseModel):
     caller: str = Field("", description="Variant caller")
 
     # Counts
-    sample_counts: Dict[str, VariantCounts] = Field(
+    sample_counts: dict[str, VariantCounts] = Field(
         default_factory=dict, description="Counts per sample"
     )
 
@@ -280,7 +278,7 @@ class VariantModel(BaseModel):
         """Get unique variant key."""
         return (self.chrom, self.pos, self.ref, self.alt)
 
-    def initialize_counts(self, sample_names: List[str]) -> None:
+    def initialize_counts(self, sample_names: list[str]) -> None:
         """Initialize counts for all samples."""
         for sample in sample_names:
             if sample not in self.sample_counts:
