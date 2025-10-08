@@ -74,14 +74,14 @@ def count_snp_base(
         base_quality_threshold: Quality threshold
 
     Returns:
-        Tuple of (DP, RD, AD, DPP, RDP, ADP)
+        Tuple of (DP, RD, AD, DP_FORWARD, RD_FORWARD, AD_FORWARD)
     """
     dp = 0  # Total depth
     rd = 0  # Reference depth
     ad = 0  # Alternate depth
-    dpp = 0  # Positive strand depth
-    rdp = 0  # Positive strand reference depth
-    adp = 0  # Positive strand alternate depth
+    dpp = 0  # Forward strand depth
+    rdp = 0  # Forward strand reference depth
+    adp = 0  # Forward strand alternate depth
 
     n_reads = len(query_bases)
 
@@ -137,7 +137,7 @@ def count_snp_batch(
         base_quality_threshold: Quality threshold
 
     Returns:
-        Array of counts (n_variants, 6) with columns (DP, RD, AD, DPP, RDP, ADP)
+        Array of counts (n_variants, 6) with columns (DP, RD, AD, DP_FORWARD, RD_FORWARD, AD_FORWARD)
     """
     n_variants = len(variant_positions)
     counts = np.zeros((n_variants, 6), dtype=np.int32)

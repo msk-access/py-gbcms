@@ -11,12 +11,15 @@ class CountType(IntEnum):
     DP = 0  # Total depth
     RD = 1  # Reference depth
     AD = 2  # Alternate depth
-    DPP = 3  # Positive strand depth
-    RDP = 4  # Positive strand reference depth
-    ADP = 5  # Positive strand alternate depth
+    DP_FORWARD = 3  # Forward strand depth
+    RD_FORWARD = 4  # Forward strand reference depth
+    AD_FORWARD = 5  # Forward strand alternate depth
     DPF = 6  # Fragment depth
     RDF = 7  # Fragment reference depth
     ADF = 8  # Fragment alternate depth
+    DP_REVERSE = 9  # Reverse strand depth
+    RD_REVERSE = 10  # Reverse strand reference depth
+    AD_REVERSE = 11  # Reverse strand alternate depth
 
 
 @dataclass
@@ -36,8 +39,8 @@ class Config:
     filter_qc_failed: bool = False
     filter_indel: bool = False
     filter_non_primary: bool = False
-    output_positive_count: bool = True
-    output_negative_count: bool = False
+    output_forward_count: bool = True
+    output_reverse_count: bool = False
     output_fragment_count: bool = False
     fragment_fractional_weight: bool = False
     max_block_size: int = 10000

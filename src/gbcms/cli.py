@@ -299,22 +299,22 @@ def count_run(
             rich_help_panel="📤 Output Options",
         ),
     ] = False,
-    positive_count: Annotated[
+    forward_count: Annotated[
         bool,
         typer.Option(
-            "--positive-count/--no-positive-count",
-            help="Output positive strand counts (DPP/RDP/ADP)",
+            "--forward-count/--no-forward-count",
+            help="Output forward strand counts (DP_FORWARD/RD_FORWARD/AD_FORWARD) - forward strand allele depths - forward strand allele depths",
             rich_help_panel="📤 Output Options",
         ),
     ] = True,
-    negative_count: Annotated[
+    reverse_count: Annotated[
         bool,
         typer.Option(
-            "--negative-count/--no-negative-count",
-            help="Output negative strand counts (DPN/RDN/ADN)",
+            "--reverse-count/--no-reverse-count",
+            help="Output reverse strand counts (DP_REVERSE/RD_REVERSE/AD_REVERSE) - reverse strand allele depths - reverse strand allele depths",
             rich_help_panel="📤 Output Options",
         ),
-    ] = False,
+    ] = True,
     fragment_count: Annotated[
         bool,
         typer.Option(
@@ -566,8 +566,8 @@ def count_run(
             filter_qc_failed=filter_qc_failed,
             filter_indel=filter_indel,
             filter_non_primary=filter_non_primary,
-            output_positive_count=positive_count,
-            output_negative_count=negative_count,
+            output_forward_count=forward_count,
+            output_reverse_count=reverse_count,
             output_fragment_count=fragment_count,
             fragment_fractional_weight=fragment_fractional_weight,
             max_block_size=max_block_size,

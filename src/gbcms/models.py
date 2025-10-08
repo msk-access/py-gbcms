@@ -13,12 +13,19 @@ class CountType(IntEnum):
     DP = 0  # Total depth
     RD = 1  # Reference depth
     AD = 2  # Alternate depth
-    DPP = 3  # Positive strand depth
-    RDP = 4  # Positive strand reference depth
-    ADP = 5  # Positive strand alternate depth
+    DP_FORWARD = 3  # Forward strand depth
+    RD_FORWARD = 4  # Forward strand reference depth
+    AD_FORWARD = 5  # Forward strand alternate depth
     DPF = 6  # Fragment depth
     RDF = 7  # Fragment reference depth
     ADF = 8  # Fragment alternate depth
+    DP_REVERSE = 9  # Reverse strand depth
+    RD_REVERSE = 10  # Reverse strand reference depth
+    AD_REVERSE = 11  # Reverse strand alternate depth
+    RDF_FORWARD = 12  # Forward orientation reference fragments
+    RDF_REVERSE = 13  # Reverse orientation reference fragments
+    ADF_FORWARD = 14  # Forward orientation alternate fragments
+    ADF_REVERSE = 15  # Reverse orientation alternate fragments
 
 
 class BamFileConfig(BaseModel):
@@ -98,8 +105,8 @@ class OutputOptions(BaseModel):
 
     output_file: Path = Field(..., description="Output file path")
     output_maf: bool = Field(False, description="Output in MAF format")
-    output_positive_count: bool = Field(True, description="Output positive strand counts")
-    output_negative_count: bool = Field(False, description="Output negative strand counts")
+    output_forward_count: bool = Field(True, description="Output forward strand counts")
+    output_reverse_count: bool = Field(False, description="Output reverse strand counts")
     output_fragment_count: bool = Field(False, description="Output fragment counts")
     fragment_fractional_weight: bool = Field(
         False, description="Use fractional weights for fragments"

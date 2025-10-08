@@ -108,6 +108,44 @@ class BaseCounter:
                 return True
         return False
 
+    @staticmethod
+    def _determine_read_orientation(aln: pysam.AlignedSegment) -> str:
+        """
+        Determine if a read is on the forward or reverse strand.
+
+        Args:
+            aln: Pysam alignment segment
+
+        Returns:
+            "forward" if read is on forward strand, "reverse" if on reverse strand
+        """
+        if aln.is_reverse:
+            return "reverse"
+        else:
+            return "forward"
+
+    @staticmethod
+    def _classify_fragment_orientation(r1_orient: str, r2_orient: str) -> str:
+        """
+        Classify fragment orientation based on R1/R2 strand relationship.
+
+        Args:
+            r1_orient: Orientation of R1 ("forward" or "reverse")
+            r2_orient: Orientation of R2 ("forward" or "reverse")
+
+        Returns:
+            Fragment orientation classification:
+            - "R1_forward": Standard orientation (R1 forward, R2 reverse)
+            - "R2_forward": Inverted orientation (R1 reverse, R2 forward)
+            - "conflicted": Same orientation or missing data
+        """
+        if r1_orient == "forward" and r2_orient == "reverse":
+            return "R1_forward"
+        elif r1_orient == "reverse" and r2_orient == "forward":
+            return "R2_forward"
+        else:
+            return "conflicted"
+
     def count_bases_snp(
         self, variant: VariantEntry, alignments: list[pysam.AlignedSegment], sample_name: str
     ) -> None:
@@ -157,7 +195,7 @@ class BaseCounter:
             # Count total depth
             counts[CountType.DP] += 1
             if not aln.is_reverse:
-                counts[CountType.DPP] += 1
+                counts[CountType.DP_FORWARD] += 1
 
             # Track fragment
             end_no = 1 if aln.is_read1 else 2
@@ -171,7 +209,7 @@ class BaseCounter:
             if base == variant.ref:
                 counts[CountType.RD] += 1
                 if not aln.is_reverse:
-                    counts[CountType.RDP] += 1
+                    counts[CountType.RD_FORWARD] += 1
                 if self.config.output_fragment_count and aln.query_name is not None:
                     if aln.query_name not in rdf_map:
                         rdf_map[aln.query_name] = {}
@@ -179,17 +217,22 @@ class BaseCounter:
             elif base == variant.alt:
                 counts[CountType.AD] += 1
                 if not aln.is_reverse:
-                    counts[CountType.ADP] += 1
+                    counts[CountType.AD_FORWARD] += 1
                 if self.config.output_fragment_count and aln.query_name is not None:
                     if aln.query_name not in adf_map:
                         adf_map[aln.query_name] = {}
                     adf_map[aln.query_name][end_no] = adf_map[aln.query_name].get(end_no, 0) + 1
 
         # Calculate strand bias for this sample
-        ref_forward = int(counts[CountType.RDP])
+        ref_forward = int(counts[CountType.RD_FORWARD])
         ref_reverse = int(counts[CountType.RD]) - ref_forward
-        alt_forward = int(counts[CountType.ADP])
+        alt_forward = int(counts[CountType.AD_FORWARD])
         alt_reverse = int(counts[CountType.AD]) - alt_forward
+
+        # Assign reverse strand counts
+        counts[CountType.DP_REVERSE] = ref_reverse + alt_reverse
+        counts[CountType.RD_REVERSE] = ref_reverse
+        counts[CountType.AD_REVERSE] = alt_reverse
 
         strand_bias_pval, strand_bias_or, strand_bias_dir = self.calculate_strand_bias(
             ref_forward, ref_reverse, alt_forward, alt_reverse
@@ -284,7 +327,7 @@ class BaseCounter:
             # Count total depth
             counts[CountType.DP] += 1
             if not aln.is_reverse:
-                counts[CountType.DPP] += 1
+                counts[CountType.DP_FORWARD] += 1
 
             # Track fragment
             end_no = 1 if aln.is_read1 else 2
@@ -298,7 +341,7 @@ class BaseCounter:
             if dnp_seq == variant.ref:
                 counts[CountType.RD] += 1
                 if not aln.is_reverse:
-                    counts[CountType.RDP] += 1
+                    counts[CountType.RD_FORWARD] += 1
                 if self.config.output_fragment_count and aln.query_name is not None:
                     if aln.query_name not in rdf_map:
                         rdf_map[aln.query_name] = {}
@@ -306,7 +349,7 @@ class BaseCounter:
             elif dnp_seq == variant.alt:
                 counts[CountType.AD] += 1
                 if not aln.is_reverse:
-                    counts[CountType.ADP] += 1
+                    counts[CountType.AD_FORWARD] += 1
                 if self.config.output_fragment_count and aln.query_name is not None:
                     if aln.query_name not in adf_map:
                         adf_map[aln.query_name] = {}
@@ -412,7 +455,7 @@ class BaseCounter:
                             # Count total depth
                             counts[CountType.DP] += 1
                             if not aln.is_reverse:
-                                counts[CountType.DPP] += 1
+                                counts[CountType.DP_FORWARD] += 1
 
                             # Track fragment
                             end_no = 1 if aln.is_read1 else 2
@@ -428,7 +471,7 @@ class BaseCounter:
                             if matched_indel:
                                 counts[CountType.AD] += 1
                                 if not aln.is_reverse:
-                                    counts[CountType.ADP] += 1
+                                    counts[CountType.AD_FORWARD] += 1
                                 if self.config.output_fragment_count and aln.query_name is not None:
                                     if aln.query_name not in adf_map:
                                         adf_map[aln.query_name] = {}
@@ -438,7 +481,7 @@ class BaseCounter:
                             else:
                                 counts[CountType.RD] += 1
                                 if not aln.is_reverse:
-                                    counts[CountType.RDP] += 1
+                                    counts[CountType.RD_FORWARD] += 1
                                 if self.config.output_fragment_count and aln.query_name is not None:
                                     if aln.query_name not in rdf_map:
                                         rdf_map[aln.query_name] = {}
@@ -609,7 +652,7 @@ class BaseCounter:
             # Count depth
             counts[CountType.DP] += 1
             if not aln.is_reverse:
-                counts[CountType.DPP] += 1
+                counts[CountType.DP_FORWARD] += 1
 
             # Track fragment
             end_no = 1 if aln.is_read1 else 2
@@ -628,7 +671,7 @@ class BaseCounter:
                 if alignment_allele == variant.ref:
                     counts[CountType.RD] += 1
                     if not aln.is_reverse:
-                        counts[CountType.RDP] += 1
+                        counts[CountType.RD_FORWARD] += 1
 
                     if self.config.output_fragment_count and frag_name is not None:
                         if frag_name not in rdf_map:
@@ -640,7 +683,7 @@ class BaseCounter:
                 elif alignment_allele == variant.alt:
                     counts[CountType.AD] += 1
                     if not aln.is_reverse:
-                        counts[CountType.ADP] += 1
+                        counts[CountType.AD_FORWARD] += 1
 
                     if self.config.output_fragment_count and frag_name is not None:
                         if frag_name not in adf_map:
@@ -756,9 +799,9 @@ class BaseCounter:
             counts[CountType.DP] = dp
             counts[CountType.RD] = rd
             counts[CountType.AD] = ad
-            counts[CountType.DPP] = dpp
-            counts[CountType.RDP] = rdp
-            counts[CountType.ADP] = adp
+            counts[CountType.DP_FORWARD] = dpp
+            counts[CountType.RD_FORWARD] = rdp
+            counts[CountType.AD_FORWARD] = adp
 
             # Handle fragment counting if enabled
             if self.config.output_fragment_count:
@@ -773,8 +816,8 @@ class BaseCounter:
 
             # Calculate fragment strand bias if fragment counting is enabled
             if self.config.output_fragment_count:
-                # Note: Fragment strand bias uses same forward/reverse as normal strand bias
-                # since fragments inherit strand orientation from reads
+                # Note: Fragment strand bias uses fragment-aware orientation logic
+                # calculated during output generation using fragment counts (RDF/ADF)
                 pass
             if sample_name not in variant.base_count:
                 variant.base_count[sample_name] = counts
@@ -946,8 +989,8 @@ class BaseCounter:
             Tuple of (ref_forward, ref_reverse, alt_forward, alt_reverse)
         """
         # Get strand-specific counts
-        ref_forward = int(variant.get_count(sample_name, CountType.RDP))
-        alt_forward = int(variant.get_count(sample_name, CountType.ADP))
+        ref_forward = int(variant.get_count(sample_name, CountType.RD_FORWARD))
+        alt_forward = int(variant.get_count(sample_name, CountType.AD_FORWARD))
 
         # Calculate reverse strand counts (total - forward)
         ref_total = int(variant.get_count(sample_name, CountType.RD))
