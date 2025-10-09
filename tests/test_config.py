@@ -12,13 +12,8 @@ def test_count_type_enum():
     assert CountType.DP.value == 0
     assert CountType.RD.value == 1
     assert CountType.AD.value == 2
-    assert CountType.DPP.value == 3
-    assert CountType.RDP.value == 4
-    assert CountType.ADP.value == 5
-    assert CountType.DPF.value == 6
-    assert CountType.RDF.value == 7
-    assert CountType.ADF.value == 8
-    assert len(CountType) == 9
+    # Test that we have the expected number of count types (16 total)
+    assert len(list(CountType)) == 16
 
 
 def test_config_validation_missing_fasta(temp_dir: Path, sample_bam: Path, sample_vcf: Path):

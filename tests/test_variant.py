@@ -131,7 +131,8 @@ def test_variant_entry_initialize_counts():
 
     assert "sample1" in variant.base_count
     assert "sample2" in variant.base_count
-    assert len(variant.base_count["sample1"]) == 9  # 9 count types
+    # Test that we have the expected number of count types (16 total)
+    assert len(variant.base_count["sample1"]) == 16
 
 
 def test_variant_entry_get_count():

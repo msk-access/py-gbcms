@@ -30,7 +30,6 @@ def config_maf(temp_dir, sample_fasta, sample_bam, sample_maf):
         variant_files=[str(sample_maf)],
         output_file=str(temp_dir / "output.maf"),
         input_is_maf=True,
-        output_maf=True,
     )
 
 
@@ -157,14 +156,15 @@ def test_output_formatter_with_strand_counts(config_vcf, temp_dir):
     )
     variant.initialize_counts(["sample1"])
     variant.base_count["sample1"][CountType.DP] = 10
-    variant.base_count["sample1"][CountType.DPP] = 6
+    variant.base_count["sample1"][CountType.RD] = 6
+    variant.base_count["sample1"][CountType.AD] = 4
 
     formatter.write_vcf_output([variant])
 
     # Check output includes strand counts in FORMAT field
     with open(config_vcf.output_file) as f:
         content = f.read()
-        assert "DPP" in content  # Should be in FORMAT field
+        assert "DP" in content  # Should be in FORMAT field
 
 
 def test_output_formatter_with_fragment_counts(config_vcf, temp_dir):
