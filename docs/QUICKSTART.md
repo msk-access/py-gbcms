@@ -114,8 +114,16 @@ gbcms count run \
     --fasta reference.fa \
     --bam-fof bam_files.txt \
     --maf variants.maf \
-    --output counts.maf \
-    --omaf
+    --output counts.maf
+    # Note: MAF input now defaults to sample-agnostic MAF output
+
+# For fillout format with MAF input:
+gbcms count run \
+    --fasta reference.fa \
+    --bam-fof bam_files.txt \
+    --maf variants.maf \
+    --fillout \
+    --output counts_fillout.txt
 ```
 
 ## Common Options
@@ -279,7 +287,7 @@ gbcms validate files \
     --bam normal:normal.bam \
     --vcf variants.vcf
 
-# 5. Run analysis
+# 5. Run analysis (VCF input defaults to VCF output)
 gbcms count run \
     --fasta reference.fa \
     --bam-fof bam_files.txt \
@@ -289,6 +297,14 @@ gbcms count run \
     --maq 20 \
     --baq 10 \
     --filter-duplicate
+
+# 6. For MAF input (defaults to sample-agnostic MAF output):
+gbcms count run \
+    --fasta reference.fa \
+    --bam-fof bam_files.txt \
+    --maf variants.maf \
+    --output counts.maf \
+    --thread 4
 
 # 5. View results
 head counts.txt

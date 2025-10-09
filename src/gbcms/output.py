@@ -5,6 +5,7 @@ from datetime import datetime
 
 from .config import Config, CountType
 from .variant import VariantEntry
+from .counter import BaseCounter
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,8 @@ class OutputFormatter:
         """
         self.config = config
         self.sample_order = sample_order
+        # Initialize counter for strand bias calculations
+        self.counter = BaseCounter(config)
 
     def write_vcf_output(self, variants: list[VariantEntry]) -> None:
         """
@@ -125,28 +128,20 @@ class OutputFormatter:
                     alt_forward = int(variant.get_count(sample, CountType.AD_FORWARD))
                     alt_reverse = ad - alt_forward
 
-                    sb_pval, sb_or, sb_dir = self._calculate_strand_bias_for_output(
+                    sb_pval, sb_or, sb_dir = self.counter.calculate_strand_bias(
                         ref_forward, ref_reverse, alt_forward, alt_reverse
                     )
                     sample_sb_values.append(f"{sb_pval:.6f}:{sb_or:.3f}:{sb_dir}")
 
-                    # Fragment strand bias (if enabled)
+                    # Fragment strand bias (if enabled) - use real orientation counts
                     if self.config.output_fragment_count:
-                        # Use fragment counts with fragment orientation logic
-                        rdf = int(variant.get_count(sample, CountType.RDF))
-                        adf = int(variant.get_count(sample, CountType.ADF))
-                        rdf_forward = int(variant.get_count(sample, CountType.RDF_FORWARD))
-                        rdf_reverse = int(variant.get_count(sample, CountType.RDF_REVERSE))
-                        adf_forward = int(variant.get_count(sample, CountType.ADF_FORWARD))
-                        adf_reverse = int(variant.get_count(sample, CountType.ADF_REVERSE))
+                        # Use real orientation-specific fragment counts (no artificial distribution)
+                        ref_forward = int(variant.get_count(sample, CountType.RDF_FORWARD))
+                        ref_reverse = int(variant.get_count(sample, CountType.RDF_REVERSE))
+                        alt_forward = int(variant.get_count(sample, CountType.ADF_FORWARD))
+                        alt_reverse = int(variant.get_count(sample, CountType.ADF_REVERSE))
 
-                        # Distribute fragments across orientations (~50/50 split)
-                        ref_forward = rdf // 2
-                        ref_reverse = rdf - ref_forward
-                        alt_forward = adf // 2
-                        alt_reverse = adf - alt_forward
-
-                        fsb_pval, fsb_or, fsb_dir = self._calculate_fragment_strand_bias_for_output(
+                        fsb_pval, fsb_or, fsb_dir = self.counter.calculate_strand_bias(
                             ref_forward, ref_reverse, alt_forward, alt_reverse
                         )
                         sample_fsb_values.append(f"{fsb_pval:.6f}:{fsb_or:.3f}:{fsb_dir}")
@@ -239,7 +234,16 @@ class OutputFormatter:
                         dp_reverse = int(variant.get_count(sample, CountType.DP_REVERSE))
                         rd_reverse = int(variant.get_count(sample, CountType.RD_REVERSE))
                         ad_reverse = int(variant.get_count(sample, CountType.AD_REVERSE))
-                        sample_data.extend([str(dp_forward), str(rd_forward), str(ad_forward), str(dp_reverse), str(rd_reverse), str(ad_reverse)])
+                        sample_data.extend(
+                            [
+                                str(dp_forward),
+                                str(rd_forward),
+                                str(ad_forward),
+                                str(dp_reverse),
+                                str(rd_reverse),
+                                str(ad_reverse),
+                            ]
+                        )
 
                     if self.config.output_fragment_count:
                         dpf = int(variant.get_count(sample, CountType.DPF))
@@ -274,236 +278,86 @@ class OutputFormatter:
 
         logger.info(f"Successfully wrote {len(variants)} variants to VCF output file")
 
-    def _calculate_strand_bias_for_output(
-        self,
-        ref_forward: int,
-        ref_reverse: int,
-        alt_forward: int,
-        alt_reverse: int,
-        min_depth: int = 10,
-    ) -> tuple[float, float, str]:
+
+    def write_sample_agnostic_maf_output(self, variants: list[VariantEntry]) -> None:
         """
-        Calculate strand bias using Fisher's exact test for output.
+        Write sample-agnostic MAF output (one row per sample per variant).
 
-        Args:
-            ref_forward: Reference allele count on forward strand
-            ref_reverse: Reference allele count on reverse strand
-            alt_forward: Alternate allele count on forward strand
-            alt_reverse: Alternate allele count on reverse strand
-            min_depth: Minimum total depth to calculate bias
-
-        Returns:
-            Tuple of (p_value, odds_ratio, bias_direction)
-        """
-        try:
-            import numpy as np
-            from scipy.stats import fisher_exact
-
-            # Check minimum depth requirement
-            total_depth = ref_forward + ref_reverse + alt_forward + alt_reverse
-            if total_depth < min_depth:
-                return 1.0, 1.0, "insufficient_depth"
-
-            # Create 2x2 contingency table
-            # [[ref_forward, ref_reverse],
-            #  [alt_forward, alt_reverse]]
-            table = np.array([[ref_forward, ref_reverse], [alt_forward, alt_reverse]])
-
-            # Fisher's exact test
-            odds_ratio, p_value = fisher_exact(table, alternative="two-sided")
-
-            # Determine bias direction
-            total_forward = ref_forward + alt_forward
-            total_reverse = ref_reverse + alt_reverse
-
-            if total_forward > 0 and total_reverse > 0:
-                forward_ratio = ref_forward / total_forward if total_forward > 0 else 0
-                reverse_ratio = ref_reverse / total_reverse if total_reverse > 0 else 0
-
-                if forward_ratio > reverse_ratio + 0.1:  # 10% threshold
-                    bias_direction = "forward"
-                elif reverse_ratio > forward_ratio + 0.1:
-                    bias_direction = "reverse"
-                else:
-                    bias_direction = "none"
-            else:
-                bias_direction = "none"
-
-            return p_value, odds_ratio, bias_direction
-
-        except ImportError:
-            logger.warning("scipy not available for strand bias calculation")
-            return 1.0, 1.0, "scipy_unavailable"
-        except Exception as e:
-            logger.warning(f"Error calculating strand bias: {e}")
-            return 1.0, 1.0, "error"
-
-    def _calculate_fragment_strand_bias_for_output(
-        self,
-        ref_forward: int,
-        ref_reverse: int,
-        alt_forward: int,
-        alt_reverse: int,
-        min_depth: int = 10,
-    ) -> tuple[float, float, str]:
-        """
-        Calculate fragment-aware strand bias using Fisher's exact test.
-
-        For fragment counting, strand orientation follows fragment rules:
-        - Fragments have coordinated strand orientation from read pairs
-        - R1 typically represents forward strand, R2 represents reverse strand
-        - This provides more accurate bias assessment for fragment-level analysis
-
-        Args:
-            ref_forward: Reference allele fragments on "forward" orientation
-            ref_reverse: Reference allele fragments on "reverse" orientation
-            alt_forward: Alternate allele fragments on "forward" orientation
-            alt_reverse: Alternate allele fragments on "reverse" orientation
-            min_depth: Minimum total depth to calculate bias
-
-        Returns:
-            Tuple of (p_value, odds_ratio, bias_direction)
-        """
-        try:
-            import numpy as np
-            from scipy.stats import fisher_exact
-
-            # Check minimum depth requirement
-            total_depth = ref_forward + ref_reverse + alt_forward + alt_reverse
-            if total_depth < min_depth:
-                return 1.0, 1.0, "insufficient_depth"
-
-            # Create 2x2 contingency table for fragment strand bias
-            # [[ref_forward, ref_reverse],
-            #  [alt_forward, alt_reverse]]
-            table = np.array([[ref_forward, ref_reverse], [alt_forward, alt_reverse]])
-
-            # Fisher's exact test
-            odds_ratio, p_value = fisher_exact(table, alternative="two-sided")
-
-            # Determine bias direction for fragments
-            total_forward = ref_forward + alt_forward
-            total_reverse = ref_reverse + alt_reverse
-
-            if total_forward > 0 and total_reverse > 0:
-                forward_ratio = ref_forward / total_forward if total_forward > 0 else 0
-                reverse_ratio = ref_reverse / total_reverse if total_reverse > 0 else 0
-
-                if forward_ratio > reverse_ratio + 0.1:  # 10% threshold
-                    bias_direction = "forward"
-                elif reverse_ratio > forward_ratio + 0.1:
-                    bias_direction = "reverse"
-                else:
-                    bias_direction = "none"
-            else:
-                bias_direction = "none"
-
-            return p_value, odds_ratio, bias_direction
-
-        except ImportError:
-            logger.warning("scipy not available for fragment strand bias calculation")
-            return 1.0, 1.0, "scipy_unavailable"
-        except Exception as e:
-            logger.warning(f"Error calculating fragment strand bias: {e}")
-            return 1.0, 1.0, "error"
-
-    def write_maf_output(self, variants: list[VariantEntry]) -> None:
-        """
-        Write output in MAF format.
+        This implements the new strategy where:
+        - Each sample gets its own row for each variant
+        - Sample name is used as Tumor_Sample_Barcode
+        - Matched_Norm_Sample_Barcode is left empty
+        - Only tumor columns are populated, normal columns are empty
 
         Args:
             variants: List of variants with counts
         """
-        logger.info(f"Writing MAF output to: {self.config.output_file}")
+        logger.info(f"Writing sample-agnostic MAF output to: {self.config.output_file}")
 
         with open(self.config.output_file, "w") as f:
-            # Write header (use first variant's MAF line to get column names)
-            if variants and variants[0].maf_line:
-                # Parse header from first MAF line structure
-                header_cols = [
-                    "Hugo_Symbol",
-                    "Chromosome",
-                    "Start_Position",
-                    "End_Position",
-                    "Reference_Allele",
-                    "Tumor_Seq_Allele1",
-                    "Tumor_Seq_Allele2",
-                    "Tumor_Sample_Barcode",
-                    "Matched_Norm_Sample_Barcode",
-                    "Variant_Classification",
-                ]
+            # Write header - standard MAF columns plus tumor-only count columns
+            header_cols = [
+                "Hugo_Symbol",
+                "Chromosome",
+                "Start_Position",
+                "End_Position",
+                "Reference_Allele",
+                "Tumor_Seq_Allele1",
+                "Tumor_Seq_Allele2",
+                "Tumor_Sample_Barcode",
+                "Matched_Norm_Sample_Barcode",
+                "Variant_Classification",
+            ]
 
-                # Add count columns for tumor and normal
-                count_cols = [
-                    "t_depth",
-                    "t_ref_count",
-                    "t_alt_count",
-                    "n_depth",
-                    "n_ref_count",
-                    "n_alt_count",
-                ]
+            # Add tumor-only count columns (no normal columns)
+            count_cols = [
+                "t_depth",
+                "t_ref_count",
+                "t_alt_count",
+                "t_vaf",
+            ]
 
-                if self.config.output_strand_count:
-                    count_cols.extend(
-                        [
-                            "t_depth_forward",
-                            "t_ref_count_forward",
-                            "t_alt_count_forward",
-                            "n_depth_forward",
-                            "n_ref_count_forward",
-                            "n_alt_count_forward",
-                        ]
-                    )
+            if self.config.output_strand_count:
+                count_cols.extend([
+                    "t_depth_forward",
+                    "t_ref_count_forward",
+                    "t_alt_count_forward",
+                    "t_depth_reverse",
+                    "t_ref_count_reverse",
+                    "t_alt_count_reverse",
+                ])
 
-                if self.config.output_fragment_count:
-                    count_cols.extend(
-                        [
-                            "t_depth_fragment",
-                            "t_ref_count_fragment",
-                            "t_alt_count_fragment",
-                            "t_ref_count_fragment_forward",
-                            "t_ref_count_fragment_reverse",
-                            "t_alt_count_fragment_forward",
-                            "t_alt_count_fragment_reverse",
-                            "n_depth_fragment",
-                            "n_ref_count_fragment",
-                            "n_alt_count_fragment",
-                            "n_ref_count_fragment_forward",
-                            "n_ref_count_fragment_reverse",
-                            "n_alt_count_fragment_forward",
-                            "n_alt_count_fragment_reverse",
-                        ]
-                    )
+            if self.config.output_fragment_count:
+                count_cols.extend([
+                    "t_depth_fragment",
+                    "t_ref_count_fragment",
+                    "t_alt_count_fragment",
+                    "t_ref_count_fragment_forward",
+                    "t_ref_count_fragment_reverse",
+                    "t_alt_count_fragment_forward",
+                    "t_alt_count_fragment_reverse",
+                ])
 
-                # Add strand bias columns for tumor and normal samples
-                count_cols.extend(
-                    [
-                        "t_strand_bias_pval",
-                        "t_strand_bias_or",
-                        "t_strand_bias_dir",
-                        "n_strand_bias_pval",
-                        "n_strand_bias_or",
-                        "n_strand_bias_dir",
-                    ]
-                )
+            # Add tumor-only strand bias columns
+            count_cols.extend([
+                "t_strand_bias_pval",
+                "t_strand_bias_or",
+                "t_strand_bias_dir",
+            ])
 
-                if self.config.output_fragment_count:
-                    count_cols.extend(
-                        [
-                            "t_fragment_strand_bias_pval",
-                            "t_fragment_strand_bias_or",
-                            "t_fragment_strand_bias_dir",
-                            "n_fragment_strand_bias_pval",
-                            "n_fragment_strand_bias_or",
-                            "n_fragment_strand_bias_dir",
-                        ]
-                    )
+            if self.config.output_fragment_count:
+                count_cols.extend([
+                    "t_fragment_strand_bias_pval",
+                    "t_fragment_strand_bias_or",
+                    "t_fragment_strand_bias_dir",
+                ])
 
-                f.write("\t".join(header_cols + count_cols) + "\n")
+            f.write("\t".join(header_cols + count_cols) + "\n")
 
-            # Write variants
+            # Write variants - one row per sample per variant
             for variant in variants:
-                row = [
+                # Base MAF columns (same for all samples)
+                base_cols = [
                     variant.gene,
                     variant.chrom,
                     str(variant.maf_pos + 1),  # Convert back to 1-indexed
@@ -511,181 +365,109 @@ class OutputFormatter:
                     variant.maf_ref,
                     variant.maf_alt if variant.maf_alt else "",
                     "",  # Tumor_Seq_Allele2
-                    variant.tumor_sample,
-                    variant.normal_sample,
+                    "",  # Tumor_Sample_Barcode (will be set per sample)
+                    "",  # Matched_Norm_Sample_Barcode (always empty)
                     variant.effect,
                 ]
 
-                # Get tumor counts
-                t_dp = int(variant.get_count(variant.tumor_sample, CountType.DP))
-                t_rd = int(variant.get_count(variant.tumor_sample, CountType.RD))
-                t_ad = int(variant.get_count(variant.tumor_sample, CountType.AD))
+                # Generate one row per sample
+                for sample in self.sample_order:
+                    row = base_cols.copy()
+                    row[7] = sample  # Set Tumor_Sample_Barcode to sample name
 
-                # Calculate tumor VAF
-                t_vaf = t_ad / t_dp if t_dp > 0 else 0.0
+                    # Get counts for this sample
+                    dp = int(variant.get_count(sample, CountType.DP))
+                    rd = int(variant.get_count(sample, CountType.RD))
+                    ad = int(variant.get_count(sample, CountType.AD))
+                    vaf = ad / dp if dp > 0 else 0.0
 
-                # Get normal counts
-                n_dp = int(variant.get_count(variant.normal_sample, CountType.DP))
-                n_rd = int(variant.get_count(variant.normal_sample, CountType.RD))
-                n_ad = int(variant.get_count(variant.normal_sample, CountType.AD))
-
-                # Calculate normal VAF
-                n_vaf = n_ad / n_dp if n_dp > 0 else 0.0
-
-                row.extend(
-                    [
-                        str(t_dp),
-                        str(t_rd),
-                        str(t_ad),
-                        f"{t_vaf:.6f}",
-                        str(n_dp),
-                        str(n_rd),
-                        str(n_ad),
-                        f"{n_vaf:.6f}",
+                    # Add tumor counts (sample-specific)
+                    sample_counts = [
+                        str(dp),      # t_depth
+                        str(rd),      # t_ref_count
+                        str(ad),      # t_alt_count
+                        f"{vaf:.6f}", # t_vaf
                     ]
-                )
 
-                if self.config.output_strand_count:
-                    t_dp_forward = int(
-                        variant.get_count(variant.tumor_sample, CountType.DP_FORWARD)
-                    )
-                    t_rd_forward = int(
-                        variant.get_count(variant.tumor_sample, CountType.RD_FORWARD)
-                    )
-                    t_ad_forward = int(
-                        variant.get_count(variant.tumor_sample, CountType.AD_FORWARD)
-                    )
-                    n_dp_forward = int(
-                        variant.get_count(variant.normal_sample, CountType.DP_FORWARD)
-                    )
-                    n_rd_forward = int(
-                        variant.get_count(variant.normal_sample, CountType.RD_FORWARD)
-                    )
-                    n_ad_forward = int(
-                        variant.get_count(variant.normal_sample, CountType.AD_FORWARD)
-                    )
-                    row.extend(
-                        [str(t_dp_forward), str(t_rd_forward), str(t_ad_forward), str(n_dp_forward), str(n_rd_forward), str(n_ad_forward)]
-                    )
+                    if self.config.output_strand_count:
+                        dp_forward = int(variant.get_count(sample, CountType.DP_FORWARD))
+                        rd_forward = int(variant.get_count(sample, CountType.RD_FORWARD))
+                        ad_forward = int(variant.get_count(sample, CountType.AD_FORWARD))
+                        dp_reverse = int(variant.get_count(sample, CountType.DP_REVERSE))
+                        rd_reverse = int(variant.get_count(sample, CountType.RD_REVERSE))
+                        ad_reverse = int(variant.get_count(sample, CountType.AD_REVERSE))
 
-                if self.config.output_strand_count:
-                    t_dp_reverse = int(
-                        variant.get_count(variant.tumor_sample, CountType.DP_REVERSE)
-                    )
-                    t_rd_reverse = int(
-                        variant.get_count(variant.tumor_sample, CountType.RD_REVERSE)
-                    )
-                    t_ad_reverse = int(
-                        variant.get_count(variant.tumor_sample, CountType.AD_REVERSE)
-                    )
-                    n_dp_reverse = int(
-                        variant.get_count(variant.normal_sample, CountType.DP_REVERSE)
-                    )
-                    n_rd_reverse = int(
-                        variant.get_count(variant.normal_sample, CountType.RD_REVERSE)
-                    )
-                    n_ad_reverse = int(
-                        variant.get_count(variant.normal_sample, CountType.AD_REVERSE)
-                    )
-                    row.extend(
-                        [str(t_dp_reverse), str(t_rd_reverse), str(t_ad_reverse), str(n_dp_reverse), str(n_rd_reverse), str(n_ad_reverse)]
-                    )
+                        sample_counts.extend([
+                            str(dp_forward),  # t_depth_forward
+                            str(rd_forward),  # t_ref_count_forward
+                            str(ad_forward),  # t_alt_count_forward
+                            str(dp_reverse),  # t_depth_reverse
+                            str(rd_reverse),  # t_ref_count_reverse
+                            str(ad_reverse),  # t_alt_count_reverse
+                        ])
 
-                if self.config.output_fragment_count:
-                    t_dpf = int(variant.get_count(variant.tumor_sample, CountType.DPF))
-                    t_rdf = int(variant.get_count(variant.tumor_sample, CountType.RDF))
-                    t_adf = int(variant.get_count(variant.tumor_sample, CountType.ADF))
-                    n_dpf = int(variant.get_count(variant.normal_sample, CountType.DPF))
-                    n_rdf = int(variant.get_count(variant.normal_sample, CountType.RDF))
-                    n_adf = int(variant.get_count(variant.normal_sample, CountType.ADF))
-                    row.extend(
-                        [str(t_dpf), str(t_rdf), str(t_adf), str(n_dpf), str(n_rdf), str(n_adf)]
+                    if self.config.output_fragment_count:
+                        dpf = int(variant.get_count(sample, CountType.DPF))
+                        rdf = int(variant.get_count(sample, CountType.RDF))
+                        adf = int(variant.get_count(sample, CountType.ADF))
+                        rdf_forward = int(variant.get_count(sample, CountType.RDF_FORWARD))
+                        rdf_reverse = int(variant.get_count(sample, CountType.RDF_REVERSE))
+                        adf_forward = int(variant.get_count(sample, CountType.ADF_FORWARD))
+                        adf_reverse = int(variant.get_count(sample, CountType.ADF_REVERSE))
+
+                        sample_counts.extend([
+                            str(dpf),  # t_depth_fragment
+                            str(rdf),  # t_ref_count_fragment
+                            str(adf),  # t_alt_count_fragment
+                            str(rdf_forward),   # t_ref_count_fragment_forward
+                            str(rdf_reverse),   # t_ref_count_fragment_reverse
+                            str(adf_forward),   # t_alt_count_fragment_forward
+                            str(adf_reverse),   # t_alt_count_fragment_reverse
+                        ])
+
+                    # Calculate and add strand bias for this sample
+                    ref_forward = int(variant.get_count(sample, CountType.RD_FORWARD))
+                    ref_reverse = int(variant.get_count(sample, CountType.RD_REVERSE))
+                    alt_forward = int(variant.get_count(sample, CountType.AD_FORWARD))
+                    alt_reverse = int(variant.get_count(sample, CountType.AD_REVERSE))
+
+                    sb_pval, sb_or, sb_dir = self.counter.calculate_strand_bias(
+                        ref_forward, ref_reverse, alt_forward, alt_reverse
                     )
 
-                # Add strand bias information for tumor and normal
-                # Calculate tumor strand bias on-the-fly
-                t_ref_forward = int(variant.get_count(variant.tumor_sample, CountType.RD_FORWARD))
-                t_ref_reverse = int(variant.get_count(variant.tumor_sample, CountType.RD_REVERSE))
-                t_alt_forward = int(variant.get_count(variant.tumor_sample, CountType.AD_FORWARD))
-                t_alt_reverse = int(variant.get_count(variant.tumor_sample, CountType.AD_REVERSE))
+                    sample_counts.extend([
+                        f"{sb_pval:.6f}",  # t_strand_bias_pval
+                        f"{sb_or:.3f}",    # t_strand_bias_or
+                        sb_dir,            # t_strand_bias_dir
+                    ])
 
-                t_sb_pval, t_sb_or, t_sb_dir = self._calculate_strand_bias_for_output(
-                    t_ref_forward, t_ref_reverse, t_alt_forward, t_alt_reverse
-                )
+                    if self.config.output_fragment_count:
+                        # Calculate fragment strand bias
+                        ref_forward = int(variant.get_count(sample, CountType.RDF_FORWARD))
+                        ref_reverse = int(variant.get_count(sample, CountType.RDF_REVERSE))
+                        alt_forward = int(variant.get_count(sample, CountType.ADF_FORWARD))
+                        alt_reverse = int(variant.get_count(sample, CountType.ADF_REVERSE))
 
-                # Calculate normal strand bias on-the-fly
-                n_ref_forward = int(variant.get_count(variant.normal_sample, CountType.RD_FORWARD))
-                n_ref_reverse = int(variant.get_count(variant.normal_sample, CountType.RD_REVERSE))
-                n_alt_forward = int(variant.get_count(variant.normal_sample, CountType.AD_FORWARD))
-                n_alt_reverse = int(variant.get_count(variant.normal_sample, CountType.AD_REVERSE))
-
-                n_sb_pval, n_sb_or, n_sb_dir = self._calculate_strand_bias_for_output(
-                    n_ref_forward, n_ref_reverse, n_alt_forward, n_alt_reverse
-                )
-
-                row.extend(
-                    [
-                        f"{t_sb_pval:.6f}",
-                        f"{t_sb_or:.3f}",
-                        t_sb_dir,
-                        f"{n_sb_pval:.6f}",
-                        f"{n_sb_or:.3f}",
-                        n_sb_dir,
-                    ]
-                )
-
-                if self.config.output_fragment_count:
-                    # Calculate fragment strand bias for tumor and normal
-                    # Use fragment counts (RDF, ADF) with fragment orientation logic
-                    t_rdf = int(variant.get_count(variant.tumor_sample, CountType.RDF))
-                    t_adf = int(variant.get_count(variant.tumor_sample, CountType.ADF))
-
-                    # For fragment strand bias, distribute fragments across orientations
-                    # Assumption: ~50% fragments are "forward" (R1-like), ~50% are "reverse" (R2-like)
-                    t_ref_forward = t_rdf // 2  # Approximate forward reference fragments
-                    t_ref_reverse = t_rdf - t_ref_forward  # Approximate reverse reference fragments
-                    t_alt_forward = t_adf // 2  # Approximate forward alternate fragments
-                    t_alt_reverse = t_adf - t_alt_forward  # Approximate reverse alternate fragments
-
-                    t_fsb_pval, t_fsb_or, t_fsb_dir = (
-                        self._calculate_fragment_strand_bias_for_output(
-                            t_ref_forward, t_ref_reverse, t_alt_forward, t_alt_reverse
+                        fsb_pval, fsb_or, fsb_dir = self.counter.calculate_strand_bias(
+                            ref_forward, ref_reverse, alt_forward, alt_reverse
                         )
-                    )
 
-                    # Normal sample fragment strand bias
-                    n_rdf = int(variant.get_count(variant.normal_sample, CountType.RDF))
-                    n_adf = int(variant.get_count(variant.normal_sample, CountType.ADF))
+                        sample_counts.extend([
+                            f"{fsb_pval:.6f}",  # t_fragment_strand_bias_pval
+                            f"{fsb_or:.3f}",    # t_fragment_strand_bias_or
+                            fsb_dir,            # t_fragment_strand_bias_dir
+                        ])
 
-                    n_ref_forward = n_rdf // 2
-                    n_ref_reverse = n_rdf - n_ref_forward
-                    n_alt_forward = n_adf // 2
-                    n_alt_reverse = n_adf - n_alt_forward
+                    row.extend(sample_counts)
+                    f.write("\t".join(row) + "\n")
 
-                    n_fsb_pval, n_fsb_or, n_fsb_dir = (
-                        self._calculate_fragment_strand_bias_for_output(
-                            n_ref_forward, n_ref_reverse, n_alt_forward, n_alt_reverse
-                        )
-                    )
-
-                    row.extend(
-                        [
-                            f"{t_fsb_pval:.6f}",
-                            f"{t_fsb_or:.3f}",
-                            t_fsb_dir,
-                            f"{n_fsb_pval:.6f}",
-                            f"{n_fsb_or:.3f}",
-                            n_fsb_dir,
-                        ]
-                    )
-
-                f.write("\t".join(row) + "\n")
-
-        logger.info(f"Successfully wrote {len(variants)} variants to MAF output file")
+        logger.info(f"Successfully wrote {len(variants) * len(self.sample_order)} variant-sample combinations to MAF output file")
 
     def write_fillout_output(self, variants: list[VariantEntry]) -> None:
         """
-        Write output in fillout format (extended MAF with all samples).
+        Write output in fillout format (extended MAF with all samples in one row per variant).
+
+        This format creates one row per variant with columns for each sample's counts.
 
         Args:
             variants: List of variants with counts
@@ -693,7 +475,7 @@ class OutputFormatter:
         logger.info(f"Writing fillout output to: {self.config.output_file}")
 
         with open(self.config.output_file, "w") as f:
-            # Write header
+            # Write header - standard MAF columns plus sample-specific count columns
             header_cols = [
                 "Hugo_Symbol",
                 "Chromosome",
@@ -709,76 +491,86 @@ class OutputFormatter:
 
             # Add count columns for each sample
             for sample in self.sample_order:
-                header_cols.extend(
-                    [f"{sample}:DP", f"{sample}:RD", f"{sample}:AD", f"{sample}:VAF"]
-                )
+                header_cols.extend([
+                    f"{sample}:DP",
+                    f"{sample}:RD",
+                    f"{sample}:AD",
+                    f"{sample}:VAF"
+                ])
+
                 if self.config.output_strand_count:
-                    header_cols.extend(
-                        [f"{sample}:DP_FORWARD", f"{sample}:RD_FORWARD", f"{sample}:AD_FORWARD"]
-                    )
-                if self.config.output_strand_count:
-                    header_cols.extend(
-                        [f"{sample}:DP_REVERSE", f"{sample}:RD_REVERSE", f"{sample}:AD_REVERSE"]
-                    )
+                    header_cols.extend([
+                        f"{sample}:DP_FORWARD",
+                        f"{sample}:RD_FORWARD",
+                        f"{sample}:AD_FORWARD",
+                        f"{sample}:DP_REVERSE",
+                        f"{sample}:RD_REVERSE",
+                        f"{sample}:AD_REVERSE",
+                    ])
+
                 if self.config.output_fragment_count:
-                    header_cols.extend(
-                        [
-                            f"{sample}:DPF",
-                            f"{sample}:RDF",
-                            f"{sample}:ADF",
-                            f"{sample}:RDF_FORWARD",
-                            f"{sample}:RDF_REVERSE",
-                            f"{sample}:ADF_FORWARD",
-                            f"{sample}:ADF_REVERSE",
-                        ]
-                    )
+                    header_cols.extend([
+                        f"{sample}:DPF",
+                        f"{sample}:RDF",
+                        f"{sample}:ADF",
+                        f"{sample}:RDF_FORWARD",
+                        f"{sample}:RDF_REVERSE",
+                        f"{sample}:ADF_FORWARD",
+                        f"{sample}:ADF_REVERSE",
+                    ])
 
                 # Add strand bias columns for each sample
-                header_cols.extend([f"{sample}:SB_PVAL", f"{sample}:SB_OR", f"{sample}:SB_DIR"])
+                header_cols.extend([
+                    f"{sample}:SB_PVAL",
+                    f"{sample}:SB_OR",
+                    f"{sample}:SB_DIR"
+                ])
 
                 if self.config.output_fragment_count:
-                    header_cols.extend(
-                        [f"{sample}:FSB_PVAL", f"{sample}:FSB_OR", f"{sample}:FSB_DIR"]
-                    )
+                    header_cols.extend([
+                        f"{sample}:FSB_PVAL",
+                        f"{sample}:FSB_OR",
+                        f"{sample}:FSB_DIR"
+                    ])
 
             f.write("\t".join(header_cols) + "\n")
 
-            # Write variants
+            # Write variants - one row per variant with all samples
             for variant in variants:
                 row = [
                     variant.gene,
                     variant.chrom,
-                    str(variant.maf_pos + 1),
+                    str(variant.maf_pos + 1),  # Convert back to 1-indexed
                     str(variant.maf_end_pos + 1),
                     variant.maf_ref,
                     variant.maf_alt if variant.maf_alt else "",
-                    "",
-                    variant.tumor_sample,
-                    variant.normal_sample,
+                    "",  # Tumor_Seq_Allele2
+                    variant.tumor_sample if hasattr(variant, 'tumor_sample') and variant.tumor_sample else "",
+                    variant.normal_sample if hasattr(variant, 'normal_sample') and variant.normal_sample else "",
                     variant.effect,
                 ]
 
+                # Add counts for each sample in this variant's row
                 for sample in self.sample_order:
                     dp = int(variant.get_count(sample, CountType.DP))
                     rd = int(variant.get_count(sample, CountType.RD))
                     ad = int(variant.get_count(sample, CountType.AD))
-
-                    # Calculate VAF (Variant Allele Frequency)
                     vaf = ad / dp if dp > 0 else 0.0
 
-                    row.extend([str(dp), str(rd), str(ad), f"{vaf:.6f}"])
+                    sample_data = [str(dp), str(rd), str(ad), f"{vaf:.6f}"]
 
                     if self.config.output_strand_count:
                         dp_forward = int(variant.get_count(sample, CountType.DP_FORWARD))
                         rd_forward = int(variant.get_count(sample, CountType.RD_FORWARD))
                         ad_forward = int(variant.get_count(sample, CountType.AD_FORWARD))
-                        row.extend([str(dp_forward), str(rd_forward), str(ad_forward)])
-
-                    if self.config.output_strand_count:
                         dp_reverse = int(variant.get_count(sample, CountType.DP_REVERSE))
                         rd_reverse = int(variant.get_count(sample, CountType.RD_REVERSE))
                         ad_reverse = int(variant.get_count(sample, CountType.AD_REVERSE))
-                        row.extend([str(dp_reverse), str(rd_reverse), str(ad_reverse)])
+
+                        sample_data.extend([
+                            str(dp_forward), str(rd_forward), str(ad_forward),
+                            str(dp_reverse), str(rd_reverse), str(ad_reverse)
+                        ])
 
                     if self.config.output_fragment_count:
                         dpf = int(variant.get_count(sample, CountType.DPF))
@@ -788,52 +580,39 @@ class OutputFormatter:
                         rdf_reverse = int(variant.get_count(sample, CountType.RDF_REVERSE))
                         adf_forward = int(variant.get_count(sample, CountType.ADF_FORWARD))
                         adf_reverse = int(variant.get_count(sample, CountType.ADF_REVERSE))
-                        row.extend(
-                            [
-                                str(dpf),
-                                str(rdf),
-                                str(adf),
-                                str(rdf_forward),
-                                str(rdf_reverse),
-                                str(adf_forward),
-                                str(adf_reverse),
-                            ]
-                        )
 
-                    # Add strand bias information for this sample
-                    # Calculate strand bias on-the-fly using normal counts
-                    sample_ref_forward = int(variant.get_count(sample, CountType.RD_FORWARD))
-                    sample_ref_reverse = int(variant.get_count(sample, CountType.RD_REVERSE))
-                    sample_alt_forward = int(variant.get_count(sample, CountType.AD_FORWARD))
-                    sample_alt_reverse = int(variant.get_count(sample, CountType.AD_REVERSE))
+                        sample_data.extend([
+                            str(dpf), str(rdf), str(adf),
+                            str(rdf_forward), str(rdf_reverse),
+                            str(adf_forward), str(adf_reverse)
+                        ])
 
-                    sb_pval, sb_or, sb_dir = self._calculate_strand_bias_for_output(
-                        sample_ref_forward,
-                        sample_ref_reverse,
-                        sample_alt_forward,
-                        sample_alt_reverse,
+                    # Calculate and add strand bias for this sample
+                    ref_forward = int(variant.get_count(sample, CountType.RD_FORWARD))
+                    ref_reverse = int(variant.get_count(sample, CountType.RD_REVERSE))
+                    alt_forward = int(variant.get_count(sample, CountType.AD_FORWARD))
+                    alt_reverse = int(variant.get_count(sample, CountType.AD_REVERSE))
+
+                    sb_pval, sb_or, sb_dir = self.counter.calculate_strand_bias(
+                        ref_forward, ref_reverse, alt_forward, alt_reverse
                     )
-                    row.extend([f"{sb_pval:.6f}", f"{sb_or:.3f}", sb_dir])
+
+                    sample_data.extend([f"{sb_pval:.6f}", f"{sb_or:.3f}", sb_dir])
 
                     if self.config.output_fragment_count:
-                        # Calculate fragment strand bias using fragment counts
-                        rdf = int(variant.get_count(sample, CountType.RDF))
-                        adf = int(variant.get_count(sample, CountType.ADF))
-                        rdf_forward = int(variant.get_count(sample, CountType.RDF_FORWARD))
-                        rdf_reverse = int(variant.get_count(sample, CountType.RDF_REVERSE))
-                        adf_forward = int(variant.get_count(sample, CountType.ADF_FORWARD))
-                        adf_reverse = int(variant.get_count(sample, CountType.ADF_REVERSE))
+                        # Calculate fragment strand bias
+                        ref_forward = int(variant.get_count(sample, CountType.RDF_FORWARD))
+                        ref_reverse = int(variant.get_count(sample, CountType.RDF_REVERSE))
+                        alt_forward = int(variant.get_count(sample, CountType.ADF_FORWARD))
+                        alt_reverse = int(variant.get_count(sample, CountType.ADF_REVERSE))
 
-                        # Distribute fragments across orientations
-                        ref_forward = rdf // 2
-                        ref_reverse = rdf - ref_forward
-                        alt_forward = adf // 2
-                        alt_reverse = adf - alt_forward
-
-                        fsb_pval, fsb_or, fsb_dir = self._calculate_fragment_strand_bias_for_output(
+                        fsb_pval, fsb_or, fsb_dir = self.counter.calculate_strand_bias(
                             ref_forward, ref_reverse, alt_forward, alt_reverse
                         )
-                        row.extend([f"{fsb_pval:.6f}", f"{fsb_or:.3f}", fsb_dir])
+
+                        sample_data.extend([f"{fsb_pval:.6f}", f"{fsb_or:.3f}", fsb_dir])
+
+                    row.append(":".join(sample_data))
 
                 f.write("\t".join(row) + "\n")
 

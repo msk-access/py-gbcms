@@ -6,6 +6,134 @@ gbcms is a production-ready Python package that reimplements gbcms with **modern
 
 ---
 
+
+
+## 🎯 Core Counting Features
+
+### Orientation-Aware Analysis
+- **Forward/Reverse Strand Counting**: Separate analysis of reads on forward and reverse strands
+  - Count types: DP_FORWARD, RD_FORWARD, AD_FORWARD, DP_REVERSE, RD_REVERSE, AD_REVERSE
+  - Enables detection of strand-specific biases and artifacts
+  - Controlled by `--strand-count` flag for simplified usage
+
+### Fragment-Aware Analysis
+- **Fragment-Based Counting**: Analysis considering paired-end fragment orientation
+  - Count types: DPF, RDF, ADF (total fragment counts)
+  - Advanced orientation: RDF_FORWARD, RDF_REVERSE, ADF_FORWARD, ADF_REVERSE
+  - Handles fragment orientation conflicts with optional fractional weighting
+  - Controlled by `--fragment-count` flag
+
+### Multiple Count Types
+- **Basic Counts**: DP (total depth), RD (reference depth), AD (alternate depth)
+- **Variant Allele Frequency**: VAF calculation with proper division-by-zero handling
+- **Orientation-Specific**: Separate counts for forward/reverse strands
+- **Fragment-Specific**: Fragment-based counts for paired-end data
+
+## 🔬 Advanced Analytics
+
+### Strand Bias Detection
+- **Statistical Testing**: Fisher's exact test for strand bias detection
+- **P-value Calculation**: Proper statistical significance testing
+- **Odds Ratio**: Quantitative measure of strand preference
+- **Direction Classification**: Identification of bias direction (forward/reverse)
+
+### Fragment Orientation Analysis
+- **R1/R2 Orientation Logic**: Classification of fragment orientations
+- **Conflict Resolution**: Handling of orientation disagreements
+- **Fractional Weighting**: Optional 0.5 weighting for uncertain orientations
+
+## 🎛️ Quality Control & Filtering
+
+### Comprehensive Filtering System
+- **Read-Level Filters**: Duplicate, improper pair, QC failed, non-primary alignments
+- **Quality Thresholds**: Configurable mapping quality and base quality thresholds
+- **Indel Filtering**: Optional filtering of reads containing insertions/deletions
+- **7 Filter Conditions**: Complete quality control pipeline
+
+### Configurable Thresholds
+- **Mapping Quality**: Minimum MAPQ threshold (default: 20)
+- **Base Quality**: Minimum base QUAL threshold (default: 20)
+- **Block Processing**: Configurable variant block size and distance limits
+
+## 📊 Output Formats
+
+### VCF Format Support
+- **Standard VCF**: Complete VCF v4.2 format compliance
+- **INFO Fields**: Custom metadata fields for analysis results
+- **FORMAT Fields**: Per-sample count data in standard VCF format
+- **Comprehensive Headers**: Detailed field descriptions and metadata
+
+### MAF Format Support
+- **Clinical Format**: Mutation Annotation Format for clinical applications
+- **Tumor/Normal**: Separate columns for tumor and normal samples
+- **Count Integration**: All count types integrated into MAF columns
+- **Standard Compliance**: Follows established MAF specifications
+
+### Fillout Format Integration
+- **Existing Pipeline**: Seamless integration with Fillout workflows
+- **Header Compatibility**: Proper header formatting for downstream tools
+- **Count Preservation**: All orientation and fragment data preserved
+
+## ⚡ Performance Features
+
+### Optimization Technologies
+- **Numba JIT**: 50-100x speedup for production workloads
+- **Parallel Processing**: Multi-threaded processing with configurable backends
+- **Block Processing**: Efficient handling of large variant sets
+- **Memory Management**: Optimized memory usage for large datasets
+
+### Backend Options
+- **joblib**: Default parallel backend (recommended)
+- **loky**: Alternative backend for specific use cases
+- **threading**: Thread-based processing for I/O bound tasks
+- **multiprocessing**: Process-based processing for CPU-intensive workloads
+
+
+### ⚡ Numba Counter Optimization
+
+**Performance Optimizations:**
+- **50-100x speedup** for supported counting operations
+- **JIT compilation** for optimized base counting loops
+- **Vectorized operations** for efficient array processing
+
+**Current Limitations:**
+- **Strand Analysis**: Forward strand counting only (no reverse strand support)
+- **Base Quality Filtering**: Does not support per-base quality thresholds
+- **Filter Coverage**: 6/7 filters supported, missing base quality filtering
+
+**Automatic Fallback Strategy:**
+- gbcms automatically detects when numba lacks required features
+- Seamlessly falls back to main counter for complete functionality
+- Users get best of both worlds: speed when possible, completeness when needed
+
+
+## 🛠️ Usability Features
+
+### Simplified Command Line Interface
+- **Unified Flags**: Single `--strand-count` flag instead of separate forward/reverse options
+- **Rich Help**: Comprehensive help text with descriptions and examples
+- **Input Validation**: Automatic validation of file formats and parameters
+- **Progress Indication**: Visual feedback during long-running operations
+
+### Configuration Management
+- **Pydantic Models**: Type-safe configuration with validation
+- **Environment Integration**: Proper handling of environment-specific settings
+- **Error Reporting**: Clear error messages with actionable guidance
+
+## 📈 Technical Excellence
+
+### Code Quality
+- **Type Safety**: Complete mypy type checking
+- **Documentation**: Comprehensive docstring coverage
+- **Error Handling**: Robust error handling and edge case management
+- **Testing**: Comprehensive test coverage for all components
+
+### Architecture
+- **Modular Design**: Clean separation of concerns between components
+- **Extensibility**: Easy to add new count types and analysis methods
+- **Maintainability**: Well-documented and structured codebase
+- **Performance**: Optimized for both development and production use
+
 ## 📦 Package Structure
 
 ### Core Technologies
@@ -501,11 +629,14 @@ docker run --rm gbcms:test
 ### Basic Usage
 
 ```bash
-gbcms count run \
-    --fasta reference.fa \
-    --bam sample1:sample1.bam \
-    --vcf variants.vcf \
-    --output counts.txt
+# Count variants from VCF with BAM alignments
+gbcms count run --fasta reference.fa --bam sample1:sample1.bam --vcf variants.vcf --output results.vcf
+
+# Count variants from MAF with BAM alignments (sample-agnostic MAF output)
+gbcms count run --fasta reference.fa --bam sample1:sample1.bam --maf variants.maf --output results.maf
+
+# Enable fragment counting
+gbcms count run --fasta reference.fa --bam sample1:sample1.bam --vcf variants.vcf --output results.vcf --fragment-count
 ```
 
 ### With Numba Optimization

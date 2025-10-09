@@ -169,7 +169,7 @@ gbcms count run --output counts.vcf ...
 | **Structure** | Tumor-Normal pairs | All samples as columns |
 | **Layout** | Long format (t_*, n_*) | Wide format (sample:DP) |
 | **Compatibility** | TCGA standard | gbcms-specific |
-| **Use Case** | \`--omaf\` flag | Default with MAF input |
+| **Use Case** | Traditional tumor-normal | Multi-sample cohorts |
 
 #### When to Use MAF Format
 - ✅ **Tumor-Normal Studies**: Matched tumor-normal sample pairs
@@ -181,21 +181,22 @@ gbcms count run --output counts.vcf ...
 - ✅ **Population Genomics**: Large-scale sample collections
 - ✅ **Research Pipelines**: Complex multi-sample analysis workflows
 
-### MAF Format (Tumor-Normal Structure)
+### MAF Format (Sample-Agnostic Structure)
 
 **Extension**: `.maf`
 
-**Structure**: Standard TCGA-compatible MAF with tumor-normal columns
+**Structure**: Sample-agnostic MAF with one row per sample per variant
 
 **Example Output**:
 ```tsv
-Hugo_Symbol  Chromosome  Start_Position  t_depth  t_ref_count  t_alt_count  n_depth  n_ref_count  n_alt_count
-TP53        chr17       7577120        150      75           75           120      110          10
+Hugo_Symbol  Chromosome  Start_Position  Tumor_Sample_Barcode  t_depth  t_ref_count  t_alt_count  t_vaf
+TP53        chr17       7577120        sample1              150      75           75           0.500000
+TP53        chr17       7577120        sample2              120      110          10           0.083333
 ```
 
 **Usage**:
 ```bash
-gbcms count run --fasta ref.fa --bam tumor.bam --maf variants.maf --omaf --output results.maf
+gbcms count run --fasta ref.fa --bam sample1:sample1.bam --bam sample2:sample2.bam --maf variants.maf --output results.maf
 ```
 
 ### Fillout Format (Multi-Sample Structure)
@@ -207,12 +208,12 @@ gbcms count run --fasta ref.fa --bam tumor.bam --maf variants.maf --omaf --outpu
 **Example Output**:
 ```tsv
 Hugo_Symbol  sample1_DP  sample1_RD  sample1_AD  sample2_DP  sample2_RD  sample2_AD
-TP53        150         75          75          200         180         20
+TP53        150         75          75          120         110         10
 ```
 
 **Usage**:
 ```bash
-gbcms count run --fasta ref.fa --bam sample_*.bam --maf variants.maf --output results.fillout
+gbcms count run --fasta ref.fa --bam sample_*.bam --maf variants.maf --fillout --output results.fillout
 ```
 
 ---
@@ -300,7 +301,7 @@ chr1    100  .   A    T    .     .       DP=95;SB=0.001234,2.5,reverse  DP:RD:AD
 chr1    200  .   C    G    .     .       DP=115;SB=0.95,1.2,none       DP:RD:AD:SB  60:40:20:0.95:1.2:none        55:35:20:0.95:1.2:none
 ```
 
-### Example 2: MAF to MAF Output
+### Example 2: MAF to MAF Output (Sample-Agnostic)
 
 ```bash
 gbcms count run \
@@ -308,11 +309,10 @@ gbcms count run \
     --bam tumor:tumor.bam \
     --bam normal:normal.bam \
     --maf variants.maf \
-    --output counts.maf \
-    --omaf
+    --output counts.maf
 ```
 
-**Output** (`counts.maf`): Original MAF columns + count columns + strand bias columns
+**Output** (`counts.maf`): Sample-agnostic MAF with one row per sample per variant
 
 ### Example 3: For Tabular Output, Use MAF Format
 
@@ -326,7 +326,7 @@ gbcms count run \
     --omaf
 ```
 
-**Note**: For tabular output, use MAF format with `--omaf`. VCF format is now proper VCF with INFO/FORMAT fields.
+**Note**: For tabular output, use MAF format (naturally tabular). VCF format is proper VCF with INFO/FORMAT fields.
 
 ### Example 4: Fillout for Multiple Samples
 
@@ -344,8 +344,8 @@ gbcms count run \
     --fasta reference.fa \
     --bam-fof all_samples.txt \
     --maf somatic_variants.maf \
-    --output fillout.maf \
-    --omaf
+    --fillout \
+    --output fillout.maf
 ```
 
 **Result**: Counts for ALL samples at each variant position
@@ -457,8 +457,8 @@ samtools index sample.bam
 
 ### Output Formats
 - ✅ **VCF** (proper VCF format with INFO/FORMAT fields)
-- ✅ MAF (`--omaf`)
-- ✅ Fillout (extended MAF)
+- ✅ MAF (sample-agnostic format - default for MAF input)
+- ✅ Fillout (extended MAF - use `--fillout` flag)
 
 ### Count Types
 - ✅ Read-level (DP, RD, AD)

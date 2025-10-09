@@ -106,7 +106,7 @@ class OutputOptions(BaseModel):
     output_file: Path = Field(..., description="Output file path")
     output_maf: bool = Field(False, description="Output in MAF format")
     output_strand_count: bool = Field(True, description="Output strand-specific counts")
-    
+
     output_fragment_count: bool = Field(False, description="Output fragment counts")
     fragment_fractional_weight: bool = Field(
         False, description="Use fractional weights for fragments"
@@ -118,6 +118,7 @@ class OutputOptions(BaseModel):
 class PerformanceConfig(BaseModel):
     """Performance and parallelization configuration."""
 
+    backend: str = Field("joblib", description="Parallel processing backend")
     num_threads: int = Field(1, ge=1, description="Number of threads")
     max_block_size: int = Field(10000, ge=1, description="Maximum variants per block")
     max_block_dist: int = Field(100000, ge=1, description="Maximum block distance in bp")
@@ -268,20 +269,23 @@ class VariantModel(BaseModel):
         """Validate variant type flags are consistent."""
         type_count = sum([self.snp, self.dnp, self.insertion, self.deletion])
         if type_count == 0:
-            # Auto-detect variant type
-            if len(self.ref) == len(self.alt) == 1:
+            # Auto-detect variant type with simplified categories
+            ref_len = len(self.ref)
+            alt_len = len(self.alt)
+            
+            if ref_len == alt_len == 1:
                 self.snp = True
-            elif len(self.ref) == len(self.alt) > 1:
-                self.dnp = True
-                self.dnp_len = len(self.ref)
-            elif len(self.alt) > len(self.ref):
+            elif ref_len == 1 and alt_len > ref_len:
                 self.insertion = True
-            elif len(self.alt) < len(self.ref):
+            elif alt_len == 1 and alt_len < ref_len:
                 self.deletion = True
-
-        return self
+            # Note: DNP and complex variants remain unflagged (treated as complex)
+        
+                return self
 
     def get_variant_key(self) -> tuple[str, int, str, str]:
+        """Get unique variant key."""
+        return (self.chrom, self.pos, self.ref, self.alt)
         """Get unique variant key."""
         return (self.chrom, self.pos, self.ref, self.alt)
 

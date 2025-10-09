@@ -91,19 +91,19 @@ gbcms count run \
     --fasta reference.fa \
     --bam-fof bam_files.txt \
     --maf variants.maf \
+    --fillout \
     --output counts_fillout.txt \
     --thread 2 \
     --verbose
 
-# Run GetBaseCounts (MAF format)
+# Run GetBaseCounts (MAF format - now default for MAF input)
 echo
-echo "Running py-gbcms (MAF format)..."
+echo "Running py-gbcms (sample-agnostic MAF format - default for MAF input)..."
 gbcms count run \
     --fasta reference.fa \
     --bam-fof bam_files.txt \
     --maf variants.maf \
     --output counts.maf \
-    --omaf \
     --thread 2 \
     --verbose
 

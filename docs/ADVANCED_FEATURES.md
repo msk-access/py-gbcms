@@ -439,7 +439,7 @@ results = parallel_starmap(
 # Use joblib backend (default)
 gbcms count run \
     --fasta ref.fa \
-    --bam s1:s1.bam \
+    --bam sample1:sample1.bam \
     --vcf vars.vcf \
     --output out.txt \
     --thread 8 \
@@ -447,7 +447,11 @@ gbcms count run \
 
 # Or use threading for I/O-heavy workloads
 gbcms count run \
-    ... \
+    --fasta ref.fa \
+    --bam sample1:sample1.bam \
+    --vcf vars.vcf \
+    --output out.txt \
+    --thread 8 \
     --backend threading
 ```
 
@@ -534,7 +538,7 @@ results = processor.map(count_variant, variants)
 # Use Ray for distributed processing
 gbcms count run \
     --fasta ref.fa \
-    --bam s1:s1.bam \
+    --bam sample1:sample1.bam \
     --vcf vars.vcf \
     --output out.txt \
     --thread 32 \
@@ -542,7 +546,14 @@ gbcms count run \
     --use-ray
 
 # Connect to Ray cluster
-RAY_ADDRESS='ray://cluster:10001' gbcms count run ...
+RAY_ADDRESS='ray://cluster:10001' gbcms count run \
+    --fasta ref.fa \
+    --bam sample1:sample1.bam \
+    --vcf vars.vcf \
+    --output out.txt \
+    --thread 32 \
+    --backend ray \
+    --use-ray
 ```
 
 ### Ray Dashboard

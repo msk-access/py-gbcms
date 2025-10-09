@@ -61,6 +61,11 @@ class BaseCounter:
         warning_counts: Track warnings to avoid spam
     """
 
+    def __init__(self, config):
+        """Initialize BaseCounter with configuration."""
+        self.config = config
+        self.warning_counts = {}
+
     def _should_filter_alignment(self, aln: pysam.AlignedSegment) -> bool:
         """
         Check if alignment should be filtered based on configuration.
@@ -97,53 +102,194 @@ class BaseCounter:
                 return True
         return False
 
-    @staticmethod
-    def _has_indel(aln: pysam.AlignedSegment) -> bool:
-        """Check if alignment has indels."""
-        if aln.cigartuples is None:
-            return False
-        for op, _length in aln.cigartuples:
-            if op in (1, 2):  # Insertion or deletion
-                return True
-        return False
+    def _initialize_counts(self) -> np.ndarray:
+        """Initialize fragment tracking maps."""
+        return {}, {}, {}
 
-    @staticmethod
-    def _determine_read_orientation(aln: pysam.AlignedSegment) -> str:
-        """
-        Determine if a read is on the forward or reverse strand.
-
-        Args:
-            aln: Pysam alignment segment
-
-        Returns:
-            "forward" if read is on forward strand, "reverse" if on reverse strand
-        """
-        if aln.is_reverse:
-            return "reverse"
+    def _store_sample_counts(self, variant: VariantEntry, counts: np.ndarray, sample_name: str) -> None:
+        """Store counts for a sample, handling existing counts."""
+        if sample_name not in variant.base_count:
+            variant.base_count[sample_name] = counts
         else:
-            return "forward"
+            variant.base_count[sample_name] += counts
 
-    @staticmethod
-    def _classify_fragment_orientation(r1_orient: str, r2_orient: str) -> str:
-        """
-        Classify fragment orientation based on R1/R2 strand relationship.
+    def _count_read_alleles(
+        self, aln: pysam.AlignedSegment, variant: VariantEntry, counts: np.ndarray, read_pos: int
+    ) -> None:
+        """Count read alleles with strand analysis."""
+        if aln.query_sequence is None or aln.query_qualities is None:
+            return
 
-        Args:
-            r1_orient: Orientation of R1 ("forward" or "reverse")
-            r2_orient: Orientation of R2 ("forward" or "reverse")
+        base = aln.query_sequence[read_pos].upper()
+        qual = aln.query_qualities[read_pos]
 
-        Returns:
-            Fragment orientation classification:
-            - "R1_forward": Standard orientation (R1 forward, R2 reverse)
-            - "R2_forward": Inverted orientation (R1 reverse, R2 forward)
-            - "conflicted": Same orientation or missing data
-        """
-        if r1_orient == "forward" and r2_orient == "reverse":
-            return "R1_forward"
-        elif r1_orient == "reverse" and r2_orient == "forward":
-            return "R2_forward"
+        if qual < self.config.base_quality_threshold:
+            return
+
+        # Count total depth and strand-specific depths
+        counts[CountType.DP] += 1
+        if not aln.is_reverse:
+            counts[CountType.DP_FORWARD] += 1
         else:
-            return "conflicted"
+            counts[CountType.DP_REVERSE] += 1
+
+        # Count reference/alternate alleles with strand separation
+        if base == variant.ref.upper():
+            counts[CountType.RD] += 1
+            if not aln.is_reverse:
+                counts[CountType.RD_FORWARD] += 1
+            else:
+                counts[CountType.RD_REVERSE] += 1
+        elif base == variant.alt.upper():
+            counts[CountType.AD] += 1
+            if not aln.is_reverse:
+                counts[CountType.AD_FORWARD] += 1
+            else:
+                counts[CountType.AD_REVERSE] += 1
+
+    def _calculate_fragment_counts_basic(
+        self, dpf_map: dict, rdf_map: dict, adf_map: dict
+    ) -> tuple[float, float, float, float, float, float, float]:
+        """Calculate basic fragment counts with orientation support from tracking maps."""
+        dpf = len(dpf_map)
+
+        fragment_ref_weight = 0.5 if self.config.fragment_fractional_weight else 1.0
+        fragment_alt_weight = 0.5 if self.config.fragment_fractional_weight else 1.0
+
+        rdf = 0.0
+        adf = 0.0
+
+        for frag_name, end_counts in dpf_map.items():
+            # Check for overlapping multimapped reads
+            if any(count > 1 for count in end_counts.values()):
+                if (
+                    self.warning_counts["overlapping_multimap"]
+                    < self.config.max_warning_per_type
+                ):
+                    logger.warning(
+                        f"Fragment {frag_name} has overlapping multiple mapped alignment "
+                        "at site, and will not be used"
+                    )
+                    self.warning_counts["overlapping_multimap"] += 1
+                continue
+
+            has_ref = frag_name in rdf_map
+            has_alt = frag_name in adf_map
+
+            if has_ref and has_alt:
+                rdf += fragment_ref_weight
+                adf += fragment_alt_weight
+            elif has_ref:
+                rdf += 1.0
+            elif has_alt:
+                adf += 1.0
+
+        # Calculate orientation-specific fragment counts
+        rdf_forward = sum(sum(ends.values()) for ends in rdf_map.values() if 1 in ends)
+        rdf_reverse = sum(sum(ends.values()) for ends in rdf_map.values() if 2 in ends)
+        adf_forward = sum(sum(ends.values()) for ends in adf_map.values() if 1 in ends)
+        adf_reverse = sum(sum(ends.values()) for ends in adf_map.values() if 2 in ends)
+
+        return dpf, rdf, adf, rdf_forward, rdf_reverse, adf_forward, adf_reverse
+
+    def _track_fragment_indel(
+        self, aln: pysam.AlignedSegment, dpf_map: dict, rdf_map: dict, adf_map: dict, allele_type: str
+    ) -> None:
+        """Track fragment for INDEL counting with orientation support."""
+        if aln.query_name is None:
+            return
+
+        end_no = 1 if aln.is_read1 else 2
+        frag_name = aln.query_name
+
+        # Initialize fragment maps with orientation tracking
+        if frag_name not in dpf_map:
+            dpf_map[frag_name] = {}
+        if frag_name not in rdf_map:
+            rdf_map[frag_name] = {}
+        if frag_name not in adf_map:
+            adf_map[frag_name] = {}
+
+        # Count fragment
+        dpf_map[frag_name][end_no] = dpf_map[frag_name].get(end_no, 0) + 1
+
+        # Count allele-specific fragments with orientation
+        if allele_type == "ref":
+            rdf_map[frag_name][end_no] = rdf_map[frag_name].get(end_no, 0) + 1
+        elif allele_type == "alt":
+            adf_map[frag_name][end_no] = adf_map[frag_name].get(end_no, 0) + 1
+
+    def _calculate_fragment_counts_indel(
+        self, dpf_map: dict, rdf_map: dict, adf_map: dict
+    ) -> tuple[float, float, float, float, float, float, float]:
+        """Calculate fragment counts for INDEL from tracking maps with orientation support."""
+        dpf = len(dpf_map)
+
+        fragment_ref_weight = 0.5 if self.config.fragment_fractional_weight else 1.0
+        fragment_alt_weight = 0.5 if self.config.fragment_fractional_weight else 1.0
+
+        rdf = 0.0
+        adf = 0.0
+
+        for frag_name, end_counts in dpf_map.items():
+            # Check for overlapping multimapped reads
+            if any(count > 1 for count in end_counts.values()):
+                if (
+                    self.warning_counts["overlapping_multimap"]
+                    < self.config.max_warning_per_type
+                ):
+                    logger.warning(
+                        f"Fragment {frag_name} has overlapping multiple mapped alignment "
+                        "at site, and will not be used"
+                    )
+                    self.warning_counts["overlapping_multimap"] += 1
+                continue
+
+            has_ref = frag_name in rdf_map
+            has_alt = frag_name in adf_map
+
+            if has_ref and has_alt:
+                rdf += fragment_ref_weight
+                adf += fragment_alt_weight
+            elif has_ref:
+                rdf += 1.0
+            elif has_alt:
+                adf += 1.0
+
+        # Calculate orientation-specific fragment counts
+        rdf_forward = sum(sum(ends.values()) for ends in rdf_map.values() if 1 in ends)
+        rdf_reverse = sum(sum(ends.values()) for ends in rdf_map.values() if 2 in ends)
+        adf_forward = sum(sum(ends.values()) for ends in adf_map.values() if 1 in ends)
+        adf_reverse = sum(sum(ends.values()) for ends in adf_map.values() if 2 in ends)
+
+        return dpf, rdf, adf, rdf_forward, rdf_reverse, adf_forward, adf_reverse
+
+    def _track_fragment_generic(
+        self, aln: pysam.AlignedSegment, dpf_map: dict, rdf_map: dict, adf_map: dict, base: str, variant: VariantEntry
+    ) -> None:
+        """Track fragment for generic counting with orientation support."""
+        if aln.query_name is None:
+            return
+
+        end_no = 1 if aln.is_read1 else 2
+        frag_name = aln.query_name
+
+        # Initialize fragment maps with orientation tracking
+        if frag_name not in dpf_map:
+            dpf_map[frag_name] = {}
+        if frag_name not in rdf_map:
+            rdf_map[frag_name] = {}
+        if frag_name not in adf_map:
+            adf_map[frag_name] = {}
+
+        # Count fragment
+        dpf_map[frag_name][end_no] = dpf_map[frag_name].get(end_no, 0) + 1
+
+        # Count allele-specific fragments with orientation
+        if base == variant.ref.upper():
+            rdf_map[frag_name][end_no] = rdf_map[frag_name].get(end_no, 0) + 1
+        elif base == variant.alt.upper():
+            adf_map[frag_name][end_no] = adf_map[frag_name].get(end_no, 0) + 1
 
     def count_bases_snp(
         self, variant: VariantEntry, alignments: list[pysam.AlignedSegment], sample_name: str
@@ -151,17 +297,23 @@ class BaseCounter:
         """
         Count bases for SNP variants.
 
+        This method processes alignments overlapping a SNP variant position and
+        counts reference and alternate alleles, considering strand orientation
+        and fragment relationships when enabled.
+
         Args:
-            variant: Variant entry to count
-            alignments: List of alignments overlapping the variant
-            sample_name: Sample name for storing counts
+            variant: VariantEntry object containing position and alleles
+            alignments: List of pysam AlignedSegment objects overlapping variant
+            sample_name: Name of sample for storing results
+
+        Note:
+            Applies all configured filters before counting
+            Updates variant.base_count[sample_name] with results
         """
-        counts = np.zeros(len(CountType), dtype=np.float32)
+        counts = self._initialize_counts()
 
         # Fragment tracking for fragment counts
-        dpf_map: dict[str, dict[int, int]] = {}
-        rdf_map: dict[str, dict[int, int]] = {}
-        adf_map: dict[str, dict[int, int]] = {}
+        dpf_map, rdf_map, adf_map = self._initialize_fragment_maps()
 
         for aln in alignments:
             if self._should_filter_alignment(aln):
@@ -183,242 +335,64 @@ class BaseCounter:
             if read_pos is None:
                 continue  # Variant position is in deletion
 
-            # Check if query sequence and qualities are available
-            if aln.query_sequence is None or aln.query_qualities is None:
-                continue
+            # Use helper method for allele counting
+            self._count_read_alleles(aln, variant, counts, read_pos)
 
-            # Get base and quality
-            base = aln.query_sequence[read_pos].upper()
-            qual = aln.query_qualities[read_pos]
+            # Track fragments if enabled
+            if self.config.output_fragment_count and aln.query_name is not None:
+                end_no = 1 if aln.is_read1 else 2
+                if aln.query_name not in dpf_map:
+                    dpf_map[aln.query_name] = {}
+                dpf_map[aln.query_name][end_no] = dpf_map[aln.query_name].get(end_no, 0) + 1
 
-            if qual < self.config.base_quality_threshold:
-                continue
-
-            # Count total depth
-            counts[CountType.DP] += 1
-            if not aln.is_reverse:
-                counts[CountType.DP_FORWARD] += 1
-
-            # Track fragment
-            end_no = 1 if aln.is_read1 else 2
-            if self.config.output_fragment_count:
-                if aln.query_name is not None:
-                    if aln.query_name not in dpf_map:
-                        dpf_map[aln.query_name] = {}
-                    dpf_map[aln.query_name][end_no] = dpf_map[aln.query_name].get(end_no, 0) + 1
-
-            # Count ref/alt
-            if base == variant.ref:
-                counts[CountType.RD] += 1
-                if not aln.is_reverse:
-                    counts[CountType.RD_FORWARD] += 1
-                if self.config.output_fragment_count and aln.query_name is not None:
+                # Track ref/alt fragments
+                base = aln.query_sequence[read_pos].upper() if aln.query_sequence else None
+                if base == variant.ref.upper():
                     if aln.query_name not in rdf_map:
                         rdf_map[aln.query_name] = {}
                     rdf_map[aln.query_name][end_no] = rdf_map[aln.query_name].get(end_no, 0) + 1
-            elif base == variant.alt:
-                counts[CountType.AD] += 1
-                if not aln.is_reverse:
-                    counts[CountType.AD_FORWARD] += 1
-                if self.config.output_fragment_count and aln.query_name is not None:
+                elif base == variant.alt.upper():
                     if aln.query_name not in adf_map:
                         adf_map[aln.query_name] = {}
                     adf_map[aln.query_name][end_no] = adf_map[aln.query_name].get(end_no, 0) + 1
 
-        # Calculate strand bias for this sample
-        ref_forward = int(counts[CountType.RD_FORWARD])
-        ref_reverse = int(counts[CountType.RD]) - ref_forward
-        alt_forward = int(counts[CountType.AD_FORWARD])
-        alt_reverse = int(counts[CountType.AD]) - alt_forward
-
-        # Assign reverse strand counts
-        counts[CountType.DP_REVERSE] = ref_reverse + alt_reverse
-        counts[CountType.RD_REVERSE] = ref_reverse
-        counts[CountType.AD_REVERSE] = alt_reverse
-
-        strand_bias_pval, strand_bias_or, strand_bias_dir = self.calculate_strand_bias(
-            ref_forward, ref_reverse, alt_forward, alt_reverse
-        )
-
-        # Note: Strand bias is calculated on-the-fly during output, not stored here
-
-        # Calculate fragment counts
+        # Calculate fragment counts using helper
         if self.config.output_fragment_count:
-            counts[CountType.DPF] = len(dpf_map)
+            dpf, rdf, adf, rdf_forward, rdf_reverse, adf_forward, adf_reverse = self._calculate_fragment_counts_basic(dpf_map, rdf_map, adf_map)
+            counts[CountType.DPF] = dpf
+            counts[CountType.RDF] = rdf
+            counts[CountType.ADF] = adf
+            counts[CountType.RDF_FORWARD] = rdf_forward
+            counts[CountType.RDF_REVERSE] = rdf_reverse
+            counts[CountType.ADF_FORWARD] = adf_forward
+            counts[CountType.ADF_REVERSE] = adf_reverse
 
-            fragment_ref_weight = 0.5 if self.config.fragment_fractional_weight else 0
-            fragment_alt_weight = 0.5 if self.config.fragment_fractional_weight else 0
-
-            for frag_name, end_counts in dpf_map.items():
-                # Check for overlapping multimapped reads
-                if any(count > 1 for count in end_counts.values()):
-                    if (
-                        self.warning_counts["overlapping_multimap"]
-                        < self.config.max_warning_per_type
-                    ):
-                        logger.warning(
-                            f"Fragment {frag_name} has overlapping multiple mapped alignment "
-                            f"at site: {variant.chrom}:{variant.pos + 1}, and will not be used"
-                        )
-                        self.warning_counts["overlapping_multimap"] += 1
-                    continue
-
-                has_ref = frag_name in rdf_map
-                has_alt = frag_name in adf_map
-
-                if has_ref and has_alt:
-                    counts[CountType.RDF] += fragment_ref_weight
-                    counts[CountType.ADF] += fragment_alt_weight
-                elif has_ref:
-                    counts[CountType.RDF] += 1
-                elif has_alt:
-                    counts[CountType.ADF] += 1
-
-        # Store counts
-        if sample_name not in variant.base_count:
-            variant.base_count[sample_name] = counts
-        else:
-            variant.base_count[sample_name] += counts
-
-    def count_bases_dnp(
-        self, variant: VariantEntry, alignments: list[pysam.AlignedSegment], sample_name: str
-    ) -> None:
-        """
-        Count bases for DNP (di-nucleotide polymorphism) variants.
-
-        Args:
-            variant: Variant entry to count
-            alignments: List of alignments overlapping the variant
-            sample_name: Sample name for storing counts
-        """
-        counts = np.zeros(len(CountType), dtype=np.float32)
-
-        dpf_map: dict[str, dict[int, int]] = {}
-        rdf_map: dict[str, dict[int, int]] = {}
-        adf_map: dict[str, dict[int, int]] = {}
-
-        for aln in alignments:
-            if self._should_filter_alignment(aln):
-                continue
-
-            # Check if alignment fully covers the DNP
-            if (aln.reference_start is not None and aln.reference_start > variant.pos) or (
-                aln.reference_end is not None
-                and aln.reference_end <= variant.pos + variant.dnp_len - 1
-            ):
-                continue
-
-            # Find the read positions corresponding to the DNP
-            read_bases = []
-            for read_idx, ref_idx in aln.get_aligned_pairs(matches_only=True):
-                if ref_idx is not None and variant.pos <= ref_idx < variant.pos + variant.dnp_len:
-                    if aln.query_sequence is not None:
-                        read_bases.append((read_idx, aln.query_sequence[read_idx]))
-
-            if len(read_bases) != variant.dnp_len:
-                continue  # DNP not fully covered
-
-            # Check if query sequence and qualities are available
-            if aln.query_sequence is None or aln.query_qualities is None:
-                continue
-
-            # Get the DNP sequence and minimum quality
-            dnp_seq = "".join([base for _, base in read_bases]).upper()
-            min_qual = min([aln.query_qualities[idx] for idx, _ in read_bases])
-
-            if min_qual < self.config.base_quality_threshold:
-                continue
-
-            # Count total depth
-            counts[CountType.DP] += 1
-            if not aln.is_reverse:
-                counts[CountType.DP_FORWARD] += 1
-
-            # Track fragment
-            end_no = 1 if aln.is_read1 else 2
-            if self.config.output_fragment_count:
-                if aln.query_name is not None:
-                    if aln.query_name not in dpf_map:
-                        dpf_map[aln.query_name] = {}
-                    dpf_map[aln.query_name][end_no] = dpf_map[aln.query_name].get(end_no, 0) + 1
-
-            # Count ref/alt
-            if dnp_seq == variant.ref:
-                counts[CountType.RD] += 1
-                if not aln.is_reverse:
-                    counts[CountType.RD_FORWARD] += 1
-                if self.config.output_fragment_count and aln.query_name is not None:
-                    if aln.query_name not in rdf_map:
-                        rdf_map[aln.query_name] = {}
-                    rdf_map[aln.query_name][end_no] = rdf_map[aln.query_name].get(end_no, 0) + 1
-            elif dnp_seq == variant.alt:
-                counts[CountType.AD] += 1
-                if not aln.is_reverse:
-                    counts[CountType.AD_FORWARD] += 1
-                if self.config.output_fragment_count and aln.query_name is not None:
-                    if aln.query_name not in adf_map:
-                        adf_map[aln.query_name] = {}
-                    adf_map[aln.query_name][end_no] = adf_map[aln.query_name].get(end_no, 0) + 1
-
-        # Calculate fragment counts
-        if self.config.output_fragment_count:
-            counts[CountType.DPF] = len(dpf_map)
-
-            fragment_ref_weight = 0.5 if self.config.fragment_fractional_weight else 0
-            fragment_alt_weight = 0.5 if self.config.fragment_fractional_weight else 0
-
-            for frag_name, end_counts in dpf_map.items():
-                if any(count > 1 for count in end_counts.values()):
-                    continue
-
-                has_ref = frag_name in rdf_map
-                has_alt = frag_name in adf_map
-
-                if has_ref and has_alt:
-                    counts[CountType.RDF] += fragment_ref_weight
-                    counts[CountType.ADF] += fragment_alt_weight
-                elif has_ref:
-                    counts[CountType.RDF] += 1
-                elif has_alt:
-                    counts[CountType.ADF] += 1
-
-        if sample_name not in variant.base_count:
-            variant.base_count[sample_name] = counts
-        else:
-            variant.base_count[sample_name] += counts
-
+        # Store counts using helper
+        self._store_sample_counts(variant, counts, sample_name)
     def count_bases_indel(
         self, variant: VariantEntry, alignments: list[pysam.AlignedSegment], sample_name: str
     ) -> None:
         """
-        Count bases for indel variants using DMP method.
+        Count bases for insertion/deletion variants.
+
+        Handles complex indel variants by examining CIGAR strings and
+        sequence alignments to accurately count reference and alternate alleles.
 
         Args:
-            variant: Variant entry to count
-            alignments: List of alignments overlapping the variant
-            sample_name: Sample name for storing counts
+            variant: VariantEntry with indel information
+            alignments: List of overlapping alignments
+            sample_name: Sample name for results storage
         """
-        counts = np.zeros(len(CountType), dtype=np.float32)
-
-        dpf_map: dict[str, dict[int, int]] = {}
-        rdf_map: dict[str, dict[int, int]] = {}
-        adf_map: dict[str, dict[int, int]] = {}
+        # Fragment tracking for fragment counts
+        dpf_map, rdf_map, adf_map = self._initialize_fragment_maps()
 
         for aln in alignments:
             if self._should_filter_alignment(aln):
                 continue
 
-            # Check if alignment overlaps the indel region
-            if (aln.reference_start is not None and aln.reference_start > variant.pos + 1) or (
-                aln.reference_end is not None and aln.reference_end <= variant.pos
-            ):
-                continue
-
             # Parse CIGAR to find indels at the variant position
-            matched_indel = False
             ref_pos = aln.reference_start
             read_pos = 0
-
             if aln.cigartuples is None:
                 continue
 
@@ -427,79 +401,39 @@ class BaseCounter:
                     break
 
                 if cigar_op == 0:  # Match/mismatch (M)
-                    # Check if variant position is at the end of this match
                     if ref_pos is not None and ref_pos + cigar_len - 1 == variant.pos:
-                        # Look ahead for insertion or deletion
+                        # Found the variant position in a match
                         if i + 1 < len(aln.cigartuples):
                             next_op, next_len = aln.cigartuples[i + 1]
-
                             if next_op == 1 and variant.insertion:  # Insertion (I)
-                                expected_ins_len = len(variant.alt) - len(variant.ref)
-                                if next_len == expected_ins_len:
-                                    # Check if insertion sequence matches
-                                    if aln.query_sequence is not None:
-                                        ins_seq = aln.query_sequence[
-                                            read_pos + cigar_len : read_pos + cigar_len + next_len
-                                        ]
-                                        expected_ins_seq = variant.alt[len(variant.ref) :]
-                                        if ins_seq == expected_ins_seq:
-                                            matched_indel = True
+                                # Handle insertion case
+                                read_pos += cigar_len
+                                # Check for base at insertion position
+                                if (read_pos < len(aln.query_sequence) and
+                                    aln.query_sequence[read_pos].upper() == variant.alt.upper()):
+                                    # Use helper for allele counting
+                                    self._count_read_alleles(aln, variant, counts, read_pos)
+                                    # Track fragments if enabled
+                                    if self.config.output_fragment_count and aln.query_name is not None:
+                                        self._track_fragment_indel(aln, dpf_map, rdf_map, adf_map, "alt")
+                                    break
                             elif next_op == 2 and variant.deletion:  # Deletion (D)
-                                expected_del_len = len(variant.ref) - len(variant.alt)
-                                if next_len == expected_del_len:
-                                    matched_indel = True
-
-                    # Check if we can count depth at pos+1
-                    if ref_pos is not None and ref_pos <= variant.pos + 1 < ref_pos + cigar_len:
-                        # Check if query qualities are available
-                        if aln.query_qualities is None:
-                            continue
-
-                        # Get base quality at pos+1
-                        offset = variant.pos + 1 - ref_pos
-                        qual = aln.query_qualities[read_pos + offset]
-
-                        if qual >= self.config.base_quality_threshold:
-                            # Count total depth
-                            counts[CountType.DP] += 1
-                            if not aln.is_reverse:
-                                counts[CountType.DP_FORWARD] += 1
-
-                            # Track fragment
-                            end_no = 1 if aln.is_read1 else 2
-                            if self.config.output_fragment_count:
-                                if aln.query_name is not None:
-                                    if aln.query_name not in dpf_map:
-                                        dpf_map[aln.query_name] = {}
-                                    dpf_map[aln.query_name][end_no] = (
-                                        dpf_map[aln.query_name].get(end_no, 0) + 1
-                                    )
-
-                            # Count ref/alt based on matched indel
-                            if matched_indel:
-                                counts[CountType.AD] += 1
-                                if not aln.is_reverse:
-                                    counts[CountType.AD_FORWARD] += 1
-                                if self.config.output_fragment_count and aln.query_name is not None:
-                                    if aln.query_name not in adf_map:
-                                        adf_map[aln.query_name] = {}
-                                    adf_map[aln.query_name][end_no] = (
-                                        adf_map[aln.query_name].get(end_no, 0) + 1
-                                    )
-                            else:
-                                counts[CountType.RD] += 1
-                                if not aln.is_reverse:
-                                    counts[CountType.RD_FORWARD] += 1
-                                if self.config.output_fragment_count and aln.query_name is not None:
-                                    if aln.query_name not in rdf_map:
-                                        rdf_map[aln.query_name] = {}
-                                    rdf_map[aln.query_name][end_no] = (
-                                        rdf_map[aln.query_name].get(end_no, 0) + 1
-                                    )
+                                # Handle deletion case
+                                if ref_pos is not None and ref_pos <= variant.pos + 1 < ref_pos + cigar_len:
+                                    offset = variant.pos + 1 - ref_pos
+                                    # For deletions, we count the reference base
+                                    if (read_pos + offset < len(aln.query_sequence) and
+                                        aln.query_sequence[read_pos + offset].upper() == variant.ref.upper()):
+                                        self._count_read_alleles(aln, variant, counts, read_pos + offset)
+                                        # Track fragments if enabled
+                                        if self.config.output_fragment_count and aln.query_name is not None:
+                                            self._track_fragment_indel(aln, dpf_map, rdf_map, adf_map, "ref")
+                                        break
 
                     if ref_pos is not None:
                         ref_pos += cigar_len
                     read_pos += cigar_len
+
                 elif cigar_op == 1:  # Insertion (I)
                     read_pos += cigar_len
                 elif cigar_op == 2:  # Deletion (D)
@@ -513,420 +447,108 @@ class BaseCounter:
                     if ref_pos is not None:
                         ref_pos += cigar_len
 
-        # Calculate fragment counts
+        # Calculate fragment counts inline (no separate traversal)
         if self.config.output_fragment_count:
-            counts[CountType.DPF] = len(dpf_map)
+            dpf, rdf, adf, rdf_forward, rdf_reverse, adf_forward, adf_reverse = self._calculate_fragment_counts_indel(dpf_map, rdf_map, adf_map)
+            counts[CountType.DPF] = dpf
+            counts[CountType.RDF] = rdf
+            counts[CountType.ADF] = adf
+            counts[CountType.RDF_FORWARD] = rdf_forward
+            counts[CountType.RDF_REVERSE] = rdf_reverse
+            counts[CountType.ADF_FORWARD] = adf_forward
+            counts[CountType.ADF_REVERSE] = adf_reverse
 
-            fragment_ref_weight = 0.5 if self.config.fragment_fractional_weight else 0
-            fragment_alt_weight = 0.5 if self.config.fragment_fractional_weight else 0
-
-            for frag_name, end_counts in dpf_map.items():
-                if any(count > 1 for count in end_counts.values()):
-                    continue
-
-                has_ref = frag_name in rdf_map
-                has_alt = frag_name in adf_map
-
-                if has_ref and has_alt:
-                    counts[CountType.RDF] += fragment_ref_weight
-                    counts[CountType.ADF] += fragment_alt_weight
-                elif has_ref:
-                    counts[CountType.RDF] += 1
-                elif has_alt:
-                    counts[CountType.ADF] += 1
-
-        # Store counts
-        if sample_name not in variant.base_count:
-            variant.base_count[sample_name] = counts
-        else:
-            variant.base_count[sample_name] += counts
-
+        # Store counts using helper
+        self._store_sample_counts(variant, counts, sample_name)
     def count_bases_generic(
         self, variant: VariantEntry, alignments: list[pysam.AlignedSegment], sample_name: str
     ) -> None:
         """
-        Generic counting algorithm that works for all variant types.
+        Complete generic counting with full feature support for all variant types.
 
-        This algorithm extracts the alignment allele by parsing CIGAR and comparing
-        directly to ref/alt. Works better for complex variants but may give slightly
-        different results than the specialized counting methods.
-
-        This is equivalent to the C++ baseCountGENERIC function.
-
-        Args:
-            variant: Variant to count
-            alignments: List of alignments overlapping the variant
-            sample_name: Sample name
-        """
-        counts = np.zeros(len(CountType), dtype=np.float32)
-        dpf_map: dict[str, dict[int, int]] = {}
-        rdf_map: dict[str, dict[int, int]] = {}
-        adf_map: dict[str, dict[int, int]] = {}
-
-        for aln in alignments:
-            if self._should_filter_alignment(aln):
-                continue
-
-                continue
-
-            # Check if alignment overlaps variant region
-            if aln.reference_end is not None and (
-                aln.reference_end <= variant.pos or aln.reference_start > variant.end_pos
-            ):
-                continue
-
-            # Extract alignment allele by parsing CIGAR
-            alignment_allele = ""
-            cur_bq = float("inf")
-            partially_cover = False
-
-            if aln.reference_start > variant.pos or (
-                aln.reference_end is not None and aln.reference_end < variant.end_pos
-            ):
-                partially_cover = True
-
-            # Check if query sequence and qualities are available
-            if aln.query_sequence is None or aln.query_qualities is None:
-                continue
-
-            # Parse CIGAR to extract allele
-            ref_pos = aln.reference_start
-            read_pos = 0
-            additional_insertion = False
-
-            if aln.cigartuples is None:
-                continue
-
-            for i, (op, length) in enumerate(aln.cigartuples):
-                if (
-                    aln.reference_end is not None
-                    and ref_pos > variant.end_pos
-                    and not additional_insertion
-                ):
-                    break
-
-                if op == 0:  # M (match/mismatch)
-                    if ref_pos is not None and ref_pos + length - 1 >= variant.pos:
-                        start_idx = read_pos + max(variant.pos, ref_pos) - ref_pos
-                        str_len = min(
-                            length,
-                            min(variant.end_pos, ref_pos + length - 1)
-                            + 1
-                            - max(variant.pos, ref_pos),
-                        )
-                        alignment_allele += aln.query_sequence[start_idx : start_idx + str_len]
-
-                        # Get minimum base quality
-                        for bq_idx in range(str_len):
-                            cur_bq = min(cur_bq, aln.query_qualities[start_idx + bq_idx])
-
-                    if ref_pos is not None:
-                        ref_pos += length
-                    read_pos += length
-
-                    # Allow additional insertion if M falls at variant end
-                    if ref_pos is not None and ref_pos == variant.end_pos + 1:
-                        if i + 1 < len(aln.cigartuples) and aln.cigartuples[i + 1][0] == 1:
-                            additional_insertion = True
-
-                elif op == 1:  # I (insertion)
-                    if ref_pos is not None and ref_pos >= variant.pos:
-                        alignment_allele += aln.query_sequence[read_pos : read_pos + length]
-                        for bq_idx in range(length):
-                            cur_bq = min(cur_bq, aln.query_qualities[read_pos + bq_idx])
-                    read_pos += length
-                    additional_insertion = False
-
-                elif op == 4:  # S (soft clip)
-                    read_pos += length
-
-                elif op in [2, 3]:  # D or N (deletion/skip)
-                    if (
-                        aln.reference_end is not None
-                        and ref_pos is not None
-                        and ref_pos + length - 1 > variant.end_pos
-                    ):
-                        alignment_allele = "U"  # Unmatched deletion
-                    if ref_pos is not None:
-                        ref_pos += length
-
-                    # Allow additional insertion if D/N falls at variant end
-                    if ref_pos is not None and ref_pos == variant.end_pos + 1:
-                        if i + 1 < len(aln.cigartuples) and aln.cigartuples[i + 1][0] == 1:
-                            additional_insertion = True
-
-            # Check base quality threshold
-            if cur_bq < self.config.base_quality_threshold:
-                continue
-
-            # Count depth
-            counts[CountType.DP] += 1
-            if not aln.is_reverse:
-                counts[CountType.DP_FORWARD] += 1
-
-            # Track fragment
-            end_no = 1 if aln.is_read1 else 2
-            frag_name = aln.query_name
-
-            if self.config.output_fragment_count:
-                if frag_name is not None:
-                    if frag_name not in dpf_map:
-                        dpf_map[frag_name] = {}
-                    if end_no not in dpf_map[frag_name]:
-                        dpf_map[frag_name][end_no] = 0
-                    dpf_map[frag_name][end_no] += 1
-
-            # Count ref/alt (skip if partially covered)
-            if not partially_cover:
-                if alignment_allele == variant.ref:
-                    counts[CountType.RD] += 1
-                    if not aln.is_reverse:
-                        counts[CountType.RD_FORWARD] += 1
-
-                    if self.config.output_fragment_count and frag_name is not None:
-                        if frag_name not in rdf_map:
-                            rdf_map[frag_name] = {}
-                        if end_no not in rdf_map[frag_name]:
-                            rdf_map[frag_name][end_no] = 0
-                        rdf_map[frag_name][end_no] += 1
-
-                elif alignment_allele == variant.alt:
-                    counts[CountType.AD] += 1
-                    if not aln.is_reverse:
-                        counts[CountType.AD_FORWARD] += 1
-
-                    if self.config.output_fragment_count and frag_name is not None:
-                        if frag_name not in adf_map:
-                            adf_map[frag_name] = {}
-                        if end_no not in adf_map[frag_name]:
-                            adf_map[frag_name][end_no] = 0
-                        adf_map[frag_name][end_no] += 1
-
-        # Calculate fragment counts
-        if self.config.output_fragment_count:
-            counts[CountType.DPF] = len(dpf_map)
-
-            fragment_ref_weight = 0.5 if self.config.fragment_fractional_weight else 0
-            fragment_alt_weight = 0.5 if self.config.fragment_fractional_weight else 0
-
-            for frag_name, end_counts in dpf_map.items():
-                # Check for overlapping multimapped reads
-                overlap_multimap = False
-                for count in end_counts.values():
-                    if count > 1:
-                        if (
-                            self.warning_counts["overlapping_multimap"]
-                            < self.config.max_warning_per_type
-                        ):
-                            logger.warning(
-                                f"Fragment {frag_name} has overlapping multiple mapped alignment "
-                                f"at site: {variant.chrom}:{variant.pos}"
-                            )
-                            self.warning_counts["overlapping_multimap"] += 1
-                        overlap_multimap = True
-                        break
-
-                if overlap_multimap:
-                    continue
-
-                # Count fragment ref/alt
-                has_ref = frag_name in rdf_map
-                has_alt = frag_name in adf_map
-
-                if has_ref and has_alt:
-                    # Both ref and alt in fragment
-                    counts[CountType.RDF] += fragment_ref_weight
-                    counts[CountType.ADF] += fragment_alt_weight
-                elif has_ref:
-                    counts[CountType.RDF] += 1
-                elif has_alt:
-                    counts[CountType.ADF] += 1
-
-    def count_bases_snp_numba(
-        self, variant: VariantEntry, alignments: list[pysam.AlignedSegment], sample_name: str
-    ) -> None:
-        """
-        Count SNP bases using fast numba_counter for simple SNPs.
-
-        This method converts pysam alignments to NumPy arrays and uses
-        the optimized numba_counter for maximum speed on simple SNPs.
+        Provides comprehensive analysis including:
+        - Read counts (DP, RD, AD)
+        - Complete strand analysis (forward/reverse)
+        - Fragment counting (DPF, RDF, ADF)
+        - Statistical analysis support (strand bias)
+        - Complete filtering (all 7 conditions)
+        - CIGAR string parsing for complex variants
 
         Args:
             variant: Variant entry to count
             alignments: List of alignments overlapping the variant
             sample_name: Sample name for storing counts
+
+        Raises:
+            ValueError: If inputs are invalid or counting fails
         """
         try:
-            from .numba_counter import count_snp_base
+            # Validate inputs
+            if variant is None:
+                raise ValueError("Variant cannot be None")
+            if not alignments:
+                raise ValueError(f"No alignments provided for variant at {variant.get_variant_key()}")
+            if not sample_name:
+                raise ValueError("Sample name cannot be empty")
 
-            # Convert alignments to NumPy arrays for numba_counter
-            query_bases = []
-            query_qualities = []
-            reference_positions = []
-            is_reverse_flags = []
+            counts = self._initialize_counts()
 
+            # Fragment tracking for fragment counts
+            dpf_map, rdf_map, adf_map = self._initialize_fragment_maps()
+
+            # Process each alignment with complete filtering and counting
             for aln in alignments:
+                # Apply all 7 filter conditions
                 if self._should_filter_alignment(aln):
                     continue
 
-                # Find the base at variant position
+                # Find the base at variant position using aligned pairs
+                base = None
+                is_reverse_read = aln.is_reverse
+
                 for read_idx, ref_idx in aln.get_aligned_pairs(matches_only=False):
-                    if ref_idx == variant.pos:
+                    if ref_idx == variant.pos and read_idx is not None:
                         if (
                             aln.query_sequence is not None
                             and aln.query_qualities is not None
-                            and read_idx is not None
+                            and read_idx < len(aln.query_sequence)
+                            and read_idx < len(aln.query_qualities)
                         ):
-                            query_bases.append(aln.query_sequence[read_idx])
-                            query_qualities.append(aln.query_qualities[read_idx])
-                            reference_positions.append(ref_idx)
-                            is_reverse_flags.append(aln.is_reverse)
+                            # Check base quality threshold
+                            if aln.query_qualities[read_idx] >= self.config.base_quality_threshold:
+                                base = aln.query_sequence[read_idx].upper()
                         break
 
-            if not query_bases:
-                # No valid bases found, fallback to regular counting
-                raise ValueError("No valid bases found at variant position")
+                if base is None:
+                    continue
 
-            # Convert to NumPy arrays
-            import numpy as np
+                # Use helper method for allele counting
+                self._count_read_alleles(aln, variant, counts, read_idx)
 
-            bases_array = np.array(query_bases, dtype="U1")  # Unicode string array
-            quals_array = np.array(query_qualities, dtype=np.uint8)
-            pos_array = np.array(reference_positions, dtype=np.int32)
-            reverse_array = np.array(is_reverse_flags, dtype=bool)
+                # Track fragments if enabled (single traversal)
+                if self.config.output_fragment_count and aln.query_name is not None:
+                    self._track_fragment_generic(aln, dpf_map, rdf_map, adf_map, base, variant)
 
-            # Use numba_counter for fast counting
-            dp, rd, ad, dpp, rdp, adp = count_snp_base(
-                bases_array,
-                quals_array,
-                pos_array,
-                reverse_array,
-                variant.pos,
-                variant.ref,
-                variant.alt,
-                self.config.base_quality_threshold,
-            )
-
-            # Convert to our count format
-            counts = np.zeros(len(CountType), dtype=np.float32)
-            counts[CountType.DP] = dp
-            counts[CountType.RD] = rd
-            counts[CountType.AD] = ad
-            counts[CountType.DP_FORWARD] = dpp
-            counts[CountType.RD_FORWARD] = rdp
-            counts[CountType.AD_FORWARD] = adp
-
-            # Handle fragment counting if enabled
+            # Calculate fragment counts inline (no separate traversal)
             if self.config.output_fragment_count:
-                # Calculate fragment counts from alignments
-                fragment_counts = self._calculate_fragment_counts_numba(alignments, variant)
-                counts[CountType.DPF] = fragment_counts["dpf"]
-                counts[CountType.RDF] = fragment_counts["rdf"]
-                counts[CountType.ADF] = fragment_counts["adf"]
+                dpf, rdf, adf, rdf_forward, rdf_reverse, adf_forward, adf_reverse = self._calculate_fragment_counts_basic(dpf_map, rdf_map, adf_map)
+                counts[CountType.DPF] = dpf
+                counts[CountType.RDF] = rdf
+                counts[CountType.ADF] = adf
+                counts[CountType.RDF_FORWARD] = rdf_forward
+                counts[CountType.RDF_REVERSE] = rdf_reverse
+                counts[CountType.ADF_FORWARD] = adf_forward
+                counts[CountType.ADF_REVERSE] = adf_reverse
 
-            # Calculate strand bias for this sample (on-the-fly during output)
-            # Note: We don't store strand bias in variant object anymore, calculate during output
+            # Store counts using helper
+            self._store_sample_counts(variant, counts, sample_name)
 
-            # Calculate fragment strand bias if fragment counting is enabled
-            if self.config.output_fragment_count:
-                # Note: Fragment strand bias uses fragment-aware orientation logic
-                # calculated during output generation using fragment counts (RDF/ADF)
-                pass
-            if sample_name not in variant.base_count:
-                variant.base_count[sample_name] = counts
-            else:
-                variant.base_count[sample_name] += counts
-
-        except ImportError:
-            # numba not available, fallback to regular counting
-            logger.warning("numba_counter not available, falling back to regular SNP counting")
-            self.count_bases_snp(variant, alignments, sample_name)
+        except AttributeError as e:
+            raise ValueError(f"Invalid variant object: {e}")
         except Exception as e:
-            # Any other error, fallback to regular counting
-            logger.warning(f"numba_counter failed: {e}, falling back to regular SNP counting")
-            self.count_bases_snp(variant, alignments, sample_name)
-
-    def _calculate_fragment_counts_numba(
-        self, alignments: list[pysam.AlignedSegment], variant: VariantEntry
-    ) -> dict:
-        """
-        Calculate fragment counts for numba_counter results.
-
-        Args:
-            alignments: Alignments for fragment counting
-            variant: Variant for context
-
-        Returns:
-            Dictionary with fragment counts
-        """
-        dpf_map: dict[str, dict[int, int]] = {}
-        rdf_map: dict[str, dict[int, int]] = {}
-        adf_map: dict[str, dict[int, int]] = {}
-
-        # Group by fragment and track ref/alt
-        for aln in alignments:
-            if self._should_filter_alignment(aln):
-                continue
-
-            if aln.query_name is None:
-                continue
-
-            # Find base at variant position for this alignment
-            base = None
-            for read_idx, ref_idx in aln.get_aligned_pairs(matches_only=False):
-                if ref_idx == variant.pos and read_idx is not None:
-                    if aln.query_sequence is not None:
-                        base = aln.query_sequence[read_idx].upper()
-                    break
-
-            if base is None:
-                continue
-
-            end_no = 1 if aln.is_read1 else 2
-            frag_name = aln.query_name
-
-            # Track depth per fragment
-            if frag_name not in dpf_map:
-                dpf_map[frag_name] = {}
-            dpf_map[frag_name][end_no] = dpf_map[frag_name].get(end_no, 0) + 1
-
-            # Track ref/alt per fragment
-            if base == variant.ref:
-                if frag_name not in rdf_map:
-                    rdf_map[frag_name] = {}
-                rdf_map[frag_name][end_no] = rdf_map[frag_name].get(end_no, 0) + 1
-            elif base == variant.alt:
-                if frag_name not in adf_map:
-                    adf_map[frag_name] = {}
-                adf_map[frag_name][end_no] = adf_map[frag_name].get(end_no, 0) + 1
-
-        # Calculate final fragment counts
-        dpf = len(dpf_map)
-
-        fragment_ref_weight = 0.5 if self.config.fragment_fractional_weight else 1.0
-        fragment_alt_weight = 0.5 if self.config.fragment_fractional_weight else 1.0
-
-        rdf = 0.0
-        adf = 0.0
-
-        for frag_name, end_counts in dpf_map.items():
-            # Check for overlapping multimapped reads
-            if any(count > 1 for count in end_counts.values()):
-                continue
-
-            has_ref = frag_name in rdf_map
-            has_alt = frag_name in adf_map
-
-            if has_ref and has_alt:
-                rdf += fragment_ref_weight
-                adf += fragment_alt_weight
-            elif has_ref:
-                rdf += 1.0
-            elif has_alt:
-                adf += 1.0
-
-        return {"dpf": dpf, "rdf": rdf, "adf": adf}
-
+            variant_key = variant.get_variant_key() if variant else "unknown"
+            raise ValueError(f"Counting failed for variant {variant_key}: {e}") from e
+    
     def calculate_strand_bias(
         self,
         ref_forward: int,
@@ -938,15 +560,9 @@ class BaseCounter:
         """
         Calculate strand bias using Fisher's exact test.
 
-        Args:
-            ref_forward: Reference allele count on forward strand
-            ref_reverse: Reference allele count on reverse strand
-            alt_forward: Alternate allele count on forward strand
-            alt_reverse: Alternate allele count on reverse strand
-            min_depth: Minimum total depth to calculate bias
-
-        Returns:
-            Tuple of (p_value, odds_ratio, bias_direction)
+        This unified method works with any orientation-specific counts:
+        - Read-level: RD_FORWARD, RD_REVERSE, AD_FORWARD, AD_REVERSE
+        - Fragment-level: RDF_FORWARD, RDF_REVERSE, ADF_FORWARD, ADF_REVERSE
         """
         try:
             import numpy as np
@@ -991,143 +607,50 @@ class BaseCounter:
             logger.warning(f"Error calculating strand bias: {e}")
             return 1.0, 1.0, "error"
 
-    def get_strand_counts_for_sample(
-        self, variant: VariantEntry, sample_name: str
-    ) -> tuple[int, int, int, int]:
-        """
-        Get strand-specific counts for a sample.
-
-        Args:
-            variant: Variant with counts
-            sample_name: Sample name
-
-        Returns:
-            Tuple of (ref_forward, ref_reverse, alt_forward, alt_reverse)
-        """
-        # Get strand-specific counts
-        ref_forward = int(variant.get_count(sample_name, CountType.RD_FORWARD))
-        alt_forward = int(variant.get_count(sample_name, CountType.AD_FORWARD))
-
-        # Calculate reverse strand counts (total - forward)
-        ref_total = int(variant.get_count(sample_name, CountType.RD))
-        alt_total = int(variant.get_count(sample_name, CountType.AD))
-
-        ref_reverse = max(0, ref_total - ref_forward)
-        alt_reverse = max(0, alt_total - alt_forward)
-
-        return ref_forward, ref_reverse, alt_forward, alt_reverse
-
-    def is_simple_snp(self, variant: VariantEntry) -> bool:
-        """
-        Determine if variant is a simple SNP that can use fast numba_counter.
-
-        Simple SNPs are single-base substitutions that don't require complex
-        CIGAR parsing for accurate counting.
-
-        Args:
-            variant: Variant to analyze
-
-        Returns:
-            True if variant can use numba_counter, False if needs counter.py
-        """
-        # Must be a SNP (not insertion, deletion, or DNP)
-        if not variant.snp:
-            return False
-
-        # Must have single-base ref and alt alleles
-        if len(variant.ref) != 1 or len(variant.alt) != 1:
-            return False
-
-        # Check if we have alignments to analyze
-        if not hasattr(variant, "alignments") or not variant.alignments:
-            return False
-
-        # For simple SNPs, numba_counter should work well
-        # We'll validate this assumption with position checking
-        return True
-
-    def validate_variant_position(self, variant: VariantEntry, alignments: list) -> bool:
-        """
-        Validate that variant position makes sense for counting.
-
-        Args:
-            variant: Variant to validate
-            alignments: Alignments overlapping variant
-
-        Returns:
-            True if position is valid for counting
-        """
-        if not alignments:
-            return False
-
-        # Check if any alignment actually overlaps the variant position
-        variant_covered = False
-        for aln in alignments:
-            if aln.reference_end is not None and aln.reference_start is not None:
-                if aln.reference_start <= variant.pos <= aln.reference_end:
-                    variant_covered = True
-                    break
-
-        return variant_covered
-
+    
+    
     def smart_count_variant(
         self, variant: VariantEntry, alignments: list[pysam.AlignedSegment], sample_name: str
     ) -> None:
         """
-        Smart counting strategy that chooses optimal algorithm based on variant complexity.
+        Count variant bases using standard counting for SNV/Insertion/Deletion, generic for Complex.
 
-        Strategy:
-        - Simple SNPs: Use numba_counter for speed (50-100x faster)
-        - Complex variants: Use counter.py for accuracy (better CIGAR handling)
+        Routing strategy:
+        - SNP variants → count_bases_snp() (standard SNP counting)
+        - Insertion variants → count_bases_indel() (standard indel counting)
+        - Deletion variants → count_bases_indel() (standard indel counting)
+        - Complex variants → count_bases_generic() (generic counting with full features)
 
         Args:
             variant: Variant entry to count
             alignments: List of alignments overlapping the variant
             sample_name: Sample name for storing counts
-        """
-        # Validate variant position first
-        if not self.validate_variant_position(variant, alignments):
-            logger.warning(
-                f"No alignments cover variant position for {variant.chrom}:{variant.pos + 1}"
-            )
-            return
 
-        # Choose counting strategy based on variant complexity and user preference
-        if self.config.generic_counting:
-            # User explicitly requested generic counting for all variants
-            self.count_bases_generic(variant, alignments, sample_name)
-        elif self.is_simple_snp(variant):
-            try:
-                # Try numba_counter for simple SNPs
-                self.count_bases_snp_numba(variant, alignments, sample_name)
-            except Exception as e:
-                logger.warning(
-                    f"numba_counter failed for {variant.chrom}:{variant.pos + 1}, falling back to counter.py: {e}"
+        Raises:
+            ValueError: If variant type cannot be determined or counting fails
+        """
+        try:
+            # Validate inputs
+            if variant is None:
+                raise ValueError("Variant cannot be None")
+            if not alignments:
+                raise ValueError(
+                    f"No alignments provided for variant at {variant.get_variant_key()}"
                 )
-                # Fallback to counter.py
-                self.count_bases_snp(variant, alignments, sample_name)
-        else:
-            # Use counter.py for complex variants
-            if variant.dnp:
-                self.count_bases_dnp(variant, alignments, sample_name)
-            elif variant.insertion or variant.deletion:
+            if not sample_name:
+                raise ValueError("Sample name cannot be empty")
+
+            # Use standard counting for SNV, Insertion, Deletion; generic for Complex
+            if variant.insertion or variant.deletion:
                 self.count_bases_indel(variant, alignments, sample_name)
+            elif variant.snp:
+                self.count_bases_snp(variant, alignments, sample_name)
             else:
-                # Default to generic counting for unknown variant types
+                # Complex variants (including previous DNP) use generic counting
                 self.count_bases_generic(variant, alignments, sample_name)
 
-    def count_variant(
-        self, variant: VariantEntry, alignments: list[pysam.AlignedSegment], sample_name: str
-    ) -> None:
-        """
-        Count bases for a variant (dispatches to appropriate method).
-
-        Now uses smart counting strategy by default.
-
-        Args:
-            variant: Variant to count
-            alignments: List of alignments overlapping the variant
-            sample_name: Sample name
-        """
-        # Use smart counting strategy for optimal performance/accuracy balance
-        self.smart_count_variant(variant, alignments, sample_name)
+        except AttributeError as e:
+            raise ValueError(f"Invalid variant object: {e}")
+        except Exception as e:
+            variant_key = variant.get_variant_key() if variant else "unknown"
+            raise ValueError(f"Counting failed for variant {variant_key}: {e}") from e

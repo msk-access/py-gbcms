@@ -249,7 +249,9 @@ def count_run(
         typer.Option(
             "--bam",
             "-b",
-            help="BAM file in format [yellow]SAMPLE_NAME:BAM_FILE[/yellow] (can be specified multiple times)",
+            help="[yellow]BAM files with sample names[/yellow]\n"
+                 "Format: [bold cyan]SAMPLE_NAME:BAM_FILE[/bold cyan] (traditional) or [bold cyan]BAM_FILE[/bold cyan] (with --sample-name)\n"
+                 "Examples: [green]sample1:tumor.bam[/green] or [green]tumor.bam[/green] (with --sample-name sample1)",
             rich_help_panel="🧬 BAM Input",
         ),
     ] = None,
@@ -265,12 +267,25 @@ def count_run(
             rich_help_panel="🧬 BAM Input",
         ),
     ] = None,
+    # Sample naming options
+    sample_name: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--sample-name",
+            help="[yellow]Explicit sample names for BAM files[/yellow]\n"
+                 "Use when BAM files don't contain sample names in their paths\n"
+                 "Format: [bold cyan]sample1,sample2,sample3[/bold cyan] (positional correspondence with --bam)\n"
+                 "Example: [green]--bam tumor.bam normal.bam --sample-name tumor,normal[/green]",
+            rich_help_panel="🧬 BAM Input",
+        ),
+    ] = None,
     # Variant input options (mutually exclusive)
     maf: Annotated[
         list[Path] | None,
         typer.Option(
             "--maf",
-            help="Input variant file in [green]MAF format[/green] (can be specified multiple times)",
+            help="[green]Input variant files in MAF format[/green]\n"
+                 "Output formats: [bold cyan]MAF (default)[/bold cyan] or [bold cyan]Fillout (--fillout)[/bold cyan]",
             exists=True,
             file_okay=True,
             dir_okay=False,
@@ -282,7 +297,8 @@ def count_run(
         list[Path] | None,
         typer.Option(
             "--vcf",
-            help="Input variant file in [green]VCF format[/green] (can be specified multiple times)",
+            help="[green]Input variant files in VCF format[/green]\n"
+                 "Output formats: [bold cyan]VCF (default)[/bold cyan] or [bold cyan]Fillout (--fillout)[/bold cyan]",
             exists=True,
             file_okay=True,
             dir_okay=False,
@@ -291,11 +307,12 @@ def count_run(
         ),
     ] = None,
     # Output format
-    omaf: Annotated[
+    fillout: Annotated[
         bool,
         typer.Option(
-            "--omaf",
-            help="Output in MAF format (only with MAF input)",
+            "--fillout",
+            help="[yellow]Output in fillout format[/yellow] (extended MAF format with all samples)\n"
+                 "Default: VCF input → VCF format, MAF input → MAF format",
             rich_help_panel="📤 Output Options",
         ),
     ] = False,
@@ -307,7 +324,6 @@ def count_run(
             rich_help_panel="📤 Output Options",
         ),
     ] = True,
-    
     fragment_count: Annotated[
         bool,
         typer.Option(
@@ -481,24 +497,53 @@ def count_run(
         )
         raise typer.Exit(1)
 
-    if maf and vcf:
+    # Validate sample name consistency
+    if sample_name and bam:
+        if len(sample_name) != len(bam):
+            console.print(
+                f"[red]Error:[/red] Number of sample names ({len(sample_name)}) must match number of BAM files ({len(bam)})",
+            )
+            console.print(
+                f"[yellow]Hint:[/yellow] You provided {len(bam)} BAM files but {len(sample_name)} sample names.\n"
+                "         Ensure they match positionally: --bam file1.bam file2.bam --sample-name name1,name2"
+            )
+            raise typer.Exit(1)
+    elif sample_name and not bam:
         console.print(
-            "[red]Error:[/red] --maf and --vcf are mutually exclusive",
+            "[red]Error:[/red] --sample-name requires --bam to be specified",
+        )
+        console.print(
+            "[yellow]Hint:[/yellow] Use --bam to specify BAM files along with --sample-name for explicit naming",
         )
         raise typer.Exit(1)
 
-    # Parse BAM files
-    bam_files = {}
+    # Validate format compatibility (format-preserving approach)
+    if input_is_vcf and fillout:
+        # VCF + fillout is allowed, no validation needed
+        pass
+    elif input_is_maf and not fillout:
+        # MAF + no fillout means MAF output (default), which is allowed
+        pass
+    elif input_is_maf and fillout:
+        # MAF + fillout is allowed
+        pass
 
     if bam:
-        for bam_string in bam:
-            sample_name, bam_path = parse_bam_file(bam_string)
-            if sample_name in bam_files:
-                console.print(
-                    f"[red]Error:[/red] Duplicate sample name: {sample_name}",
-                )
-                raise typer.Exit(1)
-            bam_files[sample_name] = bam_path
+        if sample_name:
+            # Use provided sample names (positional correspondence)
+            for i, bam_path in enumerate(bam):
+                # BAM paths are provided as just paths, not SAMPLE:BAM_PATH format when using --sample-name
+                bam_files[sample_name[i]] = bam_path
+        else:
+            # Use traditional SAMPLE:BAM_PATH format
+            for bam_string in bam:
+                sample_name_parsed, bam_path = parse_bam_file(bam_string)
+                if sample_name_parsed in bam_files:
+                    console.print(
+                        f"[red]Error:[/red] Duplicate sample name: {sample_name_parsed}",
+                    )
+                    raise typer.Exit(1)
+                bam_files[sample_name_parsed] = bam_path
 
     if bam_fof:
         fof_bams = load_bam_fof(str(bam_fof))
@@ -568,7 +613,7 @@ def count_run(
             backend=backend,
             input_is_maf=input_is_maf,
             input_is_vcf=input_is_vcf,
-            output_maf=omaf,
+            fillout=fillout,
             generic_counting=generic_counting,
             max_warning_per_type=suppress_warning,
         )
@@ -727,9 +772,36 @@ def show_info() -> None:
 
     console.print("[bold cyan]Example Usage:[/bold cyan]")
     console.print(
-        "  gbcms count run --fasta ref.fa --bam s1:s1.bam --vcf vars.vcf --output out.txt"
+        "  # VCF input (default: VCF output)"
     )
-    console.print("  gbcms validate files --fasta ref.fa --bam s1:s1.bam")
+    console.print(
+        "  gbcms count run --fasta ref.fa --bam sample1:tumor.bam --vcf variants.vcf --output out.txt"
+    )
+    console.print(
+        "  # VCF input with fillout format"
+    )
+    console.print(
+        "  gbcms count run --fasta ref.fa --bam sample1:tumor.bam --vcf variants.vcf --fillout --output out.txt"
+    )
+    console.print(
+        "  # MAF input (default: sample-agnostic MAF output)"
+    )
+    console.print(
+        "  gbcms count run --fasta ref.fa --bam sample1:tumor.bam --maf variants.maf --output out.txt"
+    )
+    console.print(
+        "  # MAF input with fillout format"
+    )
+    console.print(
+        "  gbcms count run --fasta ref.fa --bam sample1:tumor.bam --maf variants.maf --fillout --output out.txt"
+    )
+    console.print(
+        "  # Multiple samples with explicit naming"
+    )
+    console.print(
+        "  gbcms count run --fasta ref.fa --bam tumor.bam normal.bam --sample-name tumor,normal --maf variants.maf --output out.txt"
+    )
+    console.print("  gbcms validate files --fasta ref.fa --bam sample1:sample1.bam")
     console.print("  gbcms version")
 
 

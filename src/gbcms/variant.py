@@ -31,8 +31,7 @@ class VariantEntry:
     ref: str
     alt: str
     snp: bool = False
-    dnp: bool = False
-    dnp_len: int = 0
+
     insertion: bool = False
     deletion: bool = False
     tumor_sample: str = ""
@@ -142,11 +141,11 @@ class VariantLoader:
                 end_pos = pos + len(ref) - 1
 
                 # Determine variant type
-                snp = len(alt) == len(ref) == 1
-                dnp = len(alt) == len(ref) > 1
+                snp = len(ref) == len(alt) == 1
+                # dnp classification removed
                 dnp_len = len(ref) if dnp else 0
-                insertion = len(alt) > len(ref)
-                deletion = len(alt) < len(ref)
+                insertion = len(ref) == 1 and len(alt) > len(ref)
+                deletion = len(alt) == 1 and len(alt) < len(ref)
 
                 entry = VariantEntry(
                     chrom=chrom,
@@ -204,11 +203,11 @@ class VariantLoader:
                 end_pos = pos + len(ref) - 1
 
                 # Determine variant type
-                snp = len(alt) == len(ref) == 1
-                dnp = len(alt) == len(ref) > 1
+                snp = len(ref) == len(alt) == 1
+                # dnp classification removed
                 dnp_len = len(ref) if dnp else 0
-                insertion = len(alt) > len(ref)
-                deletion = len(alt) < len(ref)
+                insertion = len(ref) == 1 and len(alt) > len(ref)
+                deletion = len(alt) == 1 and len(alt) < len(ref)
 
                 variant = VariantEntry(
                     chrom=chrom,
@@ -350,11 +349,11 @@ class VariantLoader:
                     return None
 
             # Determine variant type
-            snp = len(alt) == len(ref) == 1
-            dnp = len(alt) == len(ref) > 1
+            snp = len(ref) == len(alt) == 1
+            # dnp classification removed
             dnp_len = len(ref) if dnp else 0
-            insertion = len(alt) > len(ref)
-            deletion = len(alt) < len(ref)
+            insertion = len(ref) == 1 and len(alt) > len(ref)
+            deletion = len(alt) == 1 and len(alt) < len(ref)
 
             variant = VariantEntry(
                 chrom=chrom,

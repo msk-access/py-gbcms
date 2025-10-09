@@ -116,8 +116,8 @@ docker run --rm \
     --fasta /data/reference.fa \
     --bam-fof /data/bam_files.txt \
     --maf /data/variants.maf \
-    --output /data/counts.maf \
-    --omaf
+    --output /data/counts.maf
+    # Note: MAF input defaults to sample-agnostic MAF output
 ```
 
 ### Example 4: With All Options

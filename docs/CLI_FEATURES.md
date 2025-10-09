@@ -162,6 +162,134 @@ app = typer.Typer(
 )
 ```
 
+
+
+## CLI Options Reference
+
+This section documents all available command-line options for gbcms counting operations.
+
+### Counting Control Options
+
+#### Strand-Aware Counting
+- `--strand-count/--no-strand-count` (default: True)
+  - **Description**: Enable strand-specific counting including forward/reverse orientation
+  - **Fields added**: DP_FORWARD, RD_FORWARD, AD_FORWARD, DP_REVERSE, RD_REVERSE, AD_REVERSE
+  - **Use case**: Detect strand bias and orientation effects
+
+#### Fragment-Aware Counting
+- `--fragment-count/--no-fragment-count` (default: False)
+  - **Description**: Enable fragment-based counting for paired-end data
+  - **Fields added**: DPF, RDF, ADF, RDF_FORWARD, RDF_REVERSE, ADF_FORWARD, ADF_REVERSE
+  - **Use case**: Analyze fragment orientation and improve accuracy for PE data
+
+#### Fragment Weighting
+- `--fragment-fractional-weight` (default: False)
+  - **Description**: Use fractional weights (0.5) for fragments with orientation disagreement
+  - **Use case**: Handle ambiguous fragment orientations more accurately
+
+### Quality Filtering Options
+
+#### Read-Level Filters
+- `--filter-duplicate/--no-filter-duplicate` (default: False)
+  - **Description**: Filter duplicate reads (marked with 0x400 flag)
+- `--filter-improper-pair/--no-filter-improper-pair` (default: False)
+  - **Description**: Filter improperly paired reads
+- `--filter-qc-failed/--no-filter-qc-failed` (default: False)
+  - **Description**: Filter reads that failed quality control
+- `--filter-non-primary/--no-filter-non-primary` (default: False)
+  - **Description**: Filter secondary and supplementary alignments
+
+#### Quality Thresholds
+- `--mapping-quality-threshold <int>` (default: 20)
+  - **Description**: Minimum mapping quality for reads to be considered
+- `--base-quality-threshold <int>` (default: 20)
+  - **Description**: Minimum base quality for counting
+
+#### Indel Filtering
+- `--filter-indel/--no-filter-indel` (default: False)
+  - **Description**: Filter reads containing insertions or deletions
+
+### Input/Output Options
+
+#### File Inputs
+- `--fasta <file>`: Reference genome FASTA file (required)
+- `--bam <sample_name>:<file>`: BAM file with sample name (can be specified multiple times)
+- `--vcf <file>`: Input variant file in VCF format (can be specified multiple times)
+
+#### Output Control
+- `--output <file>`: Output file path (required)
+- `--fillout`: Output in fillout format (extended MAF with all samples)
+
+#### Input Format Detection
+- `--input-is-maf`: Treat input as MAF format instead of VCF
+
+### Performance Options
+
+#### Parallelization
+- `--threads <int>` (default: 1)
+  - **Description**: Number of parallel threads for processing
+- `--backend <str>` (default: "joblib")
+  - **Options**: joblib, loky, threading, multiprocessing
+
+#### Processing Control
+- `--max-block-size <int>` (default: 10000)
+  - **Description**: Maximum number of variants per processing block
+- `--max-block-dist <int>` (default: 100000)
+  - **Description**: Maximum distance between variants in a block
+
+#### Optimization
+- `--numba/--no-numba` (default: True)
+  - **Description**: Use Numba JIT compilation for performance optimization
+
+### Usage Examples
+
+#### Basic Strand-Aware Counting
+```bash
+gbcms count \
+  --fasta reference.fa \
+  --bam tumor:tumor.bam \
+  --bam normal:normal.bam \
+  --vcf variants.vcf \
+  --output results.vcf \
+  --strand-count
+```
+
+#### Comprehensive Analysis with Filtering
+```bash
+gbcms count \
+  --fasta reference.fa \
+  --bam sample:sample.bam \
+  --vcf variants.vcf \
+  --output results.vcf \
+  --strand-count \
+  --fragment-count \
+  --filter-duplicate \
+  --mapping-quality-threshold 30 \
+  --threads 4
+```
+
+#### Fragment-Aware Analysis
+```bash
+gbcms count \
+  --fasta reference.fa \
+  --bam sample:sample.bam \
+  --vcf variants.vcf \
+  --output results.vcf \
+  --fragment-count \
+  --fragment-fractional-weight \
+  --filter-improper-pair
+```
+
+### Option Categories Summary
+
+| Category | Options | Purpose |
+|----------|---------|---------|
+| **Counting** | `--strand-count`, `--fragment-count` | Control what types of counts to generate |
+| **Filtering** | `--filter-*`, `--*-threshold` | Quality control and read filtering |
+| **I/O** | `--fasta`, `--bam`, `--vcf`, `--output` | Specify input and output files |
+| **Performance** | `--threads`, `--backend`, `--numba` | Control processing speed and resources |
+| **Advanced** | `--fragment-fractional-weight`, `--max-block-size` | Fine-tune analysis parameters |
+
 ## Rich Integration Features
 
 ### 1. **Colored Output**
@@ -310,15 +438,22 @@ Output:
 ┗━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 Example Usage:
-  gbcms count run --fasta ref.fa --bam s1:s1.bam --vcf vars.vcf --output out.txt
-  gbcms validate files --fasta ref.fa --bam s1:s1.bam
+  # VCF input (default: VCF output)
+  gbcms count run --fasta ref.fa --bam sample1:tumor.bam --vcf vars.vcf --output out.txt
+  # VCF input with fillout format
+  gbcms count run --fasta ref.fa --bam sample1:tumor.bam --vcf vars.vcf --fillout --output out.txt
+  # MAF input (default: sample-agnostic MAF output)
+  gbcms count run --fasta ref.fa --bam sample1:tumor.bam --maf vars.maf --output out.txt
+  # Multiple samples with explicit naming
+  gbcms count run --fasta ref.fa --bam tumor.bam normal.bam --sample-name tumor,normal --maf vars.maf --output out.txt
+  gbcms validate files --fasta ref.fa --bam sample1:sample1.bam
   gbcms version
 ```
 
 ### Processing with Progress Bar
 
 ```bash
-$ gbcms count run --fasta ref.fa --bam s1:s1.bam --vcf vars.vcf --output out.txt
+$ gbcms count run --fasta ref.fa --bam sample1:tumor.bam --vcf vars.vcf --output out.txt
 ```
 
 Output:

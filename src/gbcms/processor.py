@@ -267,7 +267,9 @@ class VariantProcessor:
             return
 
         # Filter alignments
-        filtered_alignments = [aln for aln in alignments if not self.counter.filter_alignment(aln)]
+        filtered_alignments = [
+            aln for aln in alignments if not self.counter._should_filter_alignment(aln)
+        ]
 
         # Process each variant in the block
         for i in range(start_idx, end_idx + 1):
@@ -278,16 +280,21 @@ class VariantProcessor:
                 continue
 
             # Count bases for this variant
-            self.counter.count_variant(variant, filtered_alignments, sample_name)
+            self.counter.smart_count_variant(variant, filtered_alignments, sample_name)
 
     def _write_output(self, variants: list[VariantEntry]) -> None:
         """Write output file."""
         formatter = OutputFormatter(self.config, self.sample_order)
 
         if self.config.input_is_maf:
-            if self.config.output_maf:
-                formatter.write_maf_output(variants)
-            else:
+            if getattr(self.config, 'fillout', False):  # Check for fillout flag
                 formatter.write_fillout_output(variants)
-        else:
-            formatter.write_vcf_output(variants)
+            else:
+                # Default: MAF output (sample-agnostic)
+                formatter.write_sample_agnostic_maf_output(variants)
+        else:  # VCF input
+            if getattr(self.config, 'fillout', False):  # Check for fillout flag
+                formatter.write_fillout_output(variants)
+            else:
+                # Default: VCF output
+                formatter.write_vcf_output(variants)

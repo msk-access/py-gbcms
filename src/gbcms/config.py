@@ -20,6 +20,10 @@ class CountType(IntEnum):
     DP_REVERSE = 9  # Reverse strand depth
     RD_REVERSE = 10  # Reverse strand reference depth
     AD_REVERSE = 11  # Reverse strand alternate depth
+    RDF_FORWARD = 12  # Forward fragment reference depth
+    RDF_REVERSE = 13  # Reverse fragment reference depth
+    ADF_FORWARD = 14  # Forward fragment alternate depth
+    ADF_REVERSE = 15  # Reverse fragment alternate depth
 
 
 @dataclass
@@ -48,7 +52,7 @@ class Config:
     backend: str = "joblib"  # Parallelization backend
     input_is_maf: bool = False
     input_is_vcf: bool = False
-    output_maf: bool = False
+    fillout: bool = False
     generic_counting: bool = False
     max_warning_per_type: int = 3
 
@@ -87,8 +91,9 @@ class Config:
         if not self.input_is_maf and not self.input_is_vcf:
             raise ValueError("Either --maf or --vcf must be specified")
 
-        if self.input_is_vcf and self.output_maf:
-            raise ValueError("--omaf can only be used with --maf input")
+        if self.input_is_vcf and self.fillout:
+            # VCF + fillout is allowed
+            pass
 
         if self.num_threads < 1:
             raise ValueError("Number of threads must be at least 1")
