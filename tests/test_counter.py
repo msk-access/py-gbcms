@@ -6,6 +6,8 @@ import pytest
 from gbcms.config import Config, CountType
 from gbcms.counter import BaseCounter
 from gbcms.variant import VariantEntry
+
+
 def config(temp_dir, sample_fasta, sample_bam, sample_vcf):
     """Create a test configuration."""
     return Config(

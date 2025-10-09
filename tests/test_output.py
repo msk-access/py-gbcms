@@ -98,7 +98,7 @@ def test_output_formatter_maf(config_maf, temp_dir):
     variant.base_count["Normal1"][CountType.RD] = 15
     variant.base_count["Normal1"][CountType.AD] = 0
 
-    formatter.write_maf_output([variant])
+    formatter.write_sample_agnostic_maf_output([variant])
 
     # Check output file exists
     assert Path(config_maf.output_file).exists()
