@@ -142,8 +142,6 @@ class VariantLoader:
 
                 # Determine variant type
                 snp = len(ref) == len(alt) == 1
-                # dnp classification removed
-                dnp_len = len(ref) if dnp else 0
                 insertion = len(ref) == 1 and len(alt) > len(ref)
                 deletion = len(alt) == 1 and len(alt) < len(ref)
 
@@ -154,8 +152,6 @@ class VariantLoader:
                     ref=ref,
                     alt=alt,
                     snp=snp,
-                    dnp=dnp,
-                    dnp_len=dnp_len,
                     insertion=insertion,
                     deletion=deletion,
                 )
@@ -204,8 +200,6 @@ class VariantLoader:
 
                 # Determine variant type
                 snp = len(ref) == len(alt) == 1
-                # dnp classification removed
-                dnp_len = len(ref) if dnp else 0
                 insertion = len(ref) == 1 and len(alt) > len(ref)
                 deletion = len(alt) == 1 and len(alt) < len(ref)
 
@@ -216,8 +210,6 @@ class VariantLoader:
                     ref=ref,
                     alt=alt,
                     snp=snp,
-                    dnp=dnp,
-                    dnp_len=dnp_len,
                     insertion=insertion,
                     deletion=deletion,
                 )
@@ -289,11 +281,11 @@ class VariantLoader:
             pos = int(fields[header_map["Start_Position"]]) - 1  # Convert to 0-indexed
             end_pos = int(fields[header_map["End_Position"]]) - 1
             ref = fields[header_map["Reference_Allele"]]
-            alt = fields[header_map["Tumor_Seq_Allele1"]]
+            alt = fields[header_map["Tumor_Seq_Allele2"]]  # Alt should be in Allele2
 
-            # Use Tumor_Seq_Allele2 if Allele1 is empty or same as ref
+            # Use Tumor_Seq_Allele1 if Allele2 is empty or same as ref (fallback)
             if not alt or alt == ref:
-                alt = fields[header_map["Tumor_Seq_Allele2"]]
+                alt = fields[header_map["Tumor_Seq_Allele1"]]
 
             if not alt or alt == ref:
                 logger.warning(f"Could not find valid alt allele for variant: {chrom}:{pos + 1}")
@@ -350,8 +342,6 @@ class VariantLoader:
 
             # Determine variant type
             snp = len(ref) == len(alt) == 1
-            # dnp classification removed
-            dnp_len = len(ref) if dnp else 0
             insertion = len(ref) == 1 and len(alt) > len(ref)
             deletion = len(alt) == 1 and len(alt) < len(ref)
 
@@ -362,8 +352,6 @@ class VariantLoader:
                 ref=ref,
                 alt=alt,
                 snp=snp,
-                dnp=dnp,
-                dnp_len=dnp_len,
                 insertion=insertion,
                 deletion=deletion,
                 tumor_sample=tumor_sample,

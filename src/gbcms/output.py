@@ -363,8 +363,8 @@ class OutputFormatter:
                     str(variant.maf_pos + 1),  # Convert back to 1-indexed
                     str(variant.maf_end_pos + 1),
                     variant.maf_ref,
-                    variant.maf_alt if variant.maf_alt else "",
-                    "",  # Tumor_Seq_Allele2
+                    variant.maf_ref,  # Tumor_Seq_Allele1 = reference
+                    variant.maf_alt if variant.maf_alt else "",  # Tumor_Seq_Allele2 = alt (variant)
                     "",  # Tumor_Sample_Barcode (will be set per sample)
                     "",  # Matched_Norm_Sample_Barcode (always empty)
                     variant.effect,
@@ -543,10 +543,10 @@ class OutputFormatter:
                     str(variant.maf_pos + 1),  # Convert back to 1-indexed
                     str(variant.maf_end_pos + 1),
                     variant.maf_ref,
-                    variant.maf_alt if variant.maf_alt else "",
-                    "",  # Tumor_Seq_Allele2
-                    variant.tumor_sample if hasattr(variant, 'tumor_sample') and variant.tumor_sample else "",
-                    variant.normal_sample if hasattr(variant, 'normal_sample') and variant.normal_sample else "",
+                    variant.maf_ref,  # Tumor_Seq_Allele1 = reference
+                    variant.maf_alt if variant.maf_alt else "",  # Tumor_Seq_Allele2 = alt (variant)
+                    "",  # Tumor_Sample_Barcode (empty for fillout format)
+                    "",  # Matched_Norm_Sample_Barcode (empty for fillout format)
                     variant.effect,
                 ]
 

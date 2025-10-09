@@ -57,7 +57,6 @@ src/gbcms/
 ├── models.py                 # Pydantic models
 ├── processor.py              # Main processing logic
 ├── counter.py                # Pure Python counting
-├── numba_counter.py          # JIT-compiled counting (50-100x faster)
 ├── variant.py                # Variant loading (with cyvcf2)
 ├── reference.py              # Reference sequence access
 ├── output.py                 # Output formatting

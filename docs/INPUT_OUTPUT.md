@@ -194,6 +194,13 @@ TP53        chr17       7577120        sample1              150      75         
 TP53        chr17       7577120        sample2              120      110          10           0.083333
 ```
 
+**Standard MAF Columns**:
+- `Tumor_Seq_Allele1`: Reference allele
+- `Tumor_Seq_Allele2`: Variant allele (alternate)
+- `Reference_Allele`: Reference allele (same as Tumor_Seq_Allele1)
+- `t_ref_count`: Reference reads for this sample
+- `t_alt_count`: Alternate reads for this sample
+
 **Usage**:
 ```bash
 gbcms count run --fasta ref.fa --bam sample1:sample1.bam --bam sample2:sample2.bam --maf variants.maf --output results.maf
