@@ -4,8 +4,8 @@ import logging
 from datetime import datetime
 
 from .config import Config, CountType
-from .variant import VariantEntry
 from .counter import BaseCounter
+from .variant import VariantEntry
 
 logger = logging.getLogger(__name__)
 
@@ -278,7 +278,6 @@ class OutputFormatter:
 
         logger.info(f"Successfully wrote {len(variants)} variants to VCF output file")
 
-
     def write_sample_agnostic_maf_output(self, variants: list[VariantEntry]) -> None:
         """
         Write sample-agnostic MAF output (one row per sample per variant).
@@ -318,39 +317,47 @@ class OutputFormatter:
             ]
 
             if self.config.output_strand_count:
-                count_cols.extend([
-                    "t_depth_forward",
-                    "t_ref_count_forward",
-                    "t_alt_count_forward",
-                    "t_depth_reverse",
-                    "t_ref_count_reverse",
-                    "t_alt_count_reverse",
-                ])
+                count_cols.extend(
+                    [
+                        "t_depth_forward",
+                        "t_ref_count_forward",
+                        "t_alt_count_forward",
+                        "t_depth_reverse",
+                        "t_ref_count_reverse",
+                        "t_alt_count_reverse",
+                    ]
+                )
 
             if self.config.output_fragment_count:
-                count_cols.extend([
-                    "t_depth_fragment",
-                    "t_ref_count_fragment",
-                    "t_alt_count_fragment",
-                    "t_ref_count_fragment_forward",
-                    "t_ref_count_fragment_reverse",
-                    "t_alt_count_fragment_forward",
-                    "t_alt_count_fragment_reverse",
-                ])
+                count_cols.extend(
+                    [
+                        "t_depth_fragment",
+                        "t_ref_count_fragment",
+                        "t_alt_count_fragment",
+                        "t_ref_count_fragment_forward",
+                        "t_ref_count_fragment_reverse",
+                        "t_alt_count_fragment_forward",
+                        "t_alt_count_fragment_reverse",
+                    ]
+                )
 
             # Add tumor-only strand bias columns
-            count_cols.extend([
-                "t_strand_bias_pval",
-                "t_strand_bias_or",
-                "t_strand_bias_dir",
-            ])
+            count_cols.extend(
+                [
+                    "t_strand_bias_pval",
+                    "t_strand_bias_or",
+                    "t_strand_bias_dir",
+                ]
+            )
 
             if self.config.output_fragment_count:
-                count_cols.extend([
-                    "t_fragment_strand_bias_pval",
-                    "t_fragment_strand_bias_or",
-                    "t_fragment_strand_bias_dir",
-                ])
+                count_cols.extend(
+                    [
+                        "t_fragment_strand_bias_pval",
+                        "t_fragment_strand_bias_or",
+                        "t_fragment_strand_bias_dir",
+                    ]
+                )
 
             f.write("\t".join(header_cols + count_cols) + "\n")
 
@@ -383,10 +390,10 @@ class OutputFormatter:
 
                     # Add tumor counts (sample-specific)
                     sample_counts = [
-                        str(dp),      # t_depth
-                        str(rd),      # t_ref_count
-                        str(ad),      # t_alt_count
-                        f"{vaf:.6f}", # t_vaf
+                        str(dp),  # t_depth
+                        str(rd),  # t_ref_count
+                        str(ad),  # t_alt_count
+                        f"{vaf:.6f}",  # t_vaf
                     ]
 
                     if self.config.output_strand_count:
@@ -397,14 +404,16 @@ class OutputFormatter:
                         rd_reverse = int(variant.get_count(sample, CountType.RD_REVERSE))
                         ad_reverse = int(variant.get_count(sample, CountType.AD_REVERSE))
 
-                        sample_counts.extend([
-                            str(dp_forward),  # t_depth_forward
-                            str(rd_forward),  # t_ref_count_forward
-                            str(ad_forward),  # t_alt_count_forward
-                            str(dp_reverse),  # t_depth_reverse
-                            str(rd_reverse),  # t_ref_count_reverse
-                            str(ad_reverse),  # t_alt_count_reverse
-                        ])
+                        sample_counts.extend(
+                            [
+                                str(dp_forward),  # t_depth_forward
+                                str(rd_forward),  # t_ref_count_forward
+                                str(ad_forward),  # t_alt_count_forward
+                                str(dp_reverse),  # t_depth_reverse
+                                str(rd_reverse),  # t_ref_count_reverse
+                                str(ad_reverse),  # t_alt_count_reverse
+                            ]
+                        )
 
                     if self.config.output_fragment_count:
                         dpf = int(variant.get_count(sample, CountType.DPF))
@@ -415,15 +424,17 @@ class OutputFormatter:
                         adf_forward = int(variant.get_count(sample, CountType.ADF_FORWARD))
                         adf_reverse = int(variant.get_count(sample, CountType.ADF_REVERSE))
 
-                        sample_counts.extend([
-                            str(dpf),  # t_depth_fragment
-                            str(rdf),  # t_ref_count_fragment
-                            str(adf),  # t_alt_count_fragment
-                            str(rdf_forward),   # t_ref_count_fragment_forward
-                            str(rdf_reverse),   # t_ref_count_fragment_reverse
-                            str(adf_forward),   # t_alt_count_fragment_forward
-                            str(adf_reverse),   # t_alt_count_fragment_reverse
-                        ])
+                        sample_counts.extend(
+                            [
+                                str(dpf),  # t_depth_fragment
+                                str(rdf),  # t_ref_count_fragment
+                                str(adf),  # t_alt_count_fragment
+                                str(rdf_forward),  # t_ref_count_fragment_forward
+                                str(rdf_reverse),  # t_ref_count_fragment_reverse
+                                str(adf_forward),  # t_alt_count_fragment_forward
+                                str(adf_reverse),  # t_alt_count_fragment_reverse
+                            ]
+                        )
 
                     # Calculate and add strand bias for this sample
                     ref_forward = int(variant.get_count(sample, CountType.RD_FORWARD))
@@ -435,11 +446,13 @@ class OutputFormatter:
                         ref_forward, ref_reverse, alt_forward, alt_reverse
                     )
 
-                    sample_counts.extend([
-                        f"{sb_pval:.6f}",  # t_strand_bias_pval
-                        f"{sb_or:.3f}",    # t_strand_bias_or
-                        sb_dir,            # t_strand_bias_dir
-                    ])
+                    sample_counts.extend(
+                        [
+                            f"{sb_pval:.6f}",  # t_strand_bias_pval
+                            f"{sb_or:.3f}",  # t_strand_bias_or
+                            sb_dir,  # t_strand_bias_dir
+                        ]
+                    )
 
                     if self.config.output_fragment_count:
                         # Calculate fragment strand bias
@@ -452,16 +465,20 @@ class OutputFormatter:
                             ref_forward, ref_reverse, alt_forward, alt_reverse
                         )
 
-                        sample_counts.extend([
-                            f"{fsb_pval:.6f}",  # t_fragment_strand_bias_pval
-                            f"{fsb_or:.3f}",    # t_fragment_strand_bias_or
-                            fsb_dir,            # t_fragment_strand_bias_dir
-                        ])
+                        sample_counts.extend(
+                            [
+                                f"{fsb_pval:.6f}",  # t_fragment_strand_bias_pval
+                                f"{fsb_or:.3f}",  # t_fragment_strand_bias_or
+                                fsb_dir,  # t_fragment_strand_bias_dir
+                            ]
+                        )
 
                     row.extend(sample_counts)
                     f.write("\t".join(row) + "\n")
 
-        logger.info(f"Successfully wrote {len(variants) * len(self.sample_order)} variant-sample combinations to MAF output file")
+        logger.info(
+            f"Successfully wrote {len(variants) * len(self.sample_order)} variant-sample combinations to MAF output file"
+        )
 
     def write_fillout_output(self, variants: list[VariantEntry]) -> None:
         """
@@ -491,47 +508,42 @@ class OutputFormatter:
 
             # Add count columns for each sample
             for sample in self.sample_order:
-                header_cols.extend([
-                    f"{sample}:DP",
-                    f"{sample}:RD",
-                    f"{sample}:AD",
-                    f"{sample}:VAF"
-                ])
+                header_cols.extend(
+                    [f"{sample}:DP", f"{sample}:RD", f"{sample}:AD", f"{sample}:VAF"]
+                )
 
                 if self.config.output_strand_count:
-                    header_cols.extend([
-                        f"{sample}:DP_FORWARD",
-                        f"{sample}:RD_FORWARD",
-                        f"{sample}:AD_FORWARD",
-                        f"{sample}:DP_REVERSE",
-                        f"{sample}:RD_REVERSE",
-                        f"{sample}:AD_REVERSE",
-                    ])
+                    header_cols.extend(
+                        [
+                            f"{sample}:DP_FORWARD",
+                            f"{sample}:RD_FORWARD",
+                            f"{sample}:AD_FORWARD",
+                            f"{sample}:DP_REVERSE",
+                            f"{sample}:RD_REVERSE",
+                            f"{sample}:AD_REVERSE",
+                        ]
+                    )
 
                 if self.config.output_fragment_count:
-                    header_cols.extend([
-                        f"{sample}:DPF",
-                        f"{sample}:RDF",
-                        f"{sample}:ADF",
-                        f"{sample}:RDF_FORWARD",
-                        f"{sample}:RDF_REVERSE",
-                        f"{sample}:ADF_FORWARD",
-                        f"{sample}:ADF_REVERSE",
-                    ])
+                    header_cols.extend(
+                        [
+                            f"{sample}:DPF",
+                            f"{sample}:RDF",
+                            f"{sample}:ADF",
+                            f"{sample}:RDF_FORWARD",
+                            f"{sample}:RDF_REVERSE",
+                            f"{sample}:ADF_FORWARD",
+                            f"{sample}:ADF_REVERSE",
+                        ]
+                    )
 
                 # Add strand bias columns for each sample
-                header_cols.extend([
-                    f"{sample}:SB_PVAL",
-                    f"{sample}:SB_OR",
-                    f"{sample}:SB_DIR"
-                ])
+                header_cols.extend([f"{sample}:SB_PVAL", f"{sample}:SB_OR", f"{sample}:SB_DIR"])
 
                 if self.config.output_fragment_count:
-                    header_cols.extend([
-                        f"{sample}:FSB_PVAL",
-                        f"{sample}:FSB_OR",
-                        f"{sample}:FSB_DIR"
-                    ])
+                    header_cols.extend(
+                        [f"{sample}:FSB_PVAL", f"{sample}:FSB_OR", f"{sample}:FSB_DIR"]
+                    )
 
             f.write("\t".join(header_cols) + "\n")
 
@@ -567,10 +579,16 @@ class OutputFormatter:
                         rd_reverse = int(variant.get_count(sample, CountType.RD_REVERSE))
                         ad_reverse = int(variant.get_count(sample, CountType.AD_REVERSE))
 
-                        sample_data.extend([
-                            str(dp_forward), str(rd_forward), str(ad_forward),
-                            str(dp_reverse), str(rd_reverse), str(ad_reverse)
-                        ])
+                        sample_data.extend(
+                            [
+                                str(dp_forward),
+                                str(rd_forward),
+                                str(ad_forward),
+                                str(dp_reverse),
+                                str(rd_reverse),
+                                str(ad_reverse),
+                            ]
+                        )
 
                     if self.config.output_fragment_count:
                         dpf = int(variant.get_count(sample, CountType.DPF))
@@ -581,11 +599,17 @@ class OutputFormatter:
                         adf_forward = int(variant.get_count(sample, CountType.ADF_FORWARD))
                         adf_reverse = int(variant.get_count(sample, CountType.ADF_REVERSE))
 
-                        sample_data.extend([
-                            str(dpf), str(rdf), str(adf),
-                            str(rdf_forward), str(rdf_reverse),
-                            str(adf_forward), str(adf_reverse)
-                        ])
+                        sample_data.extend(
+                            [
+                                str(dpf),
+                                str(rdf),
+                                str(adf),
+                                str(rdf_forward),
+                                str(rdf_reverse),
+                                str(adf_forward),
+                                str(adf_reverse),
+                            ]
+                        )
 
                     # Calculate and add strand bias for this sample
                     ref_forward = int(variant.get_count(sample, CountType.RD_FORWARD))

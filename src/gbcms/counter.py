@@ -103,10 +103,16 @@ class BaseCounter:
         return False
 
     def _initialize_counts(self) -> np.ndarray:
+        """Initialize counts array."""
+        return np.zeros(len(CountType), dtype=np.float32)
+
+    def _initialize_fragment_maps(self) -> tuple[dict, dict, dict]:
         """Initialize fragment tracking maps."""
         return {}, {}, {}
 
-    def _store_sample_counts(self, variant: VariantEntry, counts: np.ndarray, sample_name: str) -> None:
+    def _store_sample_counts(
+        self, variant: VariantEntry, counts: np.ndarray, sample_name: str
+    ) -> None:
         """Store counts for a sample, handling existing counts."""
         if sample_name not in variant.base_count:
             variant.base_count[sample_name] = counts
@@ -162,10 +168,7 @@ class BaseCounter:
         for frag_name, end_counts in dpf_map.items():
             # Check for overlapping multimapped reads
             if any(count > 1 for count in end_counts.values()):
-                if (
-                    self.warning_counts["overlapping_multimap"]
-                    < self.config.max_warning_per_type
-                ):
+                if self.warning_counts["overlapping_multimap"] < self.config.max_warning_per_type:
                     logger.warning(
                         f"Fragment {frag_name} has overlapping multiple mapped alignment "
                         "at site, and will not be used"
@@ -193,7 +196,12 @@ class BaseCounter:
         return dpf, rdf, adf, rdf_forward, rdf_reverse, adf_forward, adf_reverse
 
     def _track_fragment_indel(
-        self, aln: pysam.AlignedSegment, dpf_map: dict, rdf_map: dict, adf_map: dict, allele_type: str
+        self,
+        aln: pysam.AlignedSegment,
+        dpf_map: dict,
+        rdf_map: dict,
+        adf_map: dict,
+        allele_type: str,
     ) -> None:
         """Track fragment for INDEL counting with orientation support."""
         if aln.query_name is None:
@@ -234,10 +242,7 @@ class BaseCounter:
         for frag_name, end_counts in dpf_map.items():
             # Check for overlapping multimapped reads
             if any(count > 1 for count in end_counts.values()):
-                if (
-                    self.warning_counts["overlapping_multimap"]
-                    < self.config.max_warning_per_type
-                ):
+                if self.warning_counts["overlapping_multimap"] < self.config.max_warning_per_type:
                     logger.warning(
                         f"Fragment {frag_name} has overlapping multiple mapped alignment "
                         "at site, and will not be used"
@@ -265,7 +270,13 @@ class BaseCounter:
         return dpf, rdf, adf, rdf_forward, rdf_reverse, adf_forward, adf_reverse
 
     def _track_fragment_generic(
-        self, aln: pysam.AlignedSegment, dpf_map: dict, rdf_map: dict, adf_map: dict, base: str, variant: VariantEntry
+        self,
+        aln: pysam.AlignedSegment,
+        dpf_map: dict,
+        rdf_map: dict,
+        adf_map: dict,
+        base: str,
+        variant: VariantEntry,
     ) -> None:
         """Track fragment for generic counting with orientation support."""
         if aln.query_name is None:
@@ -358,7 +369,9 @@ class BaseCounter:
 
         # Calculate fragment counts using helper
         if self.config.output_fragment_count:
-            dpf, rdf, adf, rdf_forward, rdf_reverse, adf_forward, adf_reverse = self._calculate_fragment_counts_basic(dpf_map, rdf_map, adf_map)
+            dpf, rdf, adf, rdf_forward, rdf_reverse, adf_forward, adf_reverse = (
+                self._calculate_fragment_counts_basic(dpf_map, rdf_map, adf_map)
+            )
             counts[CountType.DPF] = dpf
             counts[CountType.RDF] = rdf
             counts[CountType.ADF] = adf
@@ -369,6 +382,7 @@ class BaseCounter:
 
         # Store counts using helper
         self._store_sample_counts(variant, counts, sample_name)
+
     def count_bases_indel(
         self, variant: VariantEntry, alignments: list[pysam.AlignedSegment], sample_name: str
     ) -> None:
@@ -383,6 +397,8 @@ class BaseCounter:
             alignments: List of overlapping alignments
             sample_name: Sample name for results storage
         """
+        counts = self._initialize_counts()
+
         # Fragment tracking for fragment counts
         dpf_map, rdf_map, adf_map = self._initialize_fragment_maps()
 
@@ -409,25 +425,47 @@ class BaseCounter:
                                 # Handle insertion case
                                 read_pos += cigar_len
                                 # Check for base at insertion position
-                                if (read_pos < len(aln.query_sequence) and
-                                    aln.query_sequence[read_pos].upper() == variant.alt.upper()):
+                                if (
+                                    aln.query_sequence is not None
+                                    and read_pos < len(aln.query_sequence)
+                                    and aln.query_sequence[read_pos].upper() == variant.alt.upper()
+                                ):
                                     # Use helper for allele counting
                                     self._count_read_alleles(aln, variant, counts, read_pos)
                                     # Track fragments if enabled
-                                    if self.config.output_fragment_count and aln.query_name is not None:
-                                        self._track_fragment_indel(aln, dpf_map, rdf_map, adf_map, "alt")
+                                    if (
+                                        self.config.output_fragment_count
+                                        and aln.query_name is not None
+                                    ):
+                                        self._track_fragment_indel(
+                                            aln, dpf_map, rdf_map, adf_map, "alt"
+                                        )
                                     break
                             elif next_op == 2 and variant.deletion:  # Deletion (D)
                                 # Handle deletion case
-                                if ref_pos is not None and ref_pos <= variant.pos + 1 < ref_pos + cigar_len:
+                                if (
+                                    ref_pos is not None
+                                    and ref_pos <= variant.pos + 1 < ref_pos + cigar_len
+                                ):
                                     offset = variant.pos + 1 - ref_pos
                                     # For deletions, we count the reference base
-                                    if (read_pos + offset < len(aln.query_sequence) and
-                                        aln.query_sequence[read_pos + offset].upper() == variant.ref.upper()):
-                                        self._count_read_alleles(aln, variant, counts, read_pos + offset)
+                                    if (
+                                        aln.query_sequence is not None
+                                        and read_pos + offset < len(aln.query_sequence)
+                                        and aln.query_sequence[read_pos + offset].upper()
+                                        == variant.ref.upper()
+                                    ):
+                                        self._count_read_alleles(
+                                            aln, variant, counts, read_pos + offset
+                                        )
                                         # Track fragments if enabled
-                                        if self.config.output_fragment_count and aln.query_name is not None:
-                                            self._track_fragment_indel(aln, dpf_map, rdf_map, adf_map, "ref")
+                                        if (
+                                            self.config.output_fragment_count
+                                            and aln.query_name is not None
+                                        ):
+                                            self._track_fragment_indel(
+                                                aln, dpf_map, rdf_map, adf_map, "ref"
+                                            )
                                         break
 
                     if ref_pos is not None:
@@ -449,7 +487,9 @@ class BaseCounter:
 
         # Calculate fragment counts inline (no separate traversal)
         if self.config.output_fragment_count:
-            dpf, rdf, adf, rdf_forward, rdf_reverse, adf_forward, adf_reverse = self._calculate_fragment_counts_indel(dpf_map, rdf_map, adf_map)
+            dpf, rdf, adf, rdf_forward, rdf_reverse, adf_forward, adf_reverse = (
+                self._calculate_fragment_counts_indel(dpf_map, rdf_map, adf_map)
+            )
             counts[CountType.DPF] = dpf
             counts[CountType.RDF] = rdf
             counts[CountType.ADF] = adf
@@ -460,6 +500,7 @@ class BaseCounter:
 
         # Store counts using helper
         self._store_sample_counts(variant, counts, sample_name)
+
     def count_bases_generic(
         self, variant: VariantEntry, alignments: list[pysam.AlignedSegment], sample_name: str
     ) -> None:
@@ -487,7 +528,9 @@ class BaseCounter:
             if variant is None:
                 raise ValueError("Variant cannot be None")
             if not alignments:
-                raise ValueError(f"No alignments provided for variant at {variant.get_variant_key()}")
+                raise ValueError(
+                    f"No alignments provided for variant at {variant.get_variant_key()}"
+                )
             if not sample_name:
                 raise ValueError("Sample name cannot be empty")
 
@@ -504,7 +547,7 @@ class BaseCounter:
 
                 # Find the base at variant position using aligned pairs
                 base = None
-                is_reverse_read = aln.is_reverse
+                read_idx = None
 
                 for read_idx, ref_idx in aln.get_aligned_pairs(matches_only=False):
                     if ref_idx == variant.pos and read_idx is not None:
@@ -519,7 +562,7 @@ class BaseCounter:
                                 base = aln.query_sequence[read_idx].upper()
                         break
 
-                if base is None:
+                if base is None or read_idx is None:
                     continue
 
                 # Use helper method for allele counting
@@ -531,7 +574,9 @@ class BaseCounter:
 
             # Calculate fragment counts inline (no separate traversal)
             if self.config.output_fragment_count:
-                dpf, rdf, adf, rdf_forward, rdf_reverse, adf_forward, adf_reverse = self._calculate_fragment_counts_basic(dpf_map, rdf_map, adf_map)
+                dpf, rdf, adf, rdf_forward, rdf_reverse, adf_forward, adf_reverse = (
+                    self._calculate_fragment_counts_basic(dpf_map, rdf_map, adf_map)
+                )
                 counts[CountType.DPF] = dpf
                 counts[CountType.RDF] = rdf
                 counts[CountType.ADF] = adf
@@ -544,11 +589,11 @@ class BaseCounter:
             self._store_sample_counts(variant, counts, sample_name)
 
         except AttributeError as e:
-            raise ValueError(f"Invalid variant object: {e}")
+            raise ValueError(f"Invalid variant object: {e}") from None
         except Exception as e:
             variant_key = variant.get_variant_key() if variant else "unknown"
             raise ValueError(f"Counting failed for variant {variant_key}: {e}") from e
-    
+
     def calculate_strand_bias(
         self,
         ref_forward: int,
@@ -607,8 +652,6 @@ class BaseCounter:
             logger.warning(f"Error calculating strand bias: {e}")
             return 1.0, 1.0, "error"
 
-    
-    
     def smart_count_variant(
         self, variant: VariantEntry, alignments: list[pysam.AlignedSegment], sample_name: str
     ) -> None:
@@ -650,7 +693,7 @@ class BaseCounter:
                 self.count_bases_generic(variant, alignments, sample_name)
 
         except AttributeError as e:
-            raise ValueError(f"Invalid variant object: {e}")
+            raise ValueError(f"Invalid variant object: {e}") from None
         except Exception as e:
             variant_key = variant.get_variant_key() if variant else "unknown"
             raise ValueError(f"Counting failed for variant {variant_key}: {e}") from e

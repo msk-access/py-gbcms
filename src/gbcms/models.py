@@ -272,20 +272,18 @@ class VariantModel(BaseModel):
             # Auto-detect variant type with simplified categories
             ref_len = len(self.ref)
             alt_len = len(self.alt)
-            
+
             if ref_len == alt_len == 1:
                 self.snp = True
             elif ref_len == 1 and alt_len > ref_len:
                 self.insertion = True
             elif alt_len == 1 and alt_len < ref_len:
                 self.deletion = True
-            # Note: DNP and complex variants remain unflagged (treated as complex)
-        
-                return self
+                # Note: DNP and complex variants remain unflagged (treated as complex)
+
+        return self
 
     def get_variant_key(self) -> tuple[str, int, str, str]:
-        """Get unique variant key."""
-        return (self.chrom, self.pos, self.ref, self.alt)
         """Get unique variant key."""
         return (self.chrom, self.pos, self.ref, self.alt)
 

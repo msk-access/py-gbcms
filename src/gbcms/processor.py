@@ -287,13 +287,13 @@ class VariantProcessor:
         formatter = OutputFormatter(self.config, self.sample_order)
 
         if self.config.input_is_maf:
-            if getattr(self.config, 'fillout', False):  # Check for fillout flag
+            if getattr(self.config, "fillout", False):  # Check for fillout flag
                 formatter.write_fillout_output(variants)
             else:
                 # Default: MAF output (sample-agnostic)
                 formatter.write_sample_agnostic_maf_output(variants)
         else:  # VCF input
-            if getattr(self.config, 'fillout', False):  # Check for fillout flag
+            if getattr(self.config, "fillout", False):  # Check for fillout flag
                 formatter.write_fillout_output(variants)
             else:
                 # Default: VCF output
