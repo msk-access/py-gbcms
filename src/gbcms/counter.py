@@ -65,6 +65,10 @@ class BaseCounter:
         """Initialize BaseCounter with configuration."""
         self.config = config
         self.warning_counts = {}
+        # Fragment orientation tracking for Majority Rule approach
+        self.fragment_orientations = {}  # frag_name -> {read1: bool, read2: bool}
+        self.fragment_alleles = {}       # frag_name -> {"ref": bool, "alt": bool}
+        self.processed_fragments = set() # Track counted fragments per variant
 
     def _should_filter_alignment(self, aln: pysam.AlignedSegment) -> bool:
         """
@@ -109,6 +113,66 @@ class BaseCounter:
     def _initialize_fragment_maps(self) -> tuple[dict, dict, dict]:
         """Initialize fragment tracking maps."""
         return {}, {}, {}
+
+    def _reset_fragment_tracking(self):
+        """Reset fragment tracking for new variant."""
+        self.fragment_orientations = {}
+        self.fragment_alleles = {}
+        self.processed_fragments = set()
+
+    def _determine_fragment_orientation(self, frag_name: str) -> bool | None:
+        """Determine fragment orientation using majority rule."""
+        if frag_name not in self.fragment_orientations:
+            return None
+
+        orientations = self.fragment_orientations[frag_name]
+
+        # If we have both reads, use majority rule
+        if len(orientations) == 2:
+            read1_orientation = orientations.get(1, None)
+            read2_orientation = orientations.get(2, None)
+
+            if read1_orientation is not None and read2_orientation is not None:
+                if read1_orientation == read2_orientation:
+                    return read1_orientation
+                else:
+                    return read1_orientation  # Favor read1
+
+        # If we only have one read, use it
+        elif len(orientations) == 1:
+            return list(orientations.values())[0]
+
+        return None
+
+    def _should_count_fragment(self, frag_name: str) -> bool:
+        """Check if fragment should be counted."""
+        return (frag_name in self.fragment_orientations and
+                frag_name in self.fragment_alleles and
+                frag_name not in self.processed_fragments)
+
+    def _track_fragment_orientation(self, aln: pysam.AlignedSegment, allele_type: str = None):
+        """Track fragment orientation and allele information."""
+        if aln.query_name is None:
+            return
+
+        frag_name = aln.query_name
+        end_no = 1 if aln.is_read1 else 2
+        orientation = not aln.is_reverse
+
+        # Initialize tracking structures
+        if frag_name not in self.fragment_orientations:
+            self.fragment_orientations[frag_name] = {}
+        if frag_name not in self.fragment_alleles:
+            self.fragment_alleles[frag_name] = {"ref": False, "alt": False}
+
+        # Track orientation
+        self.fragment_orientations[frag_name][end_no] = orientation
+
+        # Track allele information
+        if allele_type == "ref":
+            self.fragment_alleles[frag_name]["ref"] = True
+        elif allele_type == "alt":
+            self.fragment_alleles[frag_name]["alt"] = True
 
     def _store_sample_counts(
         self, variant: VariantEntry, counts: np.ndarray, sample_name: str
@@ -192,6 +256,66 @@ class BaseCounter:
         rdf_reverse = sum(sum(ends.values()) for ends in rdf_map.values() if 2 in ends)
         adf_forward = sum(sum(ends.values()) for ends in adf_map.values() if 1 in ends)
         adf_reverse = sum(sum(ends.values()) for ends in adf_map.values() if 2 in ends)
+
+        return dpf, rdf, adf, rdf_forward, rdf_reverse, adf_forward, adf_reverse
+
+    def _calculate_fragment_counts_with_orientation(
+        self, dpf_map: dict, rdf_map: dict, adf_map: dict
+    ) -> tuple[float, float, float, float, float, float, float]:
+        """Calculate fragment counts with proper orientation tracking using Majority Rule."""
+        dpf = 0
+        rdf = 0.0
+        adf = 0.0
+        rdf_forward = 0
+        rdf_reverse = 0
+        adf_forward = 0
+        adf_reverse = 0
+
+        fragment_ref_weight = 0.5 if self.config.fragment_fractional_weight else 1.0
+        fragment_alt_weight = 0.5 if self.config.fragment_fractional_weight else 1.0
+
+        # Process each fragment that has complete information
+        for frag_name in list(dpf_map.keys()):
+            if not self._should_count_fragment(frag_name):
+                continue
+
+            # Mark as processed
+            self.processed_fragments.add(frag_name)
+            dpf += 1
+
+            # Get fragment orientation
+            orientation = self._determine_fragment_orientation(frag_name)
+            if orientation is None:
+                continue
+
+            # Count based on alleles present
+            has_ref = self.fragment_alleles[frag_name]["ref"]
+            has_alt = self.fragment_alleles[frag_name]["alt"]
+
+            if has_ref and has_alt:
+                # Fragment has both alleles
+                rdf += fragment_ref_weight
+                adf += fragment_alt_weight
+                if orientation:
+                    rdf_forward += fragment_ref_weight
+                    adf_forward += fragment_alt_weight
+                else:
+                    rdf_reverse += fragment_ref_weight
+                    adf_reverse += fragment_alt_weight
+            elif has_ref:
+                # Only reference allele
+                rdf += 1.0
+                if orientation:
+                    rdf_forward += 1.0
+                else:
+                    rdf_reverse += 1.0
+            elif has_alt:
+                # Only alternate allele
+                adf += 1.0
+                if orientation:
+                    adf_forward += 1.0
+                else:
+                    adf_reverse += 1.0
 
         return dpf, rdf, adf, rdf_forward, rdf_reverse, adf_forward, adf_reverse
 
@@ -326,6 +450,9 @@ class BaseCounter:
         # Fragment tracking for fragment counts
         dpf_map, rdf_map, adf_map = self._initialize_fragment_maps()
 
+        # Reset fragment tracking for new variant
+        self._reset_fragment_tracking()
+
         for aln in alignments:
             if self._should_filter_alignment(aln):
                 continue
@@ -351,26 +478,20 @@ class BaseCounter:
 
             # Track fragments if enabled
             if self.config.output_fragment_count and aln.query_name is not None:
-                end_no = 1 if aln.is_read1 else 2
-                if aln.query_name not in dpf_map:
-                    dpf_map[aln.query_name] = {}
-                dpf_map[aln.query_name][end_no] = dpf_map[aln.query_name].get(end_no, 0) + 1
-
-                # Track ref/alt fragments
+                # Track orientation and allele information for this fragment
                 base = aln.query_sequence[read_pos].upper() if aln.query_sequence else None
+                allele_type = None
                 if base == variant.ref.upper():
-                    if aln.query_name not in rdf_map:
-                        rdf_map[aln.query_name] = {}
-                    rdf_map[aln.query_name][end_no] = rdf_map[aln.query_name].get(end_no, 0) + 1
+                    allele_type = "ref"
                 elif base == variant.alt.upper():
-                    if aln.query_name not in adf_map:
-                        adf_map[aln.query_name] = {}
-                    adf_map[aln.query_name][end_no] = adf_map[aln.query_name].get(end_no, 0) + 1
+                    allele_type = "alt"
+
+                self._track_fragment_orientation(aln, allele_type)
 
         # Calculate fragment counts using helper
         if self.config.output_fragment_count:
             dpf, rdf, adf, rdf_forward, rdf_reverse, adf_forward, adf_reverse = (
-                self._calculate_fragment_counts_basic(dpf_map, rdf_map, adf_map)
+                self._calculate_fragment_counts_with_orientation(dpf_map, rdf_map, adf_map)
             )
             counts[CountType.DPF] = dpf
             counts[CountType.RDF] = rdf
@@ -401,6 +522,9 @@ class BaseCounter:
 
         # Fragment tracking for fragment counts
         dpf_map, rdf_map, adf_map = self._initialize_fragment_maps()
+
+        # Reset fragment tracking for new variant
+        self._reset_fragment_tracking()
 
         for aln in alignments:
             if self._should_filter_alignment(aln):
@@ -437,9 +561,7 @@ class BaseCounter:
                                         self.config.output_fragment_count
                                         and aln.query_name is not None
                                     ):
-                                        self._track_fragment_indel(
-                                            aln, dpf_map, rdf_map, adf_map, "alt"
-                                        )
+                                        self._track_fragment_orientation(aln, "alt")
                                     break
                             elif next_op == 2 and variant.deletion:  # Deletion (D)
                                 # Handle deletion case
@@ -463,9 +585,7 @@ class BaseCounter:
                                             self.config.output_fragment_count
                                             and aln.query_name is not None
                                         ):
-                                            self._track_fragment_indel(
-                                                aln, dpf_map, rdf_map, adf_map, "ref"
-                                            )
+                                            self._track_fragment_orientation(aln, "ref")
                                         break
 
                     if ref_pos is not None:
@@ -488,7 +608,7 @@ class BaseCounter:
         # Calculate fragment counts inline (no separate traversal)
         if self.config.output_fragment_count:
             dpf, rdf, adf, rdf_forward, rdf_reverse, adf_forward, adf_reverse = (
-                self._calculate_fragment_counts_indel(dpf_map, rdf_map, adf_map)
+                self._calculate_fragment_counts_with_orientation(dpf_map, rdf_map, adf_map)
             )
             counts[CountType.DPF] = dpf
             counts[CountType.RDF] = rdf
@@ -539,6 +659,9 @@ class BaseCounter:
             # Fragment tracking for fragment counts
             dpf_map, rdf_map, adf_map = self._initialize_fragment_maps()
 
+            # Reset fragment tracking for new variant
+            self._reset_fragment_tracking()
+
             # Process each alignment with complete filtering and counting
             for aln in alignments:
                 # Apply all 7 filter conditions
@@ -570,12 +693,19 @@ class BaseCounter:
 
                 # Track fragments if enabled (single traversal)
                 if self.config.output_fragment_count and aln.query_name is not None:
-                    self._track_fragment_generic(aln, dpf_map, rdf_map, adf_map, base, variant)
+                    # Track orientation and allele information for this fragment
+                    allele_type = None
+                    if base == variant.ref.upper():
+                        allele_type = "ref"
+                    elif base == variant.alt.upper():
+                        allele_type = "alt"
+
+                    self._track_fragment_orientation(aln, allele_type)
 
             # Calculate fragment counts inline (no separate traversal)
             if self.config.output_fragment_count:
                 dpf, rdf, adf, rdf_forward, rdf_reverse, adf_forward, adf_reverse = (
-                    self._calculate_fragment_counts_basic(dpf_map, rdf_map, adf_map)
+                    self._calculate_fragment_counts_with_orientation(dpf_map, rdf_map, adf_map)
                 )
                 counts[CountType.DPF] = dpf
                 counts[CountType.RDF] = rdf

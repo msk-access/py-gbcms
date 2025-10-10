@@ -13,12 +13,51 @@ logger = logging.getLogger(__name__)
 # Try to import cyvcf2 for fast VCF parsing
 try:
     from cyvcf2 import VCF
-
     HAS_CYVCF2 = True
     logger.debug("cyvcf2 available - using fast VCF parsing")
 except ImportError:
     HAS_CYVCF2 = False
     logger.debug("cyvcf2 not available - using pure Python VCF parsing")
+
+
+def normalize_chromosome_name(chrom: str) -> str:
+    """
+    Normalize chromosome names to a consistent format.
+    
+    Handles common variations:
+    - "chr1" <-> "1"
+    - "chrX" <-> "X" 
+    - "chrY" <-> "Y"
+    - "chrM" <-> "MT"
+    
+    Args:
+        chrom: Original chromosome name
+        
+    Returns:
+        Normalized chromosome name
+    """
+    if not chrom:
+        return chrom
+        
+    # Remove chr prefix if present
+    if chrom.startswith("chr"):
+        chrom = chrom[3:]
+    
+    # Handle mitochondrial chromosome variations
+    if chrom in ("M", "MT", "m", "mt"):
+        return "MT"
+    
+    # Handle sex chromosomes
+    if chrom in ("X", "Y"):
+        return chrom
+    
+    # Validate numeric chromosomes
+    try:
+        int(chrom)  # Should be 1-22 or numeric string
+        return chrom
+    except ValueError:
+        logger.warning(f"Unexpected chromosome name format: {chrom}")
+        return chrom
 
 
 @dataclass
@@ -31,7 +70,7 @@ class VariantEntry:
     ref: str
     alt: str
     snp: bool = False
-
+    
     insertion: bool = False
     deletion: bool = False
     tumor_sample: str = ""
@@ -50,6 +89,10 @@ class VariantEntry:
     base_count: dict[str, np.ndarray] = field(default_factory=dict)
     duplicate_variant_ptr: Optional["VariantEntry"] = None
     maf_line: str = ""  # Store original MAF line for output
+
+    def __post_init__(self):
+        """Normalize chromosome name after initialization."""
+        self.chrom = normalize_chromosome_name(self.chrom)
 
     def get_variant_key(self) -> tuple[str, int, str, str]:
         """Return unique key for variant identification."""
