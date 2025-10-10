@@ -1,6 +1,7 @@
 """Variant loading and representation."""
 
 import logging
+import re
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -13,6 +14,7 @@ logger = logging.getLogger(__name__)
 # Try to import cyvcf2 for fast VCF parsing
 try:
     from cyvcf2 import VCF
+
     HAS_CYVCF2 = True
     logger.debug("cyvcf2 available - using fast VCF parsing")
 except ImportError:
@@ -20,37 +22,168 @@ except ImportError:
     logger.debug("cyvcf2 not available - using pure Python VCF parsing")
 
 
-def normalize_chromosome_name(chrom: str) -> str:
+def is_standard_chromosome(chrom: str) -> bool:
     """
-    Normalize chromosome names to a consistent format.
-    
-    Handles common variations:
-    - "chr1" <-> "1"
-    - "chrX" <-> "X" 
-    - "chrY" <-> "Y"
-    - "chrM" <-> "MT"
-    
+    Check if chromosome should be normalized.
+
+    Only standard chromosomes (1-22, X, Y, M, MT) are normalized.
+    Alternative contigs (KI270728.1, etc.) are left unchanged.
+
+    Args:
+        chrom: Chromosome name
+
+    Returns:
+        True if chromosome should be normalized
+    """
+    if not chrom:
+        return False
+
+    # Standard chromosomes that can be normalized (check after removing chr prefix)
+    standard_chromosomes = {
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "20",
+        "21",
+        "22",
+        "X",
+        "Y",
+        "M",
+        "MT",
+    }
+
+    # Case-insensitive removal of chr prefix and check
+    base_chrom = re.sub(r"^chr", "", chrom, flags=re.IGNORECASE).upper()
+    return base_chrom in standard_chromosomes
+
+
+def _is_standard_chromosome(chrom: str) -> bool:
+    """
+    Check if chromosome should be normalized.
+
+    Only standard chromosomes (1-22, X, Y, M, MT) are normalized.
+    Alternative contigs (KI270728.1, etc.) are left unchanged.
+
+    Args:
+        chrom: Chromosome name
+
+    Returns:
+        True if chromosome should be normalized
+    """
+    if not chrom:
+        return False
+
+    # Standard chromosomes that can be normalized (check after removing chr prefix)
+    standard_chromosomes = {
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "20",
+        "21",
+        "22",
+        "X",
+        "Y",
+        "M",
+        "MT",
+    }
+
+    # Case-insensitive removal of chr prefix and check
+    base_chrom = re.sub(r"^chr", "", chrom, flags=re.IGNORECASE).upper()
+    return base_chrom in standard_chromosomes
+
+
+def normalize_chromosome_name_to_format(chrom: str, target_format: str) -> str:
+    """
+    Normalize chromosome name to match target format (bidirectional).
+
+    This function can add or strip "chr" prefix based on the target format,
+    and only applies to standard chromosomes (1-22, X, Y, M, MT).
+
     Args:
         chrom: Original chromosome name
-        
+        target_format: "chr_prefix" or "no_prefix"
+
     Returns:
         Normalized chromosome name
     """
     if not chrom:
         return chrom
-        
+
+    # Only normalize standard chromosomes
+    if not _is_standard_chromosome(chrom):
+        return chrom
+
+    if target_format == "chr_prefix":
+        # Add chr prefix if not present
+        return f"chr{chrom}" if not chrom.startswith("chr") else chrom
+    else:  # no_prefix
+        # Strip chr prefix if present
+        return chrom[3:] if chrom.startswith("chr") else chrom
+
+
+def normalize_chromosome_name(chrom: str) -> str:
+    """
+    Normalize chromosome names to a consistent format.
+
+    Handles common variations:
+    - "chr1" <-> "1"
+    - "chrX" <-> "X"
+    - "chrY" <-> "Y"
+    - "chrM" <-> "MT"
+
+    Args:
+        chrom: Original chromosome name
+
+    Returns:
+        Normalized chromosome name
+    """
+    if not chrom:
+        return chrom
+
     # Remove chr prefix if present
     if chrom.startswith("chr"):
         chrom = chrom[3:]
-    
+
     # Handle mitochondrial chromosome variations
     if chrom in ("M", "MT", "m", "mt"):
         return "MT"
-    
+
     # Handle sex chromosomes
     if chrom in ("X", "Y"):
         return chrom
-    
+
     # Validate numeric chromosomes
     try:
         int(chrom)  # Should be 1-22 or numeric string
@@ -70,7 +203,7 @@ class VariantEntry:
     ref: str
     alt: str
     snp: bool = False
-    
+
     insertion: bool = False
     deletion: bool = False
     tumor_sample: str = ""

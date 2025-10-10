@@ -6,7 +6,7 @@
 
 - **Complete variant analysis**: SNP, DNP, insertion, deletion, and complex variants
 - **Orientation-aware counting**: Forward and reverse strand analysis
-- **Fragment counting**: Proper fragment-level analysis with orientation
+- **Fragment counting**: Proper fragment-level analysis with orientation using **Majority Rule** approach
 - **Statistical analysis**: Strand bias calculation using Fisher's exact test
 - **Multiple input formats**: VCF and MAF file support
 - **Multiple output formats**: VCF, MAF, and Fillout format support

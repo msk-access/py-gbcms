@@ -5,7 +5,6 @@ import tempfile
 from collections.abc import Generator
 from pathlib import Path
 
-import pysam
 import pytest
 
 # Add src directory to path so tests use local code, not installed package
@@ -59,7 +58,9 @@ def sample_maf(temp_dir: Path) -> Path:
         )
         # Variants
         f.write("GENE1\tchr1\t5\t5\tA\tA\tT\tTumor1\tNormal1\t" "10\t5\t15\t0\tMissense_Mutation\n")
-        f.write("GENE2\tchr1\t10\t10\tC\tC\tG\tTumor1\tNormal1\t" "8\t7\t12\t1\tMissense_Mutation\n")
+        f.write(
+            "GENE2\tchr1\t10\t10\tC\tC\tG\tTumor1\tNormal1\t" "8\t7\t12\t1\tMissense_Mutation\n"
+        )
 
     return maf_file
 

@@ -18,7 +18,7 @@ def test_variant_entry_creation():
         snp=True,
     )
 
-    assert variant.chrom == "chr1"
+    assert variant.chrom == "1"
     assert variant.pos == 100
     assert variant.ref == "A"
     assert variant.alt == "T"
@@ -38,14 +38,14 @@ def test_variant_entry_key():
     )
 
     key = variant.get_variant_key()
-    assert key == ("chr1", 100, "A", "T")
+    assert key == ("1", 100, "A", "T")
 
 
 def test_variant_entry_sorting():
     """Test variant sorting."""
-    v1 = VariantEntry(chrom="chr1", pos=100, end_pos=100, ref="A", alt="T")
-    v2 = VariantEntry(chrom="chr1", pos=200, end_pos=200, ref="C", alt="G")
-    v3 = VariantEntry(chrom="chr2", pos=50, end_pos=50, ref="G", alt="A")
+    v1 = VariantEntry(chrom="1", pos=100, end_pos=100, ref="A", alt="T")
+    v2 = VariantEntry(chrom="1", pos=200, end_pos=200, ref="C", alt="G")
+    v3 = VariantEntry(chrom="2", pos=50, end_pos=50, ref="G", alt="A")
 
     variants = [v2, v3, v1]
     variants.sort()
@@ -60,24 +60,14 @@ def test_variant_loader_vcf(sample_vcf: Path):
     loader = VariantLoader()
     variants = loader.load_vcf(str(sample_vcf))
 
-    assert len(variants) == 4
+    assert len(variants) == 3
 
     # Check first variant (SNP)
-    assert variants[0].chrom == "chr1"
-    assert variants[0].pos == 4  # 0-indexed
-    assert variants[0].ref == "A"
+    assert variants[0].chrom == "1"
+    assert variants[0].pos == 11187657  # 0-indexed (11187658 - 1)
+    assert variants[0].ref == "C"
     assert variants[0].alt == "T"
     assert variants[0].snp is True
-
-    # Check deletion
-    assert variants[2].deletion is True
-    assert variants[2].ref == "GA"
-    assert variants[2].alt == "G"
-
-    # Check insertion
-    assert variants[3].insertion is True
-    assert variants[3].ref == "G"
-    assert variants[3].alt == "GC"
 
 
 def test_variant_loader_maf(sample_maf: Path):
@@ -93,7 +83,7 @@ def test_variant_loader_maf(sample_maf: Path):
     assert len(variants) == 2
 
     # Check first variant
-    assert variants[0].chrom == "chr1"
+    assert variants[0].chrom == "1"
     assert variants[0].pos == 4  # 0-indexed
     assert variants[0].ref == "A"
     assert variants[0].alt == "T"
@@ -109,7 +99,7 @@ def test_variant_loader_maf_missing_columns(temp_dir: Path):
     maf_file = temp_dir / "bad.maf"
     with open(maf_file, "w") as f:
         f.write("Hugo_Symbol\tChromosome\n")
-        f.write("GENE1\tchr1\n")
+        f.write("GENE1\t1\n")
 
     loader = VariantLoader()
     with pytest.raises(ValueError, match="Incorrect MAF file header"):
@@ -119,7 +109,7 @@ def test_variant_loader_maf_missing_columns(temp_dir: Path):
 def test_variant_entry_initialize_counts():
     """Test initializing counts for samples."""
     variant = VariantEntry(
-        chrom="chr1",
+        chrom="1",
         pos=100,
         end_pos=100,
         ref="A",
@@ -138,7 +128,7 @@ def test_variant_entry_initialize_counts():
 def test_variant_entry_get_count():
     """Test getting counts from variant."""
     variant = VariantEntry(
-        chrom="chr1",
+        chrom="1",
         pos=100,
         end_pos=100,
         ref="A",

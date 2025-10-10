@@ -67,8 +67,8 @@ class BaseCounter:
         self.warning_counts = {}
         # Fragment orientation tracking for Majority Rule approach
         self.fragment_orientations = {}  # frag_name -> {read1: bool, read2: bool}
-        self.fragment_alleles = {}       # frag_name -> {"ref": bool, "alt": bool}
-        self.processed_fragments = set() # Track counted fragments per variant
+        self.fragment_alleles = {}  # frag_name -> {"ref": bool, "alt": bool}
+        self.processed_fragments = set()  # Track counted fragments per variant
 
     def _should_filter_alignment(self, aln: pysam.AlignedSegment) -> bool:
         """
@@ -120,10 +120,10 @@ class BaseCounter:
         self.fragment_alleles = {}
         self.processed_fragments = set()
 
-    def _determine_fragment_orientation(self, frag_name: str) -> bool | None:
+    def _determine_fragment_orientation(self, frag_name: str) -> bool:
         """Determine fragment orientation using majority rule."""
         if frag_name not in self.fragment_orientations:
-            return None
+            return None  # type: ignore
 
         orientations = self.fragment_orientations[frag_name]
 
@@ -134,23 +134,27 @@ class BaseCounter:
 
             if read1_orientation is not None and read2_orientation is not None:
                 if read1_orientation == read2_orientation:
-                    return read1_orientation
+                    return read1_orientation  # type: ignore
                 else:
-                    return read1_orientation  # Favor read1
+                    return read1_orientation  # type: ignore
 
         # If we only have one read, use it
         elif len(orientations) == 1:
-            return list(orientations.values())[0]
+            return list(orientations.values())[0]  # type: ignore
 
-        return None
+        return None  # type: ignore
 
     def _should_count_fragment(self, frag_name: str) -> bool:
         """Check if fragment should be counted."""
-        return (frag_name in self.fragment_orientations and
-                frag_name in self.fragment_alleles and
-                frag_name not in self.processed_fragments)
+        return (
+            frag_name in self.fragment_orientations
+            and frag_name in self.fragment_alleles
+            and frag_name not in self.processed_fragments
+        )
 
-    def _track_fragment_orientation(self, aln: pysam.AlignedSegment, allele_type: str = None):
+    def _track_fragment_orientation(
+        self, aln: pysam.AlignedSegment, allele_type: str | None = None
+    ):
         """Track fragment orientation and allele information."""
         if aln.query_name is None:
             return
@@ -266,16 +270,15 @@ class BaseCounter:
         dpf = 0
         rdf = 0.0
         adf = 0.0
-        rdf_forward = 0
-        rdf_reverse = 0
-        adf_forward = 0
-        adf_reverse = 0
-
+        rdf_forward = 0.0
+        adf_forward = 0.0
+        rdf_reverse = 0.0
+        adf_reverse = 0.0
         fragment_ref_weight = 0.5 if self.config.fragment_fractional_weight else 1.0
         fragment_alt_weight = 0.5 if self.config.fragment_fractional_weight else 1.0
 
         # Process each fragment that has complete information
-        for frag_name in list(dpf_map.keys()):
+        for frag_name in list(self.fragment_orientations.keys()):
             if not self._should_count_fragment(frag_name):
                 continue
 
@@ -294,28 +297,28 @@ class BaseCounter:
 
             if has_ref and has_alt:
                 # Fragment has both alleles
-                rdf += fragment_ref_weight
-                adf += fragment_alt_weight
+                rdf += float(fragment_ref_weight)
+                adf += float(fragment_alt_weight)
                 if orientation:
-                    rdf_forward += fragment_ref_weight
-                    adf_forward += fragment_alt_weight
+                    rdf_forward += float(fragment_ref_weight)
+                    adf_forward += float(fragment_alt_weight)
                 else:
-                    rdf_reverse += fragment_ref_weight
-                    adf_reverse += fragment_alt_weight
+                    rdf_reverse += float(fragment_ref_weight)
+                    adf_reverse += float(fragment_alt_weight)
             elif has_ref:
                 # Only reference allele
                 rdf += 1.0
                 if orientation:
-                    rdf_forward += 1.0
+                    rdf_forward += 1
                 else:
-                    rdf_reverse += 1.0
+                    rdf_reverse += 1
             elif has_alt:
                 # Only alternate allele
                 adf += 1.0
                 if orientation:
-                    adf_forward += 1.0
+                    adf_forward += 1
                 else:
-                    adf_reverse += 1.0
+                    adf_reverse += 1
 
         return dpf, rdf, adf, rdf_forward, rdf_reverse, adf_forward, adf_reverse
 

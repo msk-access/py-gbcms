@@ -1,8 +1,11 @@
 """Configuration classes and enums for GetBaseCounts."""
 
+import logging
 import os
 from dataclasses import dataclass
 from enum import IntEnum
+
+logger = logging.getLogger(__name__)
 
 
 class CountType(IntEnum):
@@ -55,6 +58,7 @@ class Config:
     fillout: bool = False
     generic_counting: bool = False
     max_warning_per_type: int = 3
+    validate_chromosomes: bool = True  # Enable chromosome validation
 
     def __post_init__(self) -> None:
         """Validate configuration."""
@@ -103,3 +107,36 @@ class Config:
 
         if self.max_block_dist < 1:
             raise ValueError("max_block_dist must be at least 1")
+
+        # Validate chromosome consistency across input files
+        if self.validate_chromosomes:
+            self._validate_chromosome_consistency()
+
+    def _validate_chromosome_consistency(self) -> None:
+        """Validate chromosome names across all input files."""
+        from .chromosome_validator import ChromosomeValidator
+
+        logger.info("Validating chromosome consistency across input files")
+
+        try:
+            validator = ChromosomeValidator(self)
+
+            # Run comprehensive validation
+            validation_success = validator.validate_chromosome_consistency()
+
+            if not validation_success:
+                # Log issues but don't fail unless critical
+                summary = validator.get_validation_summary()
+                logger.warning(f"Chromosome validation issues detected:\\n{summary}")
+
+                # For now, log warnings but don't fail
+                # In the future, this could be made stricter
+                logger.info(
+                    "Continuing with chromosome validation warnings. Use --validate-chromosomes for strict checking."
+                )
+
+        except Exception as e:
+            logger.error(f"Chromosome validation failed: {e}")
+            logger.info(
+                "Continuing without chromosome validation. Use --validate-chromosomes for strict checking."
+            )

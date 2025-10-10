@@ -454,6 +454,15 @@ def count_run(
             rich_help_panel="🔧 Advanced",
         ),
     ] = 3,
+    # Chromosome validation options
+    validate_chromosomes: Annotated[
+        bool,
+        typer.Option(
+            "--validate-chromosomes/--no-validate-chromosomes",
+            help="Validate chromosome name consistency across input files",
+            rich_help_panel="🔧 Advanced",
+        ),
+    ] = True,
     # Other options
     verbose: Annotated[
         bool,
@@ -639,6 +648,7 @@ def count_run(
             fillout=fillout,
             generic_counting=generic_counting,
             max_warning_per_type=suppress_warning,
+            validate_chromosomes=validate_chromosomes,
         )
 
         # Process variants

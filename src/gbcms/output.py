@@ -436,7 +436,7 @@ class OutputFormatter:
                             ]
                         )
 
-                    # Calculate and add strand bias for this sample (comma-separated format)
+                    # Calculate and add strand bias for this sample (separate columns)
                     ref_forward = int(variant.get_count(sample, CountType.RD_FORWARD))
                     ref_reverse = int(variant.get_count(sample, CountType.RD_REVERSE))
                     alt_forward = int(variant.get_count(sample, CountType.AD_FORWARD))
@@ -446,8 +446,13 @@ class OutputFormatter:
                         ref_forward, ref_reverse, alt_forward, alt_reverse
                     )
 
-                    sb_combined = f"{sb_pval:.6f},{sb_or:.3f},{sb_dir}"
-                    sample_counts.append(sb_combined)
+                    sample_counts.extend(
+                        [
+                            f"{sb_pval:.6f}",  # t_strand_bias_pval
+                            f"{sb_or:.3f}",  # t_strand_bias_or
+                            sb_dir,  # t_strand_bias_dir
+                        ]
+                    )
 
                     if self.config.output_fragment_count:
                         # Calculate fragment strand bias
@@ -460,8 +465,13 @@ class OutputFormatter:
                             ref_forward, ref_reverse, alt_forward, alt_reverse
                         )
 
-                        fsb_combined = f"{fsb_pval:.6f},{fsb_or:.3f},{fsb_dir}"
-                        sample_counts.append(fsb_combined)
+                        sample_counts.extend(
+                            [
+                                f"{fsb_pval:.6f}",  # t_fragment_strand_bias_pval
+                                f"{fsb_or:.3f}",  # t_fragment_strand_bias_or
+                                fsb_dir,  # t_fragment_strand_bias_dir
+                            ]
+                        )
 
                     row.extend(sample_counts)
                     f.write("\t".join(row) + "\n")
@@ -559,7 +569,8 @@ class OutputFormatter:
                     ad = int(variant.get_count(sample, CountType.AD))
                     vaf = ad / dp if dp > 0 else 0.0
 
-                    sample_data = [str(dp), str(rd), str(ad), f"{vaf:.6f}"]
+                    # Add basic counts for this sample
+                    row.extend([str(dp), str(rd), str(ad), f"{vaf:.6f}"])
 
                     if self.config.output_strand_count:
                         dp_forward = int(variant.get_count(sample, CountType.DP_FORWARD))
@@ -569,7 +580,7 @@ class OutputFormatter:
                         rd_reverse = int(variant.get_count(sample, CountType.RD_REVERSE))
                         ad_reverse = int(variant.get_count(sample, CountType.AD_REVERSE))
 
-                        sample_data.extend(
+                        row.extend(
                             [
                                 str(dp_forward),
                                 str(rd_forward),
@@ -589,7 +600,7 @@ class OutputFormatter:
                         adf_forward = int(variant.get_count(sample, CountType.ADF_FORWARD))
                         adf_reverse = int(variant.get_count(sample, CountType.ADF_REVERSE))
 
-                        sample_data.extend(
+                        row.extend(
                             [
                                 str(dpf),
                                 str(rdf),
@@ -601,7 +612,7 @@ class OutputFormatter:
                             ]
                         )
 
-                    # Calculate and add strand bias for this sample (comma-separated format)
+                    # Calculate and add strand bias for this sample (separate columns)
                     ref_forward = int(variant.get_count(sample, CountType.RD_FORWARD))
                     ref_reverse = int(variant.get_count(sample, CountType.RD_REVERSE))
                     alt_forward = int(variant.get_count(sample, CountType.AD_FORWARD))
@@ -611,8 +622,7 @@ class OutputFormatter:
                         ref_forward, ref_reverse, alt_forward, alt_reverse
                     )
 
-                    sb_combined = f"{sb_pval:.6f},{sb_or:.3f},{sb_dir}"
-                    sample_data.append(sb_combined)
+                    row.extend([f"{sb_pval:.6f}", f"{sb_or:.3f}", sb_dir])
 
                     if self.config.output_fragment_count:
                         # Calculate fragment strand bias
@@ -625,10 +635,7 @@ class OutputFormatter:
                             ref_forward, ref_reverse, alt_forward, alt_reverse
                         )
 
-                        fsb_combined = f"{fsb_pval:.6f},{fsb_or:.3f},{fsb_dir}"
-                        sample_data.append(fsb_combined)
-
-                    row.append(":".join(sample_data))
+                        row.extend([f"{fsb_pval:.6f}", f"{fsb_or:.3f}", fsb_dir])
 
                 f.write("\t".join(row) + "\n")
 

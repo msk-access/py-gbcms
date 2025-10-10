@@ -1,5 +1,6 @@
 """Tests for CLI module."""
 
+import pytest
 from typer.testing import CliRunner
 
 from gbcms.cli import app
@@ -115,7 +116,7 @@ def test_cli_no_variant_files(sample_fasta, sample_bam, temp_dir):
 
 def test_cli_invalid_bam_format(sample_fasta, sample_vcf, temp_dir):
     """Test CLI with invalid BAM format."""
-    result = runner.invoke(
+    runner.invoke(
         app,
         [
             "count",
