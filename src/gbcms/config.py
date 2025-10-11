@@ -108,6 +108,9 @@ class Config:
         if self.max_block_dist < 1:
             raise ValueError("max_block_dist must be at least 1")
 
+        # Store chromosome validator for use by other components
+        self.chromosome_validator = None
+
         # Validate chromosome consistency across input files
         if self.validate_chromosomes:
             self._validate_chromosome_consistency()
@@ -120,23 +123,17 @@ class Config:
 
         try:
             validator = ChromosomeValidator(self)
+            self.chromosome_validator = validator
 
             # Run comprehensive validation
             validation_success = validator.validate_chromosome_consistency()
 
             if not validation_success:
-                # Log issues but don't fail unless critical
+                # Fail if validation fails - chromosome format issues must be resolved
                 summary = validator.get_validation_summary()
-                logger.warning(f"Chromosome validation issues detected:\\n{summary}")
-
-                # For now, log warnings but don't fail
-                # In the future, this could be made stricter
-                logger.info(
-                    "Continuing with chromosome validation warnings. Use --validate-chromosomes for strict checking."
-                )
+                logger.error(f"Chromosome validation failed:\\n{summary}")
+                raise ValueError("Chromosome format validation failed. Please ensure all input files use consistent chromosome naming.")
 
         except Exception as e:
             logger.error(f"Chromosome validation failed: {e}")
-            logger.info(
-                "Continuing without chromosome validation. Use --validate-chromosomes for strict checking."
-            )
+            raise ValueError(f"Chromosome validation failed: {e}") from e

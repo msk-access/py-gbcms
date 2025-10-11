@@ -33,7 +33,11 @@ class VariantProcessor:
     def process(self) -> None:
         """Main processing pipeline."""
         # Load variants
-        loader = VariantLoader(reference_getter=self.reference.get_base)
+        loader = VariantLoader(
+            reference_getter=self.reference.get_base,
+            chromosome_normalization_map=self.config.chromosome_validator.chromosome_normalization_map,
+            target_format=self.config.chromosome_validator.get_target_format()
+        )
         variants = self._load_all_variants(loader)
 
         if not variants:

@@ -223,10 +223,6 @@ class VariantEntry:
     duplicate_variant_ptr: Optional["VariantEntry"] = None
     maf_line: str = ""  # Store original MAF line for output
 
-    def __post_init__(self):
-        """Normalize chromosome name after initialization."""
-        self.chrom = normalize_chromosome_name(self.chrom)
-
     def get_variant_key(self) -> tuple[str, int, str, str]:
         """Return unique key for variant identification."""
         return (self.chrom, self.pos, self.ref, self.alt)
@@ -251,7 +247,9 @@ class VariantEntry:
 
     def _chrom_sort_key(self) -> tuple:
         """Generate sort key for chromosome."""
-        chrom = self.chrom.replace("chr", "")
+        # Chromosomes are now already normalized to target format during loading
+        # No need to remove "chr" prefix as it's handled during normalization
+        chrom = self.chrom
         try:
             return (0, int(chrom))
         except ValueError:
@@ -268,14 +266,22 @@ class VariantEntry:
 class VariantLoader:
     """Loads variants from VCF or MAF files."""
 
-    def __init__(self, reference_getter=None):
+    def __init__(self, reference_getter=None, chromosome_normalization_map=None, target_format=None):
         """
         Initialize variant loader.
 
         Args:
             reference_getter: Callable that takes (chrom, pos) and returns base
+            chromosome_normalization_map: Dict mapping original -> normalized chromosome names
+            target_format: Target chromosome format ("chr_prefix" or "no_prefix")
         """
         self.reference_getter = reference_getter
+        self.chromosome_normalization_map = chromosome_normalization_map or {}
+        self.target_format = target_format
+
+    def _normalize_chromosome(self, chrom: str) -> str:
+        """Normalize chromosome name using the provided normalization map."""
+        return self.chromosome_normalization_map.get(chrom, chrom)
 
     def load_vcf(self, vcf_file: str) -> list[VariantEntry]:
         """
@@ -316,13 +322,16 @@ class VariantLoader:
 
                 end_pos = pos + len(ref) - 1
 
+                # Normalize chromosome name to match reference format
+                normalized_chrom = self._normalize_chromosome(chrom)
+
                 # Determine variant type
                 snp = len(ref) == len(alt) == 1
                 insertion = len(ref) == 1 and len(alt) > len(ref)
                 deletion = len(alt) == 1 and len(alt) < len(ref)
 
                 entry = VariantEntry(
-                    chrom=chrom,
+                    chrom=normalized_chrom,
                     pos=pos,
                     end_pos=end_pos,
                     ref=ref,
@@ -374,13 +383,16 @@ class VariantLoader:
 
                 end_pos = pos + len(ref) - 1
 
+                # Normalize chromosome name to match reference format
+                normalized_chrom = self._normalize_chromosome(chrom)
+
                 # Determine variant type
                 snp = len(ref) == len(alt) == 1
                 insertion = len(ref) == 1 and len(alt) > len(ref)
                 deletion = len(alt) == 1 and len(alt) < len(ref)
 
                 variant = VariantEntry(
-                    chrom=chrom,
+                    chrom=normalized_chrom,
                     pos=pos,
                     end_pos=end_pos,
                     ref=ref,
@@ -459,6 +471,9 @@ class VariantLoader:
             ref = fields[header_map["Reference_Allele"]]
             alt = fields[header_map["Tumor_Seq_Allele2"]]  # Alt should be in Allele2
 
+            # Normalize chromosome name to match reference format
+            normalized_chrom = self._normalize_chromosome(chrom)
+
             # Use Tumor_Seq_Allele1 if Allele2 is empty or same as ref (fallback)
             if not alt or alt == ref:
                 alt = fields[header_map["Tumor_Seq_Allele1"]]
@@ -522,7 +537,7 @@ class VariantLoader:
             deletion = len(alt) == 1 and len(alt) < len(ref)
 
             variant = VariantEntry(
-                chrom=chrom,
+                chrom=normalized_chrom,
                 pos=pos,
                 end_pos=end_pos,
                 ref=ref,

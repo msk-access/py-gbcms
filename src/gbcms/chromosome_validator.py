@@ -27,6 +27,11 @@ class ChromosomeValidator:
         self.normalization_needed = False
         self.validation_issues = []
 
+        # Normalization results
+        self.target_format = None
+        self.chromosome_normalization_map = {}  # original -> normalized
+        self.normalized_chromosomes = set()  # normalized chromosome names
+
     def is_standard_chromosome(self, chrom: str) -> bool:
         """
         Check if chromosome should be normalized.
@@ -191,6 +196,7 @@ class ChromosomeValidator:
         self.reference_format = self.detect_reference_format()
         ref_chrom, ref_format = self.reference_format
         logger.info(f"Reference uses chromosome format: {ref_format} (example: {ref_chrom})")
+        self.target_format = ref_format  # Target format is reference format
 
         # Step 2: Detect BAM format (must match reference)
         self.bam_format = self.detect_bam_format()
@@ -266,6 +272,10 @@ class ChromosomeValidator:
         if not self.validation_issues:
             logger.info("Chromosome validation passed: all files compatible")
 
+        # Apply normalization if needed
+        if self.normalization_needed and not self.validation_issues:
+            self.normalize_variant_chromosomes()
+
         return len(self.validation_issues) == 0
 
     def get_validation_summary(self) -> str:
@@ -278,3 +288,46 @@ class ChromosomeValidator:
         for issue in self.validation_issues:
             summary += f"   - {issue}\n"
         return summary
+    def normalize_variant_chromosomes(self) -> dict[str, str]:
+        """
+        Normalize all variant chromosomes to match the target format.
+
+        This method applies the normalization that was detected as needed
+        during validation.
+
+        Returns:
+            Dictionary mapping original chromosome names to normalized names
+        """
+        if not self.normalization_needed or not self.target_format:
+            logger.info("No chromosome normalization needed")
+            return {}
+
+        logger.info(f"Normalizing variant chromosomes to format: {self.target_format}")
+
+        normalization_map = {}
+
+        for original_chrom in self.variant_chromosomes:
+            if self.is_standard_chromosome(original_chrom):
+                # Apply format normalization for standard chromosomes
+                normalized_chrom = self.smart_normalize_chromosome(original_chrom, self.target_format)
+                normalization_map[original_chrom] = normalized_chrom
+                self.normalized_chromosomes.add(normalized_chrom)
+                logger.debug(f"Normalized {original_chrom} → {normalized_chrom}")
+            else:
+                # Keep alternative contigs unchanged
+                normalization_map[original_chrom] = original_chrom
+                self.normalized_chromosomes.add(original_chrom)
+                logger.debug(f"Kept alternative contig unchanged: {original_chrom}")
+
+        self.chromosome_normalization_map = normalization_map
+        logger.info(f"Normalization complete: {len(normalization_map)} chromosomes processed")
+
+        return normalization_map
+
+    def get_target_format(self) -> str | None:
+        """Get the target chromosome format for normalization."""
+        return self.target_format
+
+    def needs_normalization(self) -> bool:
+        """Check if chromosome normalization is needed."""
+        return self.normalization_needed

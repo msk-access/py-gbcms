@@ -54,7 +54,7 @@ class BaseCounter:
 
     **For better performance on large datasets, see:**
     - `numba_counter.py` for 50-100x speedup
-    - Use with `parallel.py` for multi-core processing
+    - Use with multi-threading for parallel processing
 
     **Attributes:**
         config: Configuration object with quality thresholds and filters

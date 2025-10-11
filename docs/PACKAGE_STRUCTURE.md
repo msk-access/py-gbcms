@@ -54,13 +54,11 @@ src/gbcms/
 ├── __init__.py
 ├── cli.py                    # Entry point (gbcms command)
 ├── config.py                 # Configuration management
-├── models.py                 # Pydantic models
 ├── processor.py              # Main processing logic
 ├── counter.py                # Pure Python counting
 ├── variant.py                # Variant loading (with cyvcf2)
 ├── reference.py              # Reference sequence access
 ├── output.py                 # Output formatting
-└── parallel.py               # Parallelization (joblib/Ray)
 ```
 
 ---
