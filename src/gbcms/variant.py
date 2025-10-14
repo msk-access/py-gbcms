@@ -180,17 +180,15 @@ class VariantEntry:
         """Synchronize coordinate fields for backward compatibility."""
         # Sync pos <-> bam_pos
         if self.pos and not self.bam_pos:
-            object.__setattr__(self, 'bam_pos', self.pos)
+            object.__setattr__(self, "bam_pos", self.pos)
         elif self.bam_pos and not self.pos:
-            object.__setattr__(self, 'pos', self.bam_pos)
-            
-        # Sync end_pos <-> bam_end_pos  
+            object.__setattr__(self, "pos", self.bam_pos)
+
+        # Sync end_pos <-> bam_end_pos
         if self.end_pos and not self.bam_end_pos:
-            object.__setattr__(self, 'bam_end_pos', self.end_pos)
+            object.__setattr__(self, "bam_end_pos", self.end_pos)
         elif self.bam_end_pos and not self.end_pos:
-            object.__setattr__(self, 'end_pos', self.bam_end_pos)
-
-
+            object.__setattr__(self, "end_pos", self.bam_end_pos)
 
     def get_variant_key(self) -> tuple[str, int, str, str]:
         """Return unique key for variant identification."""
@@ -289,9 +287,9 @@ class VariantLoader:
                 alt = variant.ALT[0] if variant.ALT else ""
 
                 # Detect variant type and apply correct coordinate conversion
-                is_snv = (len(ref) == len(alt) == 1)
-                is_insertion = (len(ref) == 1 and len(alt) > 1)
-                is_deletion = (len(ref) > 1 and len(alt) == 1)
+                is_snv = len(ref) == len(alt) == 1
+                is_insertion = len(ref) == 1 and len(alt) > 1
+                is_deletion = len(ref) > 1 and len(alt) == 1
 
                 if is_insertion:
                     pos = variant.POS  # No conversion for insertions
@@ -300,7 +298,6 @@ class VariantLoader:
                     # SNVs and deletions: convert to 0-indexed
                     original_pos = variant.POS  # Store original 1-indexed coordinate
                     pos = original_pos - 1
-                    bam_end_pos = pos + len(ref) - 1
 
                 entry = VariantEntry(
                     chrom=chrom,
@@ -349,18 +346,16 @@ class VariantLoader:
                 alt = fields[4]
 
                 # Detect variant type and apply correct coordinate conversion
-                is_snv = (len(ref) == len(alt) == 1)
-                is_insertion = (len(ref) == 1 and len(alt) > 1)
-                is_deletion = (len(ref) > 1 and len(alt) == 1)
+                is_snv = len(ref) == len(alt) == 1
+                is_insertion = len(ref) == 1 and len(alt) > 1
+                is_deletion = len(ref) > 1 and len(alt) == 1
 
                 if is_insertion:
                     pos = int(fields[1])  # No conversion for insertions
-                    end_pos = pos  # Insertion ends at same position
                 else:
                     # SNVs and deletions: convert to 0-indexed
                     pos = int(fields[1]) - 1
                     bam_end_pos = pos + len(ref) - 1
-                deletion = len(alt) == 1 and len(alt) < len(ref)
 
                 variant = VariantEntry(
                     chrom=chrom,
@@ -381,41 +376,49 @@ class VariantLoader:
         """Load variants from MAF file."""
         logger.info(f"Loading variants file: {maf_file}")
         variants = []
-        header_map = {}
+        header_map: dict[str, int] = {}
 
+        # Read all lines first
         with open(maf_file) as f:
-            # Find header line
-            for line in f:
-                line = line.strip()
-                if not line.startswith("#"):
-                    # This is the header
-                    headers = line.split("\t")
-                    header_map = {h: i for i, h in enumerate(headers)}
-                    break
+            all_lines = f.readlines()
 
-            # Validate required columns
-            # Required columns for sample-agnostic workflow
-            required_cols = [
-                "Chromosome",
-                "Start_Position",
-                "Reference_Allele",
-                "Tumor_Seq_Allele2",
-            ]
-            missing_cols = [col for col in required_cols if col not in header_map]
-            if missing_cols:
-                logger.error(f"Missing required MAF columns: {missing_cols}")
-                raise ValueError("Incorrect MAF file header")
+        # Find header line
+        headers = None
+        for line in all_lines:
+            line = line.strip()
+            if not line.startswith("#") and "Chromosome" in line:  # This is the header
+                headers = line.split("\t")
 
-            # Load variants
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
+        # Validate required columns
+        # Required columns for sample-agnostic workflow
+        required_cols = [
+            "Chromosome",
+            "Start_Position",
+            "Reference_Allele",
+            "Tumor_Seq_Allele2",
+        ]
+        if headers is None:
+            raise ValueError("No header found in MAF file")
+        missing_cols = [col for col in required_cols if col not in headers]
+        if missing_cols:
+            logger.error(f"Missing required MAF columns: {missing_cols}")
+            raise ValueError("Incorrect MAF file header")
 
-                fields = line.split("\t")
-                variant = self._parse_maf_line(fields, header_map, line)
-                if variant:
-                    variants.append(variant)
+        # Create header map for efficient field access
+        if headers is None:
+            raise ValueError("No header found in MAF file")
+        header_map = {h: i for i, h in enumerate(headers)}
+
+        # Load variants from remaining lines
+        for line in all_lines[1:]:  # Skip header line
+            line = line.strip()
+            if not line:
+                continue
+
+            fields = line.split("\t")
+            variant = self._parse_maf_line(fields, header_map, line)
+            if variant:
+                variants.append(variant)
 
         logger.info(f"{len(variants)} variants loaded from file: {maf_file}")
         return variants
@@ -425,16 +428,18 @@ class VariantLoader:
     ) -> VariantEntry | None:
         """Parse a single MAF line into VariantEntry."""
         try:
-            gene = fields[header_map.get("Hugo_Symbol", "")]
-            chrom = fields[header_map.get("Chromosome", "")]
+            gene = fields[int(header_map.get("Hugo_Symbol", ""))]
+            chrom = fields[int(header_map.get("Chromosome", ""))]
             normalized_chrom = self._normalize_chromosome(chrom)
-            original_pos = int(fields[header_map.get("Start_Position", "")])  # Store original 1-indexed
+            original_pos = int(
+                fields[int(header_map.get("Start_Position", ""))]
+            )  # Store original 1-indexed
             # pos will be set by variant-type-aware logic below
-            ref = fields[header_map.get("Reference_Allele", "")]
-            alt = fields[header_map.get("Tumor_Seq_Allele2", "")]  # Alt should be in Allele2
-            effect = fields[header_map.get("Variant_Classification", "")]
-            t_ref_count = int(fields[header_map.get("t_ref_count", 0)])
-            t_alt_count = int(fields[header_map.get("t_alt_count", 0)])
+            ref = fields[int(header_map.get("Reference_Allele", ""))]
+            alt = fields[int(header_map.get("Tumor_Seq_Allele2", ""))]  # Alt should be in Allele2
+            effect = fields[int(header_map.get("Variant_Classification", ""))]
+            t_ref_count = int(fields[int(header_map.get("t_ref_count", 0))])
+            t_alt_count = int(fields[int(header_map.get("t_alt_count", 0))])
             # Sample-agnostic defaults
             tumor_sample = ""  # Not needed for sample-agnostic
             normal_sample = ""  # Not needed for sample-agnostic
@@ -443,9 +448,9 @@ class VariantLoader:
             caller = ""  # Not needed for sample-agnostic
 
             # Detect variant type and apply correct coordinate conversion
-            is_snv = (len(ref) == len(alt) == 1)
-            is_insertion = (len(ref) == 1 and len(alt) > 1)
-            is_deletion = (len(ref) > 1 and len(alt) == 1)
+            is_snv = len(ref) == len(alt) == 1
+            is_insertion = len(ref) == 1 and len(alt) > 1
+            is_deletion = len(ref) > 1 and len(alt) == 1
 
             if is_insertion:
                 pos = int(fields[header_map["Start_Position"]])  # No conversion for insertions
@@ -458,7 +463,9 @@ class VariantLoader:
             else:
                 # SNVs: convert to 0-indexed
                 pos = int(fields[header_map["Start_Position"]]) - 1
-            original_end_pos = int(fields[header_map["End_Position"]])  # Store original end position
+            original_end_pos = int(
+                fields[header_map["End_Position"]]
+            )  # Store original end position
             n_alt_count = int(fields[header_map["n_alt_count"]])
             effect = fields[header_map["Variant_Classification"]]
 
@@ -473,7 +480,7 @@ class VariantLoader:
             maf_alt = alt
 
             # Ensure end_pos is defined (for SNVs it's the same as pos)
-            if not 'end_pos' in locals():
+            if "end_pos" not in locals():
                 end_pos = pos
 
             # Convert MAF format to VCF format

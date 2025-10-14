@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from gbcms.config import Config, CountType
-from gbcms.output import VCFWriter, SampleAgnosticMAFWriter, FilloutWriter
+from gbcms.output import SampleAgnosticMAFWriter, VCFWriter
 from gbcms.variant import VariantEntry
 
 
@@ -73,12 +73,15 @@ def test_sample_agnostic_maf_writer(temp_dir):
     # Create a simple config for testing
     config = Config(
         fasta_file="tests/testdata/integration_test_reference.fa",
-        bam_files={"Tumor1": "tests/testdata/sample1_integration_test.bam", "Normal1": "tests/testdata/sample2_integration_test.bam"},
+        bam_files={
+            "Tumor1": "tests/testdata/sample1_integration_test.bam",
+            "Normal1": "tests/testdata/sample2_integration_test.bam",
+        },
         variant_files=["tests/testdata/integration_test_variants.vcf"],
         output_file=str(temp_dir / "output.maf"),
         input_is_maf=True,
     )
-    
+
     writer = SampleAgnosticMAFWriter(config, ["Tumor1", "Normal1"])
 
     # Create test variant
@@ -104,21 +107,22 @@ def test_sample_agnostic_maf_writer(temp_dir):
 
     # Check output file exists and has content
     assert Path(config.output_file).exists()
-    
+
     with open(config.output_file) as f:
         lines = f.readlines()
         assert len(lines) >= 2  # Header + at least one variant line
-        
+
         # Check for MAF header
         header_line = lines[0]
         assert "Hugo_Symbol" in header_line
         assert "Chromosome" in header_line
-        
+
         # Check for variant data
         variant_line = lines[1]
         assert "GENE1" in variant_line
         assert "chr1" in variant_line
         assert "Missense_Mutation" in variant_line
+
 
 def test_output_formatter_fillout(temp_dir):
     """Test fillout output formatting."""

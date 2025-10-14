@@ -8,7 +8,7 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn
 
 from .config import Config
 from .counter import BaseCounter
-from .output import VCFWriter, SampleAgnosticMAFWriter, FilloutWriter
+from .output import FilloutWriter, OutputWriter, SampleAgnosticMAFWriter, VCFWriter
 from .reference import ReferenceSequence
 from .variant import VariantEntry, VariantLoader
 
@@ -291,6 +291,7 @@ class VariantProcessor:
 
     def _write_output(self, variants: list[VariantEntry]) -> None:
         """Write output file."""
+        writer: OutputWriter
         # Select appropriate writer based on configuration
         if self.config.input_is_maf:
             if getattr(self.config, "fillout", False):  # Check for fillout flag

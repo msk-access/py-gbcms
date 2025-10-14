@@ -1,6 +1,5 @@
 """Tests for CLI module."""
 
-import pytest
 from typer.testing import CliRunner
 
 from gbcms.cli import app

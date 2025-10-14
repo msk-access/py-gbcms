@@ -1,24 +1,22 @@
-"""Output formatting for variant counts."""
-
 import logging
+from abc import ABC, abstractmethod
 from datetime import datetime
 
-from .config import Config, CountType
+from .config import CountType
 from .counter import BaseCounter
+from .template_engine import template_engine
+from .variant import VariantEntry
 
 logger = logging.getLogger(__name__)
-from .variant import VariantEntry
-from .template_engine import template_engine
 
-from abc import ABC, abstractmethod
-from typing import List, Dict, Any
-from .variant import VariantEntry
-from .template_engine import template_engine
+
+"""Output formatting for variant counts."""
+
 
 class OutputWriter(ABC):
     """Abstract base class for all output format writers."""
 
-    def __init__(self, config, sample_order: List[str]):
+    def __init__(self, config, sample_order: list[str]):
         """
         Initialize output writer.
 
@@ -36,22 +34,24 @@ class OutputWriter(ABC):
         pass
 
     @abstractmethod
-    def write_variant(self, variant: VariantEntry, output_file: str, write_headers: bool = True) -> None:
-        """Write a single variant to output file efficiently."""
+    @abstractmethod
+    def write_variant(
+        self, variant: VariantEntry, output_file: str | None, write_headers: bool = True
+    ) -> None:
         pass
 
-    def write_variants(self, variants: List[VariantEntry], output_file: str = None) -> None:
-        """Write multiple variants to output file."""
+    def write_variants(self, variants: list[VariantEntry], output_file: str | None = None) -> None:
         self.validate_variants(variants)
-        logger.info(f"Writing {len(variants)} variants to {self.get_format_name()} output: {output_file}")
+        logger.info(
+            f"Writing {len(variants)} variants to {self.get_format_name()} output: {output_file}"
+        )
 
         # Default implementation: call write_variant for each
         # Concrete implementations can override for bulk optimization
         for i, variant in enumerate(variants):
             self.write_variant(variant, output_file, write_headers=(i == 0))
 
-
-    def get_columns(self) -> List[str]:
+    def get_columns(self) -> list[str]:
         """Get columns for this writer's format using templates."""
         format_name = self.get_format_name()
         return self.template_engine.generate_columns(format_name, self.config, self.sample_order)
@@ -60,7 +60,7 @@ class OutputWriter(ABC):
         """Get the name of this output format."""
         return self.__class__.__name__.replace("Writer", "").lower()
 
-    def validate_variants(self, variants: List[VariantEntry]) -> None:
+    def validate_variants(self, variants: list[VariantEntry]) -> None:
         """Validate that variants are compatible with this output format."""
         if not variants:
             raise ValueError(f"No variants provided for {self.get_format_name()} output")
@@ -69,18 +69,20 @@ class OutputWriter(ABC):
             if not isinstance(variant, VariantEntry):
                 raise ValueError(f"Invalid variant type for {self.get_format_name()} output")
 
+
 class VCFWriter(OutputWriter):
     """VCF format output writer."""
-    def __init__(self, config, sample_order: List[str]):
+
+    def __init__(self, config, sample_order: list[str]):
         """Initialize VCF writer."""
         super().__init__(config, sample_order)
         self.counter = BaseCounter(config)
-
 
     def write_header(self, output_file: str) -> None:
         """Write VCF header to output file."""
         logger.info(f"Writing VCF header to: {output_file}")
 
+        write_headers = True
         mode = "w" if write_headers else "a"
         with open(self.config.output_file, mode) as f:
             f.write("##fileformat=VCFv4.2\n")
@@ -149,72 +151,74 @@ class VCFWriter(OutputWriter):
             header_cols.extend(self.sample_order)
             f.write("\t".join(header_cols) + "\n")
 
-    def write_variant(self, variant: VariantEntry, output_file: str, write_headers: bool = True) -> None:
+    def write_variant(
+        self, variant: VariantEntry, output_file: str | None, write_headers: bool = True
+    ) -> None:
         """Write a single variant to VCF output file efficiently."""
         mode = "w" if write_headers else "a"
         with open(self.config.output_file, mode) as f:
             if write_headers:
-                            # Write VCF header
-                            f.write("##fileformat=VCFv4.2\n")
-                            f.write(f"##fileDate={datetime.now().strftime('%Y%m%d')}\n")
-                            f.write("##source=py-gbcms\n")
-                            f.write(
-                                '##INFO=<ID=DP,Number=1,Type=Integer,Description="Total depth across all samples">\n'
-                            )
-                            f.write(
-                                '##FORMAT=<ID=RD,Number=1,Type=Integer,Description="Reference allele depth for this sample">\n'
-                            )
-                            f.write(
-                                '##FORMAT=<ID=AD,Number=1,Type=Integer,Description="Alternate allele depth for this sample">\n'
-                            )
-                            f.write(
-                                '##FORMAT=<ID=VAF,Number=1,Type=Float,Description="Variant allele frequency for this sample">\n'
-                            )
-                            f.write(
-                                '##FORMAT=<ID=DP_FORWARD,Number=1,Type=Integer,Description="Forward strand depth for this sample">\n'
-                            )
-                            f.write(
-                                '##FORMAT=<ID=RD_FORWARD,Number=1,Type=Integer,Description="Forward strand reference depth for this sample">\n'
-                            )
-                            f.write(
-                                '##FORMAT=<ID=AD_FORWARD,Number=1,Type=Integer,Description="Forward strand alternate depth for this sample">\n'
-                            )
-                            f.write(
-                                '##FORMAT=<ID=DP_REVERSE,Number=1,Type=Integer,Description="Reverse strand depth for this sample">\n'
-                            )
-                            f.write(
-                                '##FORMAT=<ID=RD_REVERSE,Number=1,Type=Integer,Description="Reverse strand reference depth for this sample">\n'
-                            )
-                            f.write(
-                                '##FORMAT=<ID=AD_REVERSE,Number=1,Type=Integer,Description="Reverse strand alternate depth for this sample">\n'
-                            )
-                            f.write(
-                                '##FORMAT=<ID=DPF,Number=1,Type=Integer,Description="Fragment depth for this sample">\n'
-                            )
-                            f.write(
-                                '##FORMAT=<ID=RDF,Number=1,Type=Integer,Description="Fragment reference depth for this sample">\n'
-                            )
-                            f.write(
-                                '##FORMAT=<ID=ADF,Number=1,Type=Integer,Description="Fragment alternate depth for this sample">\n'
-                            )
-                            f.write(
-                                '##FORMAT=<ID=RDF_FORWARD,Number=1,Type=Integer,Description="Forward orientation reference fragments for this sample">\n'
-                            )
-                            f.write(
-                                '##FORMAT=<ID=RDF_REVERSE,Number=1,Type=Integer,Description="Reverse orientation reference fragments for this sample">\n'
-                            )
-                            f.write(
-                                '##FORMAT=<ID=ADF_FORWARD,Number=1,Type=Integer,Description="Forward orientation alternate fragments for this sample">\n'
-                            )
-                            f.write(
-                                '##FORMAT=<ID=ADF_REVERSE,Number=1,Type=Integer,Description="Reverse orientation alternate fragments for this sample">\n'
-                            )
-                            f.write(
-                                '##INFO=<ID=SB,Number=3,Type=Float,Description="Strand bias p-value, odds ratio, direction (aggregated across samples)">\n'
-                            )
-                            f.write(
-                                '##INFO=<ID=FSB,Number=3,Type=Float,Description="Fragment strand bias p-value, odds ratio, direction (when fragment counting enabled)">\n'
-                            )
+                # Write VCF header
+                f.write("##fileformat=VCFv4.2\n")
+                f.write(f"##fileDate={datetime.now().strftime('%Y%m%d')}\n")
+                f.write("##source=py-gbcms\n")
+                f.write(
+                    '##INFO=<ID=DP,Number=1,Type=Integer,Description="Total depth across all samples">\n'
+                )
+                f.write(
+                    '##FORMAT=<ID=RD,Number=1,Type=Integer,Description="Reference allele depth for this sample">\n'
+                )
+                f.write(
+                    '##FORMAT=<ID=AD,Number=1,Type=Integer,Description="Alternate allele depth for this sample">\n'
+                )
+                f.write(
+                    '##FORMAT=<ID=VAF,Number=1,Type=Float,Description="Variant allele frequency for this sample">\n'
+                )
+                f.write(
+                    '##FORMAT=<ID=DP_FORWARD,Number=1,Type=Integer,Description="Forward strand depth for this sample">\n'
+                )
+                f.write(
+                    '##FORMAT=<ID=RD_FORWARD,Number=1,Type=Integer,Description="Forward strand reference depth for this sample">\n'
+                )
+                f.write(
+                    '##FORMAT=<ID=AD_FORWARD,Number=1,Type=Integer,Description="Forward strand alternate depth for this sample">\n'
+                )
+                f.write(
+                    '##FORMAT=<ID=DP_REVERSE,Number=1,Type=Integer,Description="Reverse strand depth for this sample">\n'
+                )
+                f.write(
+                    '##FORMAT=<ID=RD_REVERSE,Number=1,Type=Integer,Description="Reverse strand reference depth for this sample">\n'
+                )
+                f.write(
+                    '##FORMAT=<ID=AD_REVERSE,Number=1,Type=Integer,Description="Reverse strand alternate depth for this sample">\n'
+                )
+                f.write(
+                    '##FORMAT=<ID=DPF,Number=1,Type=Integer,Description="Fragment depth for this sample">\n'
+                )
+                f.write(
+                    '##FORMAT=<ID=RDF,Number=1,Type=Integer,Description="Fragment reference depth for this sample">\n'
+                )
+                f.write(
+                    '##FORMAT=<ID=ADF,Number=1,Type=Integer,Description="Fragment alternate depth for this sample">\n'
+                )
+                f.write(
+                    '##FORMAT=<ID=RDF_FORWARD,Number=1,Type=Integer,Description="Forward orientation reference fragments for this sample">\n'
+                )
+                f.write(
+                    '##FORMAT=<ID=RDF_REVERSE,Number=1,Type=Integer,Description="Reverse orientation reference fragments for this sample">\n'
+                )
+                f.write(
+                    '##FORMAT=<ID=ADF_FORWARD,Number=1,Type=Integer,Description="Forward orientation alternate fragments for this sample">\n'
+                )
+                f.write(
+                    '##FORMAT=<ID=ADF_REVERSE,Number=1,Type=Integer,Description="Reverse orientation alternate fragments for this sample">\n'
+                )
+                f.write(
+                    '##INFO=<ID=SB,Number=3,Type=Float,Description="Strand bias p-value, odds ratio, direction (aggregated across samples)">\n'
+                )
+                f.write(
+                    '##INFO=<ID=FSB,Number=3,Type=Float,Description="Fragment strand bias p-value, odds ratio, direction (when fragment counting enabled)">\n'
+                )
 
             # Write column headers
             header_cols = self.get_columns()
@@ -272,9 +276,7 @@ class VCFWriter(OutputWriter):
 
                 # Update aggregate values (use minimum p-value as most significant)
                 total_sb_pval = min(total_sb_pval, sb_pval)
-                total_sb_or = (
-                    min(total_sb_or, sb_or) if sb_pval < total_sb_pval else total_sb_or
-                )
+                total_sb_or = min(total_sb_or, sb_or) if sb_pval < total_sb_pval else total_sb_or
                 total_sb_dir = sb_dir if sb_pval < total_sb_pval else total_sb_dir
 
             # Build INFO field
@@ -286,9 +288,7 @@ class VCFWriter(OutputWriter):
                 info_parts.append(f"SB={total_sb_pval:.6f},{total_sb_or:.3f},{total_sb_dir}")
 
             if self.config.output_fragment_count and total_fsb_pval < 1.0:
-                info_parts.append(
-                    f"FSB={total_fsb_pval:.6f},{total_fsb_or:.3f},{total_fsb_dir}"
-                )
+                info_parts.append(f"FSB={total_fsb_pval:.6f},{total_fsb_or:.3f},{total_fsb_dir}")
 
             info_field = ";".join(info_parts)
 
@@ -391,7 +391,9 @@ class VCFWriter(OutputWriter):
 
                 row.append(":".join(sample_data))
 
-    def write_variants(self, variants: List[VariantEntry], output_file: str = None) -> None:
+    def write_variants(
+        self, variants: list[VariantEntry], output_file: str | None | None = None
+    ) -> None:
         """Write multiple variants to VCF output file."""
         self.validate_variants(variants)
         logger.info(f"Writing {len(variants)} variants to VCF output: {output_file}")
@@ -399,7 +401,7 @@ class VCFWriter(OutputWriter):
         # Write headers for the first variant only
         write_headers = True
         mode = "w" if write_headers else "a"
-        with open(output_file, mode) as f:
+        with open(output_file or self.config.output_file, mode) as f:
             # Write header directly to file handle
             f.write("##fileformat=VCFv4.2\n")
             f.write(f"##fileDate={datetime.now().strftime('%Y%m%d')}\n")
@@ -641,18 +643,21 @@ class VCFWriter(OutputWriter):
                 f.write("\t".join(row) + "\n")
 
         logger.info(f"Successfully wrote {len(variants)} variants to VCF output file")
+
+
 class SampleAgnosticMAFWriter(OutputWriter):
     """Sample-agnostic MAF format output writer (one row per sample per variant)."""
-    def __init__(self, config, sample_order: List[str]):
+
+    def __init__(self, config, sample_order: list[str]):
         """Initialize Sample-Agnostic MAF writer."""
         super().__init__(config, sample_order)
         self.counter = BaseCounter(config)
-
 
     def write_header(self, output_file: str) -> None:
         """Write MAF header to output file."""
         logger.info(f"Writing sample-agnostic MAF header to: {output_file}")
 
+        write_headers = True
         mode = "w" if write_headers else "a"
         with open(self.config.output_file, mode) as f:
             # Write header - standard MAF columns plus tumor-only count columns
@@ -660,17 +665,23 @@ class SampleAgnosticMAFWriter(OutputWriter):
             header_cols = columns
             f.write("\t".join(header_cols) + "\n")
 
-    def write_variant(self, variant: VariantEntry, output_file: str, write_headers: bool = True) -> None:
+    def write_variant(
+        self, variant: VariantEntry, output_file: str | None, write_headers: bool = True
+    ) -> None:
         """Write a single variant to MAF output file."""
         # For single variant, we need to write header + variant for all samples
         # This is less efficient but maintains API compatibility
         variants = [variant]
         self.write_variants(variants)
 
-    def write_variants(self, variants: List[VariantEntry], output_file: str = None) -> None:
+    def write_variants(
+        self, variants: list[VariantEntry], output_file: str | None | None = None
+    ) -> None:
         """Write multiple variants to sample-agnostic MAF output file."""
         self.validate_variants(variants)
-        logger.info(f"Writing {len(variants)} variants to sample-agnostic MAF output: {self.config.output_file}")
+        logger.info(
+            f"Writing {len(variants)} variants to sample-agnostic MAF output: {self.config.output_file}"
+        )
 
         # Write headers for the first variant only
         write_headers = True
@@ -678,7 +689,7 @@ class SampleAgnosticMAFWriter(OutputWriter):
         with open(self.config.output_file, mode) as f:
             # Write header - standard MAF columns plus tumor-only count columns
             columns = self.get_columns()
-            header_cols = columns
+            columns = self.get_columns()
             f.write("\t".join(columns) + "\n")
 
             # Write variants - one row per sample per variant
@@ -800,18 +811,20 @@ class SampleAgnosticMAFWriter(OutputWriter):
             f"Successfully wrote {len(variants) * len(self.sample_order)} variant-sample combinations to MAF output file"
         )
 
+
 class FilloutWriter(OutputWriter):
     """Fillout MAF format output writer (one row per variant with all samples)."""
-    def __init__(self, config, sample_order: List[str]):
+
+    def __init__(self, config, sample_order: list[str]):
         """Initialize Fillout writer."""
         super().__init__(config, sample_order)
         self.counter = BaseCounter(config)
-
 
     def write_header(self, output_file: str) -> None:
         """Write fillout MAF header to output file."""
         logger.info(f"Writing fillout MAF header to: {output_file}")
 
+        write_headers = True
         mode = "w" if write_headers else "a"
         with open(self.config.output_file, mode) as f:
             # Write header - standard MAF columns plus sample-specific count columns
@@ -819,30 +832,35 @@ class FilloutWriter(OutputWriter):
             header_cols = columns
 
             # Add count columns for each sample
-            for sample in self.sample_order:
+            for _sample in self.sample_order:
                 columns = self.get_columns()
-                f.write(header_cols + "\t".join(columns) + "\n")
+                f.write("\t".join(header_cols + ["\t".join(columns)]) + "\n")
 
-    def write_variant(self, variant: VariantEntry, output_file: str, write_headers: bool = True) -> None:
+    def write_variant(
+        self, variant: VariantEntry, output_file: str | None, write_headers: bool = True
+    ) -> None:
         """Write a single variant to fillout MAF output file."""
         # For single variant, we need to write header + variant
         # This is less efficient but maintains API compatibility
         variants = [variant]
         self.write_variants(variants)
 
-    def write_variants(self, variants: List[VariantEntry], output_file: str = None) -> None:
+    def write_variants(
+        self, variants: list[VariantEntry], output_file: str | None | None = None
+    ) -> None:
         """Write multiple variants to fillout MAF output file."""
         self.validate_variants(variants)
         logger.info(f"Writing {len(variants)} variants to fillout MAF output: {output_file}")
+        write_headers = True
 
         mode = "w" if write_headers else "a"
         with open(self.config.output_file, mode) as f:
             # Write header - standard MAF columns plus sample-specific count columns
             columns = self.get_columns()
-            header_cols = columns
+            # Add count columns for each sample
 
             # Add count columns for each sample
-            for sample in self.sample_order:
+            for _sample in self.sample_order:
                 columns = self.get_columns()
                 f.write("\t".join(columns) + "\n")
 
@@ -939,4 +957,3 @@ class FilloutWriter(OutputWriter):
                 f.write("\t".join(row) + "\n")
 
         logger.info(f"Successfully wrote {len(variants)} variants to fillout output file")
-

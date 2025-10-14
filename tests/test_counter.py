@@ -1,9 +1,8 @@
 """Tests for counter module."""
 
 import pysam
-import pytest
 
-from gbcms.config import Config, CountType
+from gbcms.config import Config
 from gbcms.counter import BaseCounter
 from gbcms.variant import VariantEntry
 
@@ -18,9 +17,9 @@ def test_filter_alignment_duplicate():
         output_file="/tmp/test_output.txt",
         input_is_vcf=True,
     )
-    
+
     counter = BaseCounter(config)
-    
+
     # Test duplicate filtering
     aln = pysam.AlignedSegment()
     aln.is_duplicate = True
@@ -38,9 +37,9 @@ def test_filter_alignment_low_mapq():
         output_file="/tmp/test_output.txt",
         input_is_vcf=True,
     )
-    
+
     counter = BaseCounter(config)
-    
+
     # Test low mapping quality filtering
     aln = pysam.AlignedSegment()
     aln.is_duplicate = False
@@ -58,9 +57,9 @@ def test_filter_alignment_pass():
         output_file="/tmp/test_output.txt",
         input_is_vcf=True,
     )
-    
+
     counter = BaseCounter(config)
-    
+
     # Test alignment that passes filters
     aln = pysam.AlignedSegment()
     aln.is_duplicate = False
@@ -78,9 +77,9 @@ def test_count_bases_snp():
         output_file="/tmp/test_output.txt",
         input_is_vcf=True,
     )
-    
+
     counter = BaseCounter(config)
-    
+
     # Create a simple SNP variant
     variant = VariantEntry(
         chrom="1",
@@ -90,10 +89,10 @@ def test_count_bases_snp():
         alt="T",
         snp=True,
     )
-    
+
     # Test that counting doesn't crash (we can't easily test exact counts without BAM data)
     try:
-        alignments = []  # Empty list for this test
+        alignments: list = []  # Empty list for this test
         counter.smart_count_variant(variant, alignments, "sample1")
         # If we get here without exception, the test passes
         assert True
@@ -114,9 +113,9 @@ def test_count_bases_indel():
         output_file="/tmp/test_output.txt",
         input_is_vcf=True,
     )
-    
+
     counter = BaseCounter(config)
-    
+
     # Create a simple insertion variant
     variant = VariantEntry(
         chrom="1",
@@ -126,10 +125,10 @@ def test_count_bases_indel():
         alt="AT",
         insertion=True,
     )
-    
+
     # Test that counting doesn't crash
     try:
-        alignments = []
+        alignments: list = []  # Empty list for this test
         counter.smart_count_variant(variant, alignments, "sample1")
         assert True
     except ValueError as e:
@@ -148,9 +147,9 @@ def test_count_variant_dispatch():
         output_file="/tmp/test_output.txt",
         input_is_vcf=True,
     )
-    
+
     counter = BaseCounter(config)
-    
+
     # Test SNP dispatch
     snp_variant = VariantEntry(
         chrom="1",
@@ -160,7 +159,7 @@ def test_count_variant_dispatch():
         alt="T",
         snp=True,
     )
-    
+
     # Test insertion dispatch
     insertion_variant = VariantEntry(
         chrom="1",
@@ -170,7 +169,7 @@ def test_count_variant_dispatch():
         alt="AT",
         insertion=True,
     )
-    
+
     # Test deletion dispatch
     deletion_variant = VariantEntry(
         chrom="1",
@@ -180,7 +179,7 @@ def test_count_variant_dispatch():
         alt="A",
         deletion=True,
     )
-    
+
     # Test that dispatch works (will fail with no alignments, but that's expected)
     for variant in [snp_variant, insertion_variant, deletion_variant]:
         try:

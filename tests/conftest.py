@@ -67,18 +67,21 @@ def sample_maf(temp_dir: Path) -> Path:
     return maf_file
 
 
-
 @pytest.fixture
 def config_vcf(temp_dir: Path) -> Config:
     """Create a VCF configuration for testing."""
     test_data_dir = Path(__file__).parent / "testdata"
     return Config(
         fasta_file=str(test_data_dir / "integration_test_reference.fa"),
-        bam_files={"sample1": str(test_data_dir / "sample1_integration_test.bam"), "sample2": str(test_data_dir / "sample2_integration_test.bam")},
+        bam_files={
+            "sample1": str(test_data_dir / "sample1_integration_test.bam"),
+            "sample2": str(test_data_dir / "sample2_integration_test.bam"),
+        },
         variant_files=[str(test_data_dir / "integration_test_variants.vcf")],
         output_file=str(temp_dir / "output.vcf"),
         input_is_vcf=True,
     )
+
 
 @pytest.fixture
 def multi_sample_bams(temp_dir: Path) -> dict:
