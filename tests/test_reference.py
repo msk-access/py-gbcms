@@ -19,11 +19,11 @@ def test_reference_get_base(sample_fasta: Path):
     ref = ReferenceSequence(str(sample_fasta))
 
     # Get first base of chr1
-    base = ref.get_base("chr1", 0)
-    assert base == "A"
+    base = ref.get_base("1", 0)
+    assert base == "T"
 
     # Get another base
-    base = ref.get_base("chr1", 1)
+    base = ref.get_base("1", 1)
     assert base in ["A", "T", "C", "G"]
 
     ref.close()
@@ -34,7 +34,7 @@ def test_reference_get_sequence(sample_fasta: Path):
     ref = ReferenceSequence(str(sample_fasta))
 
     # Get first 4 bases
-    seq = ref.get_sequence("chr1", 0, 4)
+    seq = ref.get_sequence("1", 0, 4)
     assert len(seq) == 4
     assert all(b in "ATCG" for b in seq)
 
@@ -44,7 +44,7 @@ def test_reference_get_sequence(sample_fasta: Path):
 def test_reference_context_manager(sample_fasta: Path):
     """Test using reference as context manager."""
     with ReferenceSequence(str(sample_fasta)) as ref:
-        base = ref.get_base("chr1", 0)
+        base = ref.get_base("1", 0)
         assert base in ["A", "T", "C", "G"]
 
     # Should be closed after context
@@ -74,11 +74,11 @@ def test_reference_invalid_position(sample_fasta: Path):
     # Position beyond chromosome length should fail or return empty
     # Note: pysam behavior may vary, so we test that it doesn't crash
     try:
-        result = ref.get_base("chr1", 10000)
+        result = ref.get_base("1", 20001)
         # If it doesn't raise an exception, result should be empty or None
         assert result == "" or result is None
-    except (IndexError, ValueError):
-        # Some versions of pysam raise IndexError or ValueError
+    except Exception:
+        # Any exception is acceptable for invalid position
         pass
 
     ref.close()

@@ -22,57 +22,6 @@ except ImportError:
     logger.debug("cyvcf2 not available - using pure Python VCF parsing")
 
 
-def is_standard_chromosome(chrom: str) -> bool:
-    """
-    Check if chromosome should be normalized.
-
-    Only standard chromosomes (1-22, X, Y, M, MT) are normalized.
-    Alternative contigs (KI270728.1, etc.) are left unchanged.
-
-    Args:
-        chrom: Chromosome name
-
-    Returns:
-        True if chromosome should be normalized
-    """
-    if not chrom:
-        return False
-
-    # Standard chromosomes that can be normalized (check after removing chr prefix)
-    standard_chromosomes = {
-        "1",
-        "2",
-        "3",
-        "4",
-        "5",
-        "6",
-        "7",
-        "8",
-        "9",
-        "10",
-        "11",
-        "12",
-        "13",
-        "14",
-        "15",
-        "16",
-        "17",
-        "18",
-        "19",
-        "20",
-        "21",
-        "22",
-        "X",
-        "Y",
-        "M",
-        "MT",
-    }
-
-    # Case-insensitive removal of chr prefix and check
-    base_chrom = re.sub(r"^chr", "", chrom, flags=re.IGNORECASE).upper()
-    return base_chrom in standard_chromosomes
-
-
 def _is_standard_chromosome(chrom: str) -> bool:
     """
     Check if chromosome should be normalized.
@@ -198,10 +147,12 @@ class VariantEntry:
     """Represents a variant with its counts across samples."""
 
     chrom: str
-    pos: int  # 0-indexed
-    end_pos: int
-    ref: str
-    alt: str
+    bam_pos: int = 0  # 0-indexed for PySAM BAM access
+    bam_end_pos: int = 0  # 0-indexed end position for PySAM
+    pos: int = 0  # Alias for bam_pos for backward compatibility
+    end_pos: int = 0  # Alias for bam_end_pos for backward compatibility
+    ref: str = ""
+    alt: str = ""
     snp: bool = False
 
     insertion: bool = False
@@ -214,8 +165,10 @@ class VariantEntry:
     t_alt_count: int = 0
     n_ref_count: int = 0
     n_alt_count: int = 0
-    maf_pos: int = 0
-    maf_end_pos: int = 0
+    original_pos: int = 0  # Original 1-indexed coordinates from input
+    original_end_pos: int = 0  # Original end position from input
+    maf_pos: int = 0  # MAF-specific position
+    maf_end_pos: int = 0  # MAF-specific end position
     maf_ref: str = ""
     maf_alt: str = ""
     caller: str = ""
@@ -223,9 +176,25 @@ class VariantEntry:
     duplicate_variant_ptr: Optional["VariantEntry"] = None
     maf_line: str = ""  # Store original MAF line for output
 
+    def __post_init__(self):
+        """Synchronize coordinate fields for backward compatibility."""
+        # Sync pos <-> bam_pos
+        if self.pos and not self.bam_pos:
+            object.__setattr__(self, 'bam_pos', self.pos)
+        elif self.bam_pos and not self.pos:
+            object.__setattr__(self, 'pos', self.bam_pos)
+            
+        # Sync end_pos <-> bam_end_pos  
+        if self.end_pos and not self.bam_end_pos:
+            object.__setattr__(self, 'bam_end_pos', self.end_pos)
+        elif self.bam_end_pos and not self.end_pos:
+            object.__setattr__(self, 'end_pos', self.bam_end_pos)
+
+
+
     def get_variant_key(self) -> tuple[str, int, str, str]:
         """Return unique key for variant identification."""
-        return (self.chrom, self.pos, self.ref, self.alt)
+        return (self.chrom, self.bam_pos, self.ref, self.alt)
 
     def initialize_counts(self, sample_names: list[str]) -> None:
         """Initialize count arrays for all samples."""
@@ -243,7 +212,7 @@ class VariantEntry:
         """Compare variants for sorting."""
         if self.chrom != other.chrom:
             return self._chrom_sort_key() < other._chrom_sort_key()
-        return self.pos < other.pos
+        return self.bam_pos < other.bam_pos
 
     def _chrom_sort_key(self) -> tuple:
         """Generate sort key for chromosome."""
@@ -266,7 +235,9 @@ class VariantEntry:
 class VariantLoader:
     """Loads variants from VCF or MAF files."""
 
-    def __init__(self, reference_getter=None, chromosome_normalization_map=None, target_format=None):
+    def __init__(
+        self, reference_getter=None, chromosome_normalization_map=None, target_format=None
+    ):
         """
         Initialize variant loader.
 
@@ -276,7 +247,7 @@ class VariantLoader:
             target_format: Target chromosome format ("chr_prefix" or "no_prefix")
         """
         self.reference_getter = reference_getter
-        self.chromosome_normalization_map = chromosome_normalization_map or {}
+        self.chromosome_normalization_map: dict[str, str] = chromosome_normalization_map or {}
         self.target_format = target_format
 
     def _normalize_chromosome(self, chrom: str) -> str:
@@ -314,31 +285,32 @@ class VariantLoader:
 
             for variant in vcf:
                 chrom = variant.CHROM
-                pos = variant.POS - 1  # Convert to 0-indexed
                 ref = variant.REF
-
-                # Handle multiple alts - take first one
                 alt = variant.ALT[0] if variant.ALT else ""
 
-                end_pos = pos + len(ref) - 1
+                # Detect variant type and apply correct coordinate conversion
+                is_snv = (len(ref) == len(alt) == 1)
+                is_insertion = (len(ref) == 1 and len(alt) > 1)
+                is_deletion = (len(ref) > 1 and len(alt) == 1)
 
-                # Normalize chromosome name to match reference format
-                normalized_chrom = self._normalize_chromosome(chrom)
-
-                # Determine variant type
-                snp = len(ref) == len(alt) == 1
-                insertion = len(ref) == 1 and len(alt) > len(ref)
-                deletion = len(alt) == 1 and len(alt) < len(ref)
+                if is_insertion:
+                    pos = variant.POS  # No conversion for insertions
+                    end_pos = pos  # Insertion ends at same position
+                else:
+                    # SNVs and deletions: convert to 0-indexed
+                    original_pos = variant.POS  # Store original 1-indexed coordinate
+                    pos = original_pos - 1
+                    bam_end_pos = pos + len(ref) - 1
 
                 entry = VariantEntry(
-                    chrom=normalized_chrom,
+                    chrom=chrom,
                     pos=pos,
                     end_pos=end_pos,
                     ref=ref,
                     alt=alt,
-                    snp=snp,
-                    insertion=insertion,
-                    deletion=deletion,
+                    snp=is_snv,
+                    insertion=is_insertion,
+                    deletion=is_deletion,
                 )
                 variants.append(entry)
 
@@ -373,33 +345,32 @@ class VariantLoader:
                     continue
 
                 chrom = fields[0]
-                pos = int(fields[1]) - 1  # Convert to 0-indexed
                 ref = fields[3]
                 alt = fields[4]
 
-                # Handle multiple alts - take first one
-                if "," in alt:
-                    alt = alt.split(",")[0]
+                # Detect variant type and apply correct coordinate conversion
+                is_snv = (len(ref) == len(alt) == 1)
+                is_insertion = (len(ref) == 1 and len(alt) > 1)
+                is_deletion = (len(ref) > 1 and len(alt) == 1)
 
-                end_pos = pos + len(ref) - 1
-
-                # Normalize chromosome name to match reference format
-                normalized_chrom = self._normalize_chromosome(chrom)
-
-                # Determine variant type
-                snp = len(ref) == len(alt) == 1
-                insertion = len(ref) == 1 and len(alt) > len(ref)
+                if is_insertion:
+                    pos = int(fields[1])  # No conversion for insertions
+                    end_pos = pos  # Insertion ends at same position
+                else:
+                    # SNVs and deletions: convert to 0-indexed
+                    pos = int(fields[1]) - 1
+                    bam_end_pos = pos + len(ref) - 1
                 deletion = len(alt) == 1 and len(alt) < len(ref)
 
                 variant = VariantEntry(
-                    chrom=normalized_chrom,
+                    chrom=chrom,
                     pos=pos,
-                    end_pos=end_pos,
+                    end_pos=bam_end_pos,
                     ref=ref,
                     alt=alt,
-                    snp=snp,
-                    insertion=insertion,
-                    deletion=deletion,
+                    snp=is_snv,
+                    insertion=is_insertion,
+                    deletion=is_deletion,
                 )
                 variants.append(variant)
 
@@ -423,23 +394,13 @@ class VariantLoader:
                     break
 
             # Validate required columns
+            # Required columns for sample-agnostic workflow
             required_cols = [
-                "Hugo_Symbol",
                 "Chromosome",
                 "Start_Position",
-                "End_Position",
                 "Reference_Allele",
-                "Tumor_Seq_Allele1",
                 "Tumor_Seq_Allele2",
-                "Tumor_Sample_Barcode",
-                "Matched_Norm_Sample_Barcode",
-                "t_ref_count",
-                "t_alt_count",
-                "n_ref_count",
-                "n_alt_count",
-                "Variant_Classification",
             ]
-
             missing_cols = [col for col in required_cols if col not in header_map]
             if missing_cols:
                 logger.error(f"Missing required MAF columns: {missing_cols}")
@@ -464,29 +425,40 @@ class VariantLoader:
     ) -> VariantEntry | None:
         """Parse a single MAF line into VariantEntry."""
         try:
-            gene = fields[header_map["Hugo_Symbol"]]
-            chrom = fields[header_map["Chromosome"]]
-            pos = int(fields[header_map["Start_Position"]]) - 1  # Convert to 0-indexed
-            end_pos = int(fields[header_map["End_Position"]]) - 1
-            ref = fields[header_map["Reference_Allele"]]
-            alt = fields[header_map["Tumor_Seq_Allele2"]]  # Alt should be in Allele2
-
-            # Normalize chromosome name to match reference format
+            gene = fields[header_map.get("Hugo_Symbol", "")]
+            chrom = fields[header_map.get("Chromosome", "")]
             normalized_chrom = self._normalize_chromosome(chrom)
+            original_pos = int(fields[header_map.get("Start_Position", "")])  # Store original 1-indexed
+            # pos will be set by variant-type-aware logic below
+            ref = fields[header_map.get("Reference_Allele", "")]
+            alt = fields[header_map.get("Tumor_Seq_Allele2", "")]  # Alt should be in Allele2
+            effect = fields[header_map.get("Variant_Classification", "")]
+            t_ref_count = int(fields[header_map.get("t_ref_count", 0)])
+            t_alt_count = int(fields[header_map.get("t_alt_count", 0)])
+            # Sample-agnostic defaults
+            tumor_sample = ""  # Not needed for sample-agnostic
+            normal_sample = ""  # Not needed for sample-agnostic
+            n_ref_count = 0  # Not needed for sample-agnostic
+            n_alt_count = 0  # Not needed for sample-agnostic
+            caller = ""  # Not needed for sample-agnostic
 
-            # Use Tumor_Seq_Allele1 if Allele2 is empty or same as ref (fallback)
-            if not alt or alt == ref:
-                alt = fields[header_map["Tumor_Seq_Allele1"]]
+            # Detect variant type and apply correct coordinate conversion
+            is_snv = (len(ref) == len(alt) == 1)
+            is_insertion = (len(ref) == 1 and len(alt) > 1)
+            is_deletion = (len(ref) > 1 and len(alt) == 1)
 
-            if not alt or alt == ref:
-                logger.warning(f"Could not find valid alt allele for variant: {chrom}:{pos + 1}")
-                return None
-
-            tumor_sample = fields[header_map["Tumor_Sample_Barcode"]]
-            normal_sample = fields[header_map["Matched_Norm_Sample_Barcode"]]
-            t_ref_count = int(fields[header_map["t_ref_count"]])
-            t_alt_count = int(fields[header_map["t_alt_count"]])
-            n_ref_count = int(fields[header_map["n_ref_count"]])
+            if is_insertion:
+                pos = int(fields[header_map["Start_Position"]])  # No conversion for insertions
+                end_pos = pos  # Insertion ends at same position
+            elif is_deletion:
+                # Deletions: start at original_pos - 1, end at original_pos + len(alt) - 1
+                original_pos = int(fields[header_map["Start_Position"]])
+                pos = original_pos - 1  # Convert to 0-indexed
+                end_pos = original_pos + len(alt) - 1  # End position for deletion
+            else:
+                # SNVs: convert to 0-indexed
+                pos = int(fields[header_map["Start_Position"]]) - 1
+            original_end_pos = int(fields[header_map["End_Position"]])  # Store original end position
             n_alt_count = int(fields[header_map["n_alt_count"]])
             effect = fields[header_map["Variant_Classification"]]
 
@@ -495,10 +467,14 @@ class VariantLoader:
                 caller = fields[header_map["Caller"]]
 
             # Store original MAF coordinates
-            maf_pos = pos
-            maf_end_pos = end_pos
+            original_pos = original_pos
+            original_end_pos = original_end_pos
             maf_ref = ref
             maf_alt = alt
+
+            # Ensure end_pos is defined (for SNVs it's the same as pos)
+            if not 'end_pos' in locals():
+                end_pos = pos
 
             # Convert MAF format to VCF format
             if ref == "-":  # Insertion in MAF format
@@ -553,8 +529,8 @@ class VariantLoader:
                 t_alt_count=t_alt_count,
                 n_ref_count=n_ref_count,
                 n_alt_count=n_alt_count,
-                maf_pos=maf_pos,
-                maf_end_pos=maf_end_pos,
+                original_pos=original_pos,
+                original_end_pos=original_end_pos,
                 maf_ref=maf_ref,
                 maf_alt=maf_alt,
                 caller=caller,

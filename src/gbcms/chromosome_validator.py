@@ -288,6 +288,7 @@ class ChromosomeValidator:
         for issue in self.validation_issues:
             summary += f"   - {issue}\n"
         return summary
+
     def normalize_variant_chromosomes(self) -> dict[str, str]:
         """
         Normalize all variant chromosomes to match the target format.
@@ -309,7 +310,9 @@ class ChromosomeValidator:
         for original_chrom in self.variant_chromosomes:
             if self.is_standard_chromosome(original_chrom):
                 # Apply format normalization for standard chromosomes
-                normalized_chrom = self.smart_normalize_chromosome(original_chrom, self.target_format)
+                normalized_chrom = self.smart_normalize_chromosome(
+                    original_chrom, self.target_format
+                )
                 normalization_map[original_chrom] = normalized_chrom
                 self.normalized_chromosomes.add(normalized_chrom)
                 logger.debug(f"Normalized {original_chrom} → {normalized_chrom}")

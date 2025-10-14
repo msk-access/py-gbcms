@@ -8,7 +8,7 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn
 
 from .config import Config
 from .counter import BaseCounter
-from .output import OutputFormatter
+from .output import VCFWriter, SampleAgnosticMAFWriter, FilloutWriter
 from .reference import ReferenceSequence
 from .variant import VariantEntry, VariantLoader
 
@@ -33,10 +33,13 @@ class VariantProcessor:
     def process(self) -> None:
         """Main processing pipeline."""
         # Load variants
+        if self.config.chromosome_validator is None:
+            raise ValueError("Chromosome validator not initialized")
+
         loader = VariantLoader(
             reference_getter=self.reference.get_base,
             chromosome_normalization_map=self.config.chromosome_validator.chromosome_normalization_map,
-            target_format=self.config.chromosome_validator.get_target_format()
+            target_format=self.config.chromosome_validator.get_target_format(),
         )
         variants = self._load_all_variants(loader)
 
@@ -125,7 +128,7 @@ class VariantProcessor:
                 # Check chromosome change or distance
                 if variants[i].chrom != variants[start_idx].chrom:
                     should_break = True
-                elif variants[i].pos - variants[start_idx].pos > self.config.max_block_dist:
+                elif variants[i].bam_pos - variants[start_idx].bam_pos > self.config.max_block_dist:
                     should_break = True
 
             if should_break:
@@ -259,14 +262,14 @@ class VariantProcessor:
             alignments = list(
                 bam.fetch(
                     start_variant.chrom,
-                    start_variant.pos,
-                    end_variant.pos + 2,  # Buffer for indels
+                    start_variant.bam_pos,
+                    end_variant.bam_end_pos + 2,  # Buffer for indels
                 )
             )
         except Exception as e:
             logger.error(
                 f"Error fetching alignments for region "
-                f"{start_variant.chrom}:{start_variant.pos}-{end_variant.pos}: {e}"
+                f"{start_variant.chrom}:{start_variant.bam_pos}-{end_variant.bam_end_pos}: {e}"
             )
             return
 
@@ -288,17 +291,19 @@ class VariantProcessor:
 
     def _write_output(self, variants: list[VariantEntry]) -> None:
         """Write output file."""
-        formatter = OutputFormatter(self.config, self.sample_order)
-
+        # Select appropriate writer based on configuration
         if self.config.input_is_maf:
             if getattr(self.config, "fillout", False):  # Check for fillout flag
-                formatter.write_fillout_output(variants)
+                writer = FilloutWriter(self.config, self.sample_order)
             else:
                 # Default: MAF output (sample-agnostic)
-                formatter.write_sample_agnostic_maf_output(variants)
+                writer = SampleAgnosticMAFWriter(self.config, self.sample_order)
         else:  # VCF input
             if getattr(self.config, "fillout", False):  # Check for fillout flag
-                formatter.write_fillout_output(variants)
+                writer = FilloutWriter(self.config, self.sample_order)
             else:
                 # Default: VCF output
-                formatter.write_vcf_output(variants)
+                writer = VCFWriter(self.config, self.sample_order)
+
+        # Write variants using selected writer
+        writer.write_variants(variants, self.config.output_file)

@@ -144,6 +144,52 @@ class BaseCounter:
 
         return None  # type: ignore
 
+    def _initialize_counting(self) -> tuple[np.ndarray, dict, dict, dict]:
+        """
+        Initialize counting data structures.
+
+        Returns common initialization pattern used across all counting methods:
+        - counts: Zero-initialized counts array
+        - dpf_map: Fragment depth tracking map
+        - rdf_map: Reference fragment tracking map
+        - adf_map: Alternate fragment tracking map
+        """
+        counts = self._initialize_counts()
+        dpf_map, rdf_map, adf_map = self._initialize_fragment_maps()
+        self._reset_fragment_tracking()
+        return counts, dpf_map, rdf_map, adf_map
+
+    def _finalize_counting(
+        self,
+        variant: VariantEntry,
+        sample_name: str,
+        counts: np.ndarray,
+        dpf_map: dict,
+        rdf_map: dict,
+        adf_map: dict,
+    ) -> None:
+        """
+        Finalize counting by calculating fragment counts and storing results.
+
+        This helper extracts the common finalization pattern used across
+        count_bases_snp(), count_bases_indel(), and count_bases_generic().
+        """
+        # Calculate fragment counts if enabled (lines 495-505, 612-622, 709-719)
+        if self.config.output_fragment_count:
+            dpf, rdf, adf, rdf_forward, rdf_reverse, adf_forward, adf_reverse = (
+                self._calculate_fragment_counts_with_orientation(dpf_map, rdf_map, adf_map)
+            )
+            counts[CountType.DPF] = dpf
+            counts[CountType.RDF] = rdf
+            counts[CountType.ADF] = adf
+            counts[CountType.RDF_FORWARD] = rdf_forward
+            counts[CountType.RDF_REVERSE] = rdf_reverse
+            counts[CountType.ADF_FORWARD] = adf_forward
+            counts[CountType.ADF_REVERSE] = adf_reverse
+
+        # Store counts using helper (line 508, 625, 722)
+        self._store_sample_counts(variant, counts, sample_name)
+
     def _should_count_fragment(self, frag_name: str) -> bool:
         """Check if fragment should be counted."""
         return (
@@ -448,28 +494,23 @@ class BaseCounter:
             Applies all configured filters before counting
             Updates variant.base_count[sample_name] with results
         """
-        counts = self._initialize_counts()
-
-        # Fragment tracking for fragment counts
-        dpf_map, rdf_map, adf_map = self._initialize_fragment_maps()
-
-        # Reset fragment tracking for new variant
-        self._reset_fragment_tracking()
+        # Use helper for common initialization
+        counts, dpf_map, rdf_map, adf_map = self._initialize_counting()
 
         for aln in alignments:
             if self._should_filter_alignment(aln):
                 continue
 
             # Check if alignment overlaps variant position
-            if (aln.reference_start is not None and aln.reference_start > variant.pos) or (
-                aln.reference_end is not None and aln.reference_end <= variant.pos
+            if (aln.reference_start is not None and aln.reference_start > variant.bam_pos) or (
+                aln.reference_end is not None and aln.reference_end <= variant.bam_pos
             ):
                 continue
 
             # Get the base at variant position
             read_pos = None
             for read_idx, ref_idx in aln.get_aligned_pairs(matches_only=False):
-                if ref_idx == variant.pos:
+                if ref_idx == variant.bam_pos:
                     read_pos = read_idx
                     break
 
@@ -491,21 +532,8 @@ class BaseCounter:
 
                 self._track_fragment_orientation(aln, allele_type)
 
-        # Calculate fragment counts using helper
-        if self.config.output_fragment_count:
-            dpf, rdf, adf, rdf_forward, rdf_reverse, adf_forward, adf_reverse = (
-                self._calculate_fragment_counts_with_orientation(dpf_map, rdf_map, adf_map)
-            )
-            counts[CountType.DPF] = dpf
-            counts[CountType.RDF] = rdf
-            counts[CountType.ADF] = adf
-            counts[CountType.RDF_FORWARD] = rdf_forward
-            counts[CountType.RDF_REVERSE] = rdf_reverse
-            counts[CountType.ADF_FORWARD] = adf_forward
-            counts[CountType.ADF_REVERSE] = adf_reverse
-
-        # Store counts using helper
-        self._store_sample_counts(variant, counts, sample_name)
+        # Use helper for common finalization
+        self._finalize_counting(variant, sample_name, counts, dpf_map, rdf_map, adf_map)
 
     def count_bases_indel(
         self, variant: VariantEntry, alignments: list[pysam.AlignedSegment], sample_name: str
@@ -521,13 +549,8 @@ class BaseCounter:
             alignments: List of overlapping alignments
             sample_name: Sample name for results storage
         """
-        counts = self._initialize_counts()
-
-        # Fragment tracking for fragment counts
-        dpf_map, rdf_map, adf_map = self._initialize_fragment_maps()
-
-        # Reset fragment tracking for new variant
-        self._reset_fragment_tracking()
+        # Use helper for common initialization
+        counts, dpf_map, rdf_map, adf_map = self._initialize_counting()
 
         for aln in alignments:
             if self._should_filter_alignment(aln):
@@ -540,11 +563,11 @@ class BaseCounter:
                 continue
 
             for i, (cigar_op, cigar_len) in enumerate(aln.cigartuples):
-                if ref_pos is not None and ref_pos > variant.pos + 1:
+                if ref_pos is not None and ref_pos > variant.bam_pos + 1:
                     break
 
                 if cigar_op == 0:  # Match/mismatch (M)
-                    if ref_pos is not None and ref_pos + cigar_len - 1 == variant.pos:
+                    if ref_pos is not None and ref_pos + cigar_len - 1 == variant.bam_pos:
                         # Found the variant position in a match
                         if i + 1 < len(aln.cigartuples):
                             next_op, next_len = aln.cigartuples[i + 1]
@@ -570,9 +593,9 @@ class BaseCounter:
                                 # Handle deletion case
                                 if (
                                     ref_pos is not None
-                                    and ref_pos <= variant.pos + 1 < ref_pos + cigar_len
+                                    and ref_pos <= variant.bam_pos + 1 < ref_pos + cigar_len
                                 ):
-                                    offset = variant.pos + 1 - ref_pos
+                                    offset = variant.bam_pos + 1 - ref_pos
                                     # For deletions, we count the reference base
                                     if (
                                         aln.query_sequence is not None
@@ -608,21 +631,8 @@ class BaseCounter:
                     if ref_pos is not None:
                         ref_pos += cigar_len
 
-        # Calculate fragment counts inline (no separate traversal)
-        if self.config.output_fragment_count:
-            dpf, rdf, adf, rdf_forward, rdf_reverse, adf_forward, adf_reverse = (
-                self._calculate_fragment_counts_with_orientation(dpf_map, rdf_map, adf_map)
-            )
-            counts[CountType.DPF] = dpf
-            counts[CountType.RDF] = rdf
-            counts[CountType.ADF] = adf
-            counts[CountType.RDF_FORWARD] = rdf_forward
-            counts[CountType.RDF_REVERSE] = rdf_reverse
-            counts[CountType.ADF_FORWARD] = adf_forward
-            counts[CountType.ADF_REVERSE] = adf_reverse
-
-        # Store counts using helper
-        self._store_sample_counts(variant, counts, sample_name)
+        # Use helper for common finalization
+        self._finalize_counting(variant, sample_name, counts, dpf_map, rdf_map, adf_map)
 
     def count_bases_generic(
         self, variant: VariantEntry, alignments: list[pysam.AlignedSegment], sample_name: str
@@ -647,7 +657,7 @@ class BaseCounter:
             ValueError: If inputs are invalid or counting fails
         """
         try:
-            # Validate inputs
+            # Validate inputs (keep this method-specific validation)
             if variant is None:
                 raise ValueError("Variant cannot be None")
             if not alignments:
@@ -657,13 +667,8 @@ class BaseCounter:
             if not sample_name:
                 raise ValueError("Sample name cannot be empty")
 
-            counts = self._initialize_counts()
-
-            # Fragment tracking for fragment counts
-            dpf_map, rdf_map, adf_map = self._initialize_fragment_maps()
-
-            # Reset fragment tracking for new variant
-            self._reset_fragment_tracking()
+            # Use helper for common initialization
+            counts, dpf_map, rdf_map, adf_map = self._initialize_counting()
 
             # Process each alignment with complete filtering and counting
             for aln in alignments:
@@ -676,7 +681,7 @@ class BaseCounter:
                 read_idx = None
 
                 for read_idx, ref_idx in aln.get_aligned_pairs(matches_only=False):
-                    if ref_idx == variant.pos and read_idx is not None:
+                    if ref_idx == variant.bam_pos and read_idx is not None:
                         if (
                             aln.query_sequence is not None
                             and aln.query_qualities is not None
@@ -705,21 +710,8 @@ class BaseCounter:
 
                     self._track_fragment_orientation(aln, allele_type)
 
-            # Calculate fragment counts inline (no separate traversal)
-            if self.config.output_fragment_count:
-                dpf, rdf, adf, rdf_forward, rdf_reverse, adf_forward, adf_reverse = (
-                    self._calculate_fragment_counts_with_orientation(dpf_map, rdf_map, adf_map)
-                )
-                counts[CountType.DPF] = dpf
-                counts[CountType.RDF] = rdf
-                counts[CountType.ADF] = adf
-                counts[CountType.RDF_FORWARD] = rdf_forward
-                counts[CountType.RDF_REVERSE] = rdf_reverse
-                counts[CountType.ADF_FORWARD] = adf_forward
-                counts[CountType.ADF_REVERSE] = adf_reverse
-
-            # Store counts using helper
-            self._store_sample_counts(variant, counts, sample_name)
+            # Use helper for common finalization
+            self._finalize_counting(variant, sample_name, counts, dpf_map, rdf_map, adf_map)
 
         except AttributeError as e:
             raise ValueError(f"Invalid variant object: {e}") from None

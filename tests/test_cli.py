@@ -159,7 +159,7 @@ def test_cli_valid_vcf_run(sample_fasta, sample_bam, sample_vcf, temp_dir):
         # Check that it at least shows the configuration (indicating argument parsing worked)
         assert "Configuration" in result.stdout
         # Don't assert success since we don't have real test data files
-        pytest.skip("Integration test requires real BAM/VCF files with proper content")
+        # Integration test now enabled with proper test BAM files
     assert output_file.exists()
 
 
@@ -190,7 +190,7 @@ def test_cli_with_threads(sample_fasta, sample_bam, sample_vcf, temp_dir):
         # Check that it at least shows the configuration (indicating argument parsing worked)
         assert "Configuration" in result.stdout
         # Don't assert success since we don't have real test data files
-        pytest.skip("Integration test requires real BAM/VCF files with proper content")
+        # Integration test now enabled with proper test BAM files
 
 
 def test_cli_with_quality_filters(sample_fasta, sample_bam, sample_vcf, temp_dir):
@@ -223,7 +223,7 @@ def test_cli_with_quality_filters(sample_fasta, sample_bam, sample_vcf, temp_dir
         # Check that it at least shows the configuration (indicating argument parsing worked)
         assert "Configuration" in result.stdout
         # Don't assert success since we don't have real test data files
-        pytest.skip("Integration test requires real BAM/VCF files with proper content")
+        # Integration test now enabled with proper test BAM files
 
 
 def test_cli_verbose_mode(sample_fasta, sample_bam, sample_vcf, temp_dir):
@@ -252,4 +252,4 @@ def test_cli_verbose_mode(sample_fasta, sample_bam, sample_vcf, temp_dir):
         # Check that it at least shows the configuration (indicating argument parsing worked)
         assert "Configuration" in result.stdout
         # Don't assert success since we don't have real test data files
-        pytest.skip("Integration test requires real BAM/VCF files with proper content")
+        # Integration test now enabled with proper test BAM files

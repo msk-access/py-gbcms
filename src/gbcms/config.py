@@ -5,6 +5,8 @@ import os
 from dataclasses import dataclass
 from enum import IntEnum
 
+from .chromosome_validator import ChromosomeValidator
+
 logger = logging.getLogger(__name__)
 
 
@@ -59,6 +61,7 @@ class Config:
     generic_counting: bool = False
     max_warning_per_type: int = 3
     validate_chromosomes: bool = True  # Enable chromosome validation
+    chromosome_validator: ChromosomeValidator | None = None  # Chromosome validator instance
 
     def __post_init__(self) -> None:
         """Validate configuration."""
@@ -117,8 +120,6 @@ class Config:
 
     def _validate_chromosome_consistency(self) -> None:
         """Validate chromosome names across all input files."""
-        from .chromosome_validator import ChromosomeValidator
-
         logger.info("Validating chromosome consistency across input files")
 
         try:
@@ -132,7 +133,9 @@ class Config:
                 # Fail if validation fails - chromosome format issues must be resolved
                 summary = validator.get_validation_summary()
                 logger.error(f"Chromosome validation failed:\\n{summary}")
-                raise ValueError("Chromosome format validation failed. Please ensure all input files use consistent chromosome naming.")
+                raise ValueError(
+                    "Chromosome format validation failed. Please ensure all input files use consistent chromosome naming."
+                )
 
         except Exception as e:
             logger.error(f"Chromosome validation failed: {e}")
