@@ -123,6 +123,7 @@ module = [
     "pysam.*",
     "numba.*",
     "cyvcf2.*",
+    "gbcms_rs",
 ]
 ignore_missing_imports = true
 

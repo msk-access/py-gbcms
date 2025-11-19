@@ -6,30 +6,30 @@ converting them into the internal normalized representation using CoordinateKern
 """
 
 import csv
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator, Optional
 
 import pysam
 from pydantic import ValidationError
 
 from ..core.kernel import CoordinateKernel
-from ..models.core import Variant, VariantType
+from ..models.core import Variant
 
 
 class VariantReader:
     """Abstract base class for variant readers."""
-    
+
     def __iter__(self) -> Iterator[Variant]:
         raise NotImplementedError
 
 
 class VcfReader(VariantReader):
     """Reads variants from a VCF file."""
-    
+
     def __init__(self, path: Path):
         self.path = path
         self._vcf = pysam.VariantFile(str(path))
-        
+
     def __iter__(self) -> Iterator[Variant]:
         for record in self._vcf:
             # VCF coordinates are 1-based
@@ -40,69 +40,76 @@ class VcfReader(VariantReader):
             # pysam record.pos is 0-based. record.start is 0-based.
             # The VCF file itself has 1-based POS.
             # If we use record.pos + 1, we get the VCF POS.
-            
+
             # Handle multiple ALTs
             for alt in record.alts or []:
-                # VCF POS is record.pos + 1
+                # VCF POS is record.pos (1-based) or record.start + 1
+                if not record.ref:
+                    continue # Skip if no REF
+                    
                 yield CoordinateKernel.vcf_to_internal(
                     chrom=record.chrom,
-                    pos=record.pos + 1, 
+                    pos=record.pos,
                     ref=record.ref,
                     alt=alt,
-                    original_id=record.id
+                    original_id=record.id,
                 )
-                
+
     def close(self):
         self._vcf.close()
 
 
 class MafReader(VariantReader):
     """Reads variants from a MAF file."""
-    
-    def __init__(self, path: Path, fasta_path: Optional[Path] = None):
+
+    def __init__(self, path: Path, fasta_path: Path | None = None):
         self.path = path
         self.fasta = pysam.FastaFile(str(fasta_path)) if fasta_path else None
-        
+
     def __iter__(self) -> Iterator[Variant]:
-        with open(self.path, 'r') as f:
+        with open(self.path) as f:
             # Skip comments
             while True:
                 pos = f.tell()
                 line = f.readline()
-                if not line.startswith('#'):
+                if not line.startswith("#"):
                     f.seek(pos)
                     break
-            
-            reader = csv.DictReader(f, delimiter='\t')
-            
+
+            reader = csv.DictReader(f, delimiter="\t")
+
             for row in reader:
                 try:
-                    chrom = row['Chromosome']
-                    start_pos = int(row['Start_Position'])
-                    ref = row['Reference_Allele']
-                    alt = row['Tumor_Seq_Allele2'] # Standard MAF alt column
-                    
+                    chrom = row["Chromosome"]
+                    start_pos = int(row["Start_Position"])
+                    ref = row["Reference_Allele"]
+                    alt = row["Tumor_Seq_Allele2"]  # Standard MAF alt column
+
                     # Normalize Indels if FASTA is available
-                    if self.fasta and (ref == '-' or alt == '-'):
-                        if ref == '-': # Insertion
+                    if self.fasta and (ref == "-" or alt == "-"):
+                        if ref == "-":  # Insertion
                             # MAF Start_Position is the base BEFORE the insertion (anchor)
                             # 1-based coordinate
                             anchor_pos_1based = start_pos
                             anchor_pos_0based = anchor_pos_1based - 1
-                            
+
                             # Fetch anchor base
                             # Try normalized and original chromosome names
                             norm_chrom = CoordinateKernel.normalize_chromosome(chrom)
                             try:
-                                anchor_base = self.fasta.fetch(norm_chrom, anchor_pos_0based, anchor_pos_0based + 1).upper()
+                                anchor_base = self.fasta.fetch(
+                                    norm_chrom, anchor_pos_0based, anchor_pos_0based + 1
+                                ).upper()
                             except (KeyError, ValueError):
                                 try:
-                                    anchor_base = self.fasta.fetch(chrom, anchor_pos_0based, anchor_pos_0based + 1).upper()
+                                    anchor_base = self.fasta.fetch(
+                                        chrom, anchor_pos_0based, anchor_pos_0based + 1
+                                    ).upper()
                                 except (KeyError, ValueError):
                                     # If both fail, we can't normalize. Skip or raise?
                                     # For now, skip/log
                                     continue
-                            
+
                             # VCF Style:
                             # POS = anchor_pos_1based
                             # REF = anchor_base
@@ -110,24 +117,28 @@ class MafReader(VariantReader):
                             vcf_pos = anchor_pos_1based
                             vcf_ref = anchor_base
                             vcf_alt = anchor_base + alt
-                            
-                        else: # Deletion (alt == '-')
+
+                        else:  # Deletion (alt == '-')
                             # MAF Start_Position is the FIRST DELETED base
                             # Anchor is the base before that
                             first_deleted_1based = start_pos
                             anchor_pos_1based = first_deleted_1based - 1
                             anchor_pos_0based = anchor_pos_1based - 1
-                            
+
                             # Fetch anchor base
                             norm_chrom = CoordinateKernel.normalize_chromosome(chrom)
                             try:
-                                anchor_base = self.fasta.fetch(norm_chrom, anchor_pos_0based, anchor_pos_0based + 1).upper()
+                                anchor_base = self.fasta.fetch(
+                                    norm_chrom, anchor_pos_0based, anchor_pos_0based + 1
+                                ).upper()
                             except (KeyError, ValueError):
                                 try:
-                                    anchor_base = self.fasta.fetch(chrom, anchor_pos_0based, anchor_pos_0based + 1).upper()
+                                    anchor_base = self.fasta.fetch(
+                                        chrom, anchor_pos_0based, anchor_pos_0based + 1
+                                    ).upper()
                                 except (KeyError, ValueError):
                                     continue
-                            
+
                             # VCF Style:
                             # POS = anchor_pos_1based
                             # REF = anchor_base + deleted_seq
@@ -135,51 +146,46 @@ class MafReader(VariantReader):
                             vcf_pos = anchor_pos_1based
                             vcf_ref = anchor_base + ref
                             vcf_alt = anchor_base
-                            
+
                         yield CoordinateKernel.vcf_to_internal(
-                            chrom=chrom,
-                            pos=vcf_pos,
-                            ref=vcf_ref,
-                            alt=vcf_alt
+                            chrom=chrom, pos=vcf_pos, ref=vcf_ref, alt=vcf_alt
                         )
                     else:
                         # Fallback to old behavior or direct mapping for SNPs
                         # For SNPs, MAF Start_Position == VCF POS
-                        if len(ref) == len(alt) == 1 and ref != '-' and alt != '-':
-                             yield CoordinateKernel.vcf_to_internal(
-                                chrom=chrom,
-                                pos=start_pos,
-                                ref=ref,
-                                alt=alt
+                        if len(ref) == len(alt) == 1 and ref != "-" and alt != "-":
+                            yield CoordinateKernel.vcf_to_internal(
+                                chrom=chrom, pos=start_pos, ref=ref, alt=alt
                             )
                         else:
-                             # Fallback for complex/unhandled without FASTA
-                             # This might fail in Rust engine if it expects anchor
-                             yield CoordinateKernel.maf_to_internal(
+                            # Fallback for complex/unhandled without FASTA
+                            # This might fail in Rust engine if it expects anchor
+                            yield CoordinateKernel.maf_to_internal(
                                 chrom=chrom,
                                 start_pos=start_pos,
-                                end_pos=int(row['End_Position']),
+                                end_pos=int(row["End_Position"]),
                                 ref=ref,
-                                alt=alt
+                                alt=alt,
                             )
 
-                except (KeyError, ValueError, ValidationError) as e:
+                except (KeyError, ValueError, ValidationError):
                     # Log warning or skip malformed lines
                     continue
-                    
+
     def close(self):
         if self.fasta:
             self.fasta.close()
+
 
 class ReferenceChecker:
     """
     Utility to check variants against a reference FASTA.
     Ensures that the REF allele matches the genome.
     """
-    
+
     def __init__(self, fasta_path: Path):
         self.fasta = pysam.FastaFile(str(fasta_path))
-        
+
     def validate(self, variant: Variant) -> bool:
         """
         Check if variant REF matches reference genome.
@@ -187,14 +193,30 @@ class ReferenceChecker:
         # Variant pos is 0-based.
         # Fetch sequence of length REF
         try:
-            ref_seq = self.fasta.fetch(
-                variant.chrom, 
-                variant.pos, 
-                variant.pos + len(variant.ref)
-            )
+            # Try normalized and potentially 'chr' prefixed chromosome names
+            chrom = variant.chrom
+            # chrom is already normalized (e.g. "1") by CoordinateKernel
+
+            ref_seq = None
+            try:
+                ref_seq = self.fasta.fetch(chrom, variant.pos, variant.pos + len(variant.ref))
+            except (ValueError, KeyError):
+                try:
+                    # Try adding 'chr' prefix
+                    ref_seq = self.fasta.fetch(
+                        f"chr{chrom}", variant.pos, variant.pos + len(variant.ref)
+                    )
+                except (ValueError, KeyError) as e:
+                    print(f"DEBUG: Failed to fetch {chrom} and chr{chrom}: {e}")
+                    return False
+
+            if ref_seq is None:
+                return False
+
             return ref_seq.upper() == variant.ref.upper()
-        except (ValueError, KeyError):
+
+        except Exception:
             return False
-            
+
     def close(self):
         self.fasta.close()

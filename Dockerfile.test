@@ -15,7 +15,12 @@ RUN apt-get update && apt-get install -y \
     libhts-dev \
     samtools \
     git \
+    curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Rust toolchain
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Install uv
 RUN pip install --no-cache-dir uv
@@ -33,7 +38,8 @@ COPY tests/ ./tests/
 RUN uv pip install --system --no-cache ".[dev,all]"
 
 # Verify installation
-RUN gbcms version
+# Verify installation
+RUN gbcms --help
 
 # Run tests by default
 CMD ["pytest", "-v", "--cov=gbcms", "--cov-report=term-missing"]

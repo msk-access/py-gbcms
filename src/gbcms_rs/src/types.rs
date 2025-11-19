@@ -18,7 +18,13 @@ pub struct Variant {
 #[pymethods]
 impl Variant {
     #[new]
-    pub fn new(chrom: String, pos: i64, ref_allele: String, alt_allele: String, variant_type: String) -> Self {
+    pub fn new(
+        chrom: String,
+        pos: i64,
+        ref_allele: String,
+        alt_allele: String,
+        variant_type: String,
+    ) -> Self {
         Variant {
             chrom,
             pos,
@@ -61,7 +67,7 @@ pub struct BaseCounts {
     pub rdf: u32,
     #[pyo3(get)]
     pub adf: u32,
-    
+
     // Fragment strand counts
     #[pyo3(get)]
     pub rdf_fwd: u32,
@@ -71,7 +77,7 @@ pub struct BaseCounts {
     pub adf_fwd: u32,
     #[pyo3(get)]
     pub adf_rev: u32,
-    
+
     // Stats
     #[pyo3(get)]
     pub sb_pval: f64,
