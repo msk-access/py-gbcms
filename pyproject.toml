@@ -6,7 +6,7 @@ authors = [
     {name = "MSK-ACCESS", email = "shahr2@mskcc.org"}
 ]
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 license = {text = "AGPL-3.0"}
 keywords = ["bioinformatics", "genomics", "bam", "vcf", "maf", "base-counts", "gbcms"]
 classifiers = [
@@ -19,13 +19,10 @@ classifiers = [
 ]
 
 dependencies = [
-    "pysam>=0.22.0",
-    "numpy>=1.24.0",
+    "pysam>=0.21.0",
     "typer>=0.9.0",
     "rich>=13.0.0",
-    "pandas>=2.0.0",
-    "numba>=0.58.0",
-    "scipy>=1.11.0",
+    "pydantic>=2.0.0",
 ]
 
 [project.optional-dependencies]

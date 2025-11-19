@@ -56,6 +56,8 @@ test_data/
 *.maf
 output/
 results/
+test_output*/
+*.txt
 
 # Logs
 *.log

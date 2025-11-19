@@ -22,13 +22,15 @@ pip install gbcms
 
 ```bash
 # Count variants from VCF with BAM alignments
-gbcms count run --fasta reference.fa --bam sample1:sample1.bam --vcf variants.vcf --output results.vcf
+python -m gbcms.cli run --fasta reference.fa --bam sample1.bam --variants variants.vcf --output-dir results/
 
 # Count variants from MAF with BAM alignments (sample-agnostic MAF output)
-gbcms count run --fasta reference.fa --bam sample1:sample1.bam --maf variants.maf --output results.maf
+python -m gbcms.cli run --fasta reference.fa --bam sample1.bam --variants variants.maf --output-dir results/ --format maf
 
-# Enable fragment counting
-gbcms count run --fasta reference.fa --bam sample1:sample1.bam --vcf variants.vcf --output results.vcf --fragment-count
+# Process multiple BAMs using a File of Files (FoF)
+python -m gbcms.cli run --fasta reference.fa --bam-list bam_list.txt --variants variants.vcf --output-dir results/
+
+# Enable fragment counting (implicit in v2, always calculated)
 ```
 
 ## Variant Classification and Counting Strategy
