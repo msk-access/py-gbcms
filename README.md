@@ -4,12 +4,13 @@
 
 ## Features
 
-- **Complete variant analysis**: SNP, DNP, insertion, deletion, and complex variants
+- **High Performance**: **Rust-powered** core engine with multi-threading support for maximum speed.
+- **Complete variant analysis**: SNP, MNP, insertion, deletion, and **complex variants** (DelIns, SNP+Indel)
 - **Orientation-aware counting**: Forward and reverse strand analysis
 - **Fragment counting**: Proper fragment-level analysis with orientation using **Majority Rule** approach
 - **Statistical analysis**: Strand bias calculation using Fisher's exact test
 - **Multiple input formats**: VCF and MAF file support
-- **Multiple output formats**: VCF, MAF, and Fillout format support
+- **Multiple output formats**: VCF and MAF support
 - **Comprehensive filtering**: 7 quality control conditions
 
 ## Installation
@@ -39,13 +40,14 @@ gbcms automatically classifies variants and uses appropriate counting methods:
 
 ### Variant Classification
 - **SNP**: Single nucleotide variants (e.g., A→T)
+- **MNP**: Multi-nucleotide polymorphisms (e.g., AT→CG)
 - **Insertion**: Insertions after single reference base (e.g., A→ATC)
 - **Deletion**: Deletions to single alternate base (e.g., ATC→A)
 - **Complex**: Multi-base variants and complex indels
 
 ### Counting Methods
 - **Standard counting**: Optimized methods for SNP, insertion, and deletion variants
-- **Generic counting**: Complete analysis for complex variants with CIGAR string parsing
+- **Haplotype Reconstruction**: Advanced sequence reconstruction for complex variants (e.g. DelIns, SNP+Indel) to ensure accurate counting regardless of CIGAR complexity.
 
 All methods provide identical output including read counts, strand analysis, fragment counts, and statistical analysis readiness.
 

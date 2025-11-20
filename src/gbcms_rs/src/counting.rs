@@ -9,6 +9,7 @@ use crate::types::{BaseCounts, Variant};
 use rayon::prelude::*;
 
 use anyhow::{Context, Result};
+use log::{debug, warn};
 
 /// Count bases for a list of variants in a BAM file.
 #[pyfunction]
@@ -232,21 +233,168 @@ fn check_allele(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, boo
         "INSERTION" => check_insertion(record, variant),
         "DELETION" => check_deletion(record, variant),
         "MNP" => {
-            println!("DEBUG: Dispatching to check_mnp");
+            debug!("Dispatching to check_mnp");
             check_mnp(record, variant, min_baseq)
         },
+        "COMPLEX" => check_complex(record, variant, min_baseq),
         _ => {
             // Auto-detect MNP if type is not explicit but looks like one
             if variant.ref_allele.len() == variant.alt_allele.len()
                 && variant.ref_allele.len() > 1
             {
-                println!("DEBUG: Auto-detected MNP");
+                debug!("Auto-detected MNP");
                 check_mnp(record, variant, min_baseq)
             } else {
-                (false, false)
+                // Fallback to complex check for anything else (e.g. DelIns)
+                check_complex(record, variant, min_baseq)
             }
         }
     }
+}
+
+fn check_complex(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool) {
+    // Haplotype Reconstruction Strategy
+    // 1. Identify genomic region of REF allele: [start, end)
+    // 2. Traverse CIGAR to reconstruct the sequence the read has for this region.
+    //    - Match/Mismatch: Append base.
+    //    - Insertion: Append inserted bases (if occurring within/at start of region).
+    //    - Deletion: Skip (do not append).
+    // 3. Compare reconstructed sequence to ALT allele.
+
+    let start_pos = variant.pos;
+    let end_pos = variant.pos + variant.ref_allele.len() as i64; // Exclusive end
+
+    let cigar = record.cigar();
+    let mut ref_pos = record.pos();
+    let mut read_pos = 0;
+    let seq = record.seq();
+    let quals = record.qual();
+
+    let mut reconstructed_seq = Vec::new();
+    let mut min_qual_observed = 255u8;
+
+    debug!("check_complex start: pos={} ref={} alt={}", start_pos, variant.ref_allele, variant.alt_allele);
+
+    for op in cigar.iter() {
+        match op {
+            Cigar::Match(len) | Cigar::Equal(len) | Cigar::Diff(len) => {
+                let len_i64 = *len as i64;
+                let len_usize = *len as usize;
+
+                // Intersection of [ref_pos, ref_pos + len) and [start_pos, end_pos)
+                let overlap_start = std::cmp::max(ref_pos, start_pos);
+                let overlap_end = std::cmp::min(ref_pos + len_i64, end_pos);
+
+                debug!("Match op len={} ref_pos={} overlap=[{}, {})", len, ref_pos, overlap_start, overlap_end);
+
+                if overlap_start < overlap_end {
+                    // We have overlap
+                    let offset_in_op = (overlap_start - ref_pos) as usize;
+                    let overlap_len = (overlap_end - overlap_start) as usize;
+
+                    let current_read_pos = read_pos + offset_in_op;
+                    
+                    for i in 0..overlap_len {
+                        let p = current_read_pos + i;
+                        if p >= seq.len() { break; } // Should not happen if BAM is valid
+                        
+                        let base = seq[p];
+                        let qual = quals[p];
+                        reconstructed_seq.push(base);
+                        if qual < min_qual_observed {
+                            min_qual_observed = qual;
+                        }
+                    }
+                }
+                ref_pos += len_i64;
+                read_pos += len_usize;
+            }
+            Cigar::Ins(len) => {
+                let len_usize = *len as usize;
+                debug!("Ins op len={} ref_pos={}", len, ref_pos);
+                
+                if ref_pos >= start_pos && ref_pos <= end_pos {
+                     for i in 0..len_usize {
+                        let p = read_pos + i;
+                        if p >= seq.len() { break; }
+                        let base = seq[p];
+                        let qual = quals[p];
+                         reconstructed_seq.push(base);
+                         if qual < min_qual_observed {
+                            min_qual_observed = qual;
+                        }
+                     }
+                }
+                
+                read_pos += len_usize;
+            }
+            Cigar::Del(len) | Cigar::RefSkip(len) => {
+                debug!("Del op len={} ref_pos={}", len, ref_pos);
+                ref_pos += *len as i64;
+            }
+            Cigar::SoftClip(len) => {
+                read_pos += *len as usize;
+            }
+            Cigar::HardClip(_) | Cigar::Pad(_) => {}
+        }
+    }
+
+    let reconstructed_str = String::from_utf8_lossy(&reconstructed_seq);
+    debug!("Reconstructed: '{}' (len={})", reconstructed_str, reconstructed_seq.len());
+
+    // Compare reconstructed sequence to ALT
+    let alt_bytes = variant.alt_allele.as_bytes();
+    
+    // Convert reconstructed to bytes for comparison (it's already Vec<u8>)
+    // But we need to handle case sensitivity
+    if reconstructed_seq.len() != alt_bytes.len() {
+        debug!("Len mismatch ALT: {} != {}", reconstructed_seq.len(), alt_bytes.len());
+    } else {
+        let mut matches_alt = true;
+        for (i, &b) in reconstructed_seq.iter().enumerate() {
+            if b.to_ascii_uppercase() != alt_bytes[i].to_ascii_uppercase() {
+                matches_alt = false;
+                break;
+            }
+        }
+        
+        if matches_alt {
+            if min_qual_observed < min_baseq {
+                debug!("Matches ALT but low qual: {} < {}", min_qual_observed, min_baseq);
+                return (false, false);
+            }
+            debug!("Matches ALT");
+            return (false, true); // Matches ALT
+        }
+    }
+    
+    // Check REF?
+    let ref_bytes = variant.ref_allele.as_bytes();
+    debug!("Checking REF. ReconLen={} RefLen={}", reconstructed_seq.len(), ref_bytes.len());
+    
+    if reconstructed_seq.len() == ref_bytes.len() {
+        let mut matches_ref = true;
+        for (i, &b) in reconstructed_seq.iter().enumerate() {
+            let rb = ref_bytes[i].to_ascii_uppercase();
+            let bb = b.to_ascii_uppercase();
+            if bb != rb {
+                debug!("Mismatch at {}: {} != {}", i, bb as char, rb as char);
+                matches_ref = false;
+                break;
+            }
+        }
+        if matches_ref {
+             if min_qual_observed < min_baseq {
+                debug!("Matches REF but low qual: {} < {}", min_qual_observed, min_baseq);
+                return (false, false);
+            }
+            debug!("Matches REF");
+            return (true, false);
+        }
+    }
+
+    debug!("No match");
+    (false, false)
 }
 
 fn check_snp(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool) {

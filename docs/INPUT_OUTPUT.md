@@ -3,7 +3,12 @@
 ## Input Formats
 
 ### Variants
-gbcms supports **VCF** and **MAF** formats for defining the variants to count.
+gbcms supports **VCF** and **MAF** formats for defining the variants to count. It handles:
+*   **SNPs**: Single Nucleotide Polymorphisms.
+*   **MNPs**: Multi-Nucleotide Polymorphisms.
+*   **Insertions**: Pure insertions.
+*   **Deletions**: Pure deletions.
+*   **Complex**: Mixed variants (e.g., DelIns, SNP+Indel). These are handled via **Haplotype Reconstruction**, where the read's sequence is reconstructed and compared to the ALT allele.
 
 *   **VCF (`.vcf`, `.vcf.gz`)**: Standard format. Coordinates are 1-based.
 *   **MAF (`.maf`)**: Mutation Annotation Format.

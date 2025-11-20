@@ -254,6 +254,130 @@ def test_insertion_accuracy(synthetic_bam):
     assert counts.ad_fwd == 2
     assert counts.ad == 2
 
+def test_complex_accuracy(synthetic_bam):
+    """
+    Test accuracy for complex variants (DelIns, SNP+Indel) using check_complex.
+    """
+    import gbcms_rs
+    bam_path = synthetic_bam
+
+    # 1. Deletion + SNP: REF=AT, ALT=C (Del T, SNP A->C)
+    # Read: C (at pos 0), nothing at pos 1.
+    # We need to inject a read that has a mismatch and a deletion.
+    # This is hard to do with simple pysam.AlignedSegment construction without CIGAR manipulation.
+    # But we can construct CIGAR.
+    
+    # 2. SNP + Insertion: REF=A, ALT=CT (SNP A->C, Ins T)
+    
+    # 3. MNP + Deletion: REF=AAAT, ALT=CG (MNP AA->CG, Del AT)
+    
+    # We will create a separate BAM for these complex cases to have full control.
+    import pysam
+    import os
+    
+    complex_bam = "test_complex.bam"
+    
+    # Create header
+    header = { 'HD': {'VN': '1.0'}, 'SQ': [{'LN': 1000, 'SN': 'chr1'}] }
+    
+    with pysam.AlignmentFile(complex_bam, "wb", header=header) as outf:
+        # Case 1: Del + SNP (REF=AT, ALT=C) at pos 100
+        # Read 1: REF (AT) -> Match 2M. Seq=AT
+        a = pysam.AlignedSegment()
+        a.query_name = "read_del_snp_ref"
+        a.query_sequence = "AT"
+        a.flag = 0
+        a.reference_id = 0
+        a.reference_start = 100
+        a.mapping_quality = 60
+        a.cigar = ((0, 2),) # 2M
+        a.query_qualities = [30, 30]
+        outf.write(a)
+        
+        # Read 2: ALT (C) -> 1X1D. Seq=C.
+        # pysam doesn't support X in CIGAR easily for writing? 
+        # Actually BAM uses M for match/mismatch usually, but we can use X/=.
+        # Let's use M for mismatch (standard BAM). 
+        # If we use M, we rely on sequence comparison.
+        # Ref is AT. Read is C.
+        # Alignment: 1M1D.
+        # Pos 100: Ref A, Read C -> Mismatch.
+        # Pos 101: Ref T, Read Gap -> Deletion.
+        b = pysam.AlignedSegment()
+        b.query_name = "read_del_snp_alt"
+        b.query_sequence = "C"
+        b.flag = 0
+        b.reference_id = 0
+        b.reference_start = 100
+        b.mapping_quality = 60
+        b.cigar = ((0, 1), (2, 1)) # 1M 1D
+        b.query_qualities = [30]
+        outf.write(b)
+
+        # Case 2: SNP + Insertion (REF=A, ALT=CT) at pos 200
+        # Read 1: REF (A) -> 1M. Seq=A
+        c = pysam.AlignedSegment()
+        c.query_name = "read_snp_ins_ref"
+        c.query_sequence = "A"
+        c.flag = 0
+        c.reference_id = 0
+        c.reference_start = 200
+        c.mapping_quality = 60
+        c.cigar = ((0, 1),) # 1M
+        c.query_qualities = [30]
+        outf.write(c)
+        
+        # Read 2: ALT (CT) -> 1M1I. Seq=CT.
+        # Ref A, Read C -> Mismatch (1M).
+        # Ins T -> 1I.
+        d = pysam.AlignedSegment()
+        d.query_name = "read_snp_ins_alt"
+        d.query_sequence = "CT"
+        d.flag = 0
+        d.reference_id = 0
+        d.reference_start = 200
+        d.mapping_quality = 60
+        d.cigar = ((0, 1), (1, 1)) # 1M 1I
+        d.query_qualities = [30, 30]
+        outf.write(d)
+
+    pysam.sort("-o", "test_complex.sorted.bam", complex_bam)
+    pysam.index("test_complex.sorted.bam")
+    
+    variants = [
+        gbcms_rs.Variant("chr1", 100, "AT", "C", "COMPLEX"),
+        gbcms_rs.Variant("chr1", 200, "A", "CT", "COMPLEX")
+    ]
+    
+    counts = gbcms_rs.count_bam(
+        bam_path="test_complex.sorted.bam",
+        variants=variants,
+        min_mapq=20,
+        min_baseq=20,
+        filter_duplicates=True,
+        filter_secondary=True,
+        filter_supplementary=True
+    )
+    
+    # Cleanup
+    if os.path.exists(complex_bam): os.remove(complex_bam)
+    if os.path.exists("test_complex.sorted.bam"): os.remove("test_complex.sorted.bam")
+    if os.path.exists("test_complex.sorted.bam.bai"): os.remove("test_complex.sorted.bam.bai")
+
+    assert len(counts) == 2
+    
+    # Case 1: Del + SNP
+    # REF read: AT (matches REF AT) -> RD=1
+    # ALT read: C (matches ALT C) -> AD=1
+    assert counts[0].rd == 1
+    assert counts[0].ad == 1
+    
+    # Case 2: SNP + Ins
+    # REF read: A (matches REF A) -> RD=1
+    # ALT read: CT (matches ALT CT) -> AD=1
+    assert counts[1].rd == 1
+    assert counts[1].ad == 1
+
 def test_deletion_accuracy(synthetic_bam):
     from gbcms_rs import Variant
     variant = Variant(

@@ -12,6 +12,14 @@ from .pipeline import Pipeline
 app = typer.Typer(help="gbcms: Get Base Counts Multi-Sample")
 
 
+@app.callback()
+def main():
+    """
+    gbcms: Get Base Counts Multi-Sample
+    """
+    pass
+
+
 @app.command()
 def run(
     variant_file: Path = typer.Option(
@@ -36,11 +44,25 @@ def run(
     threads: int = typer.Option(
         1, "--threads", "-t", help="Number of threads (not yet implemented in v2 python layer)"
     ),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-V", help="Enable verbose debug logging"
+    ),
 ):
     """
     Run gbcms on one or more BAM files.
     """
     from rich.console import Console
+    from rich.logging import RichHandler
+    import logging
+
+    # Configure logging
+    log_level = logging.DEBUG if verbose else logging.INFO
+    logging.basicConfig(
+        level=log_level,
+        format="%(message)s",
+        datefmt="[%X]",
+        handlers=[RichHandler(rich_tracebacks=True, markup=True)]
+    )
 
     console = Console()
 
