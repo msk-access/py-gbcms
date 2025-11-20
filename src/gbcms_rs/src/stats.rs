@@ -1,4 +1,4 @@
-use statrs::distribution::{Discrete, DiscreteCDF, Hypergeometric};
+use statrs::distribution::{Discrete, Hypergeometric};
 
 /// Calculate Fisher's Exact Test for strand bias.
 ///
@@ -55,11 +55,7 @@ pub fn fisher_strand_bias(ref_fwd: u32, ref_rev: u32, alt_fwd: u32, alt_rev: u32
 
     // Sum probabilities of all tables with p <= p_observed
     // Range of possible values for cell 'a' is [max(0, row1_sum + col1_sum - n), min(row1_sum, col1_sum)]
-    let min_a = if row1_sum + col1_sum > n {
-        row1_sum + col1_sum - n
-    } else {
-        0
-    };
+    let min_a = (row1_sum + col1_sum).saturating_sub(n);
     let max_a = if row1_sum < col1_sum {
         row1_sum
     } else {
