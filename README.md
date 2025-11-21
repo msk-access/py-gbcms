@@ -1,4 +1,8 @@
-# gbcms: Genomic Base Count and Analysis
+# gbcms: GetBaseCounts Multi-Sample for variant counting from BAM files
+
+An adaptation of the original gbcms tool to be used as a multi-sample variant counting system.
+
+Original gbcms: https://github.com/zengzheng123/GetBaseCountsMultiSample
 
 **Complete orientation-aware counting system for genomic variants**
 
@@ -12,6 +16,16 @@
 - **Multiple input formats**: VCF and MAF file support
 - **Multiple output formats**: VCF and MAF support
 - **Comprehensive filtering**: 7 quality control conditions
+
+## 📚 Documentation
+
+**Full documentation is available at: https://msk-access.github.io/py-gbcms/**
+
+- [Quick Start Guide](https://msk-access.github.io/py-gbcms/quick-start.html)
+- [Installation Guide](https://msk-access.github.io/py-gbcms/INSTALLATION.html)
+- [CLI Reference](https://msk-access.github.io/py-gbcms/CLI_FEATURES.html)
+- [Advanced Usage](https://msk-access.github.io/py-gbcms/advanced-usage.html)
+- [Architecture](https://msk-access.github.io/py-gbcms/architecture.html)
 
 ## Installation
 
