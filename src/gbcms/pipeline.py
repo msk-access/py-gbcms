@@ -107,6 +107,7 @@ class Pipeline:
                         filter_qc_failed=self.config.filter_qc_failed,
                         filter_improper_pair=self.config.filter_improper_pair,
                         filter_indel=self.config.filter_indel,
+                        threads=self.config.threads,
                     )
 
                     # Write Output

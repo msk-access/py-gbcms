@@ -17,6 +17,7 @@ gbcms run [OPTIONS]
 | `--bam-list` | `-L` | Path to a file containing a list of BAM paths (one per line, optional ID column). | No* |
 | `--format` | | Output format: `vcf` or `maf`. Default: `vcf`. | No |
 | `--suffix` | `-S` | Suffix to append to output filename (e.g. `.genotyped`). | No |
+| `--threads` | `-t` | Number of threads. Default: `1`. | No |
 | `--min-mapq` | | Minimum mapping quality (MAPQ) to include a read. Default: `20`. | No |
 | `--min-baseq` | | Minimum base quality to count a base. Default: `0`. | No |
 | `--filter-duplicates` | | Filter duplicate reads. Default: `True`. | No |

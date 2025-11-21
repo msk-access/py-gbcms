@@ -15,8 +15,21 @@
 
 ## Installation
 
+For detailed installation instructions, including building from source and using Docker, see [Installation Guide](docs/INSTALLATION.md).
+
+### Quick Install (from source)
+
 ```bash
-pip install gbcms
+# Requires Rust toolchain
+pip install .
+```
+
+### Docker
+
+```bash
+docker pull msk-access/gbcms:latest
+# or build locally
+docker build -t gbcms:latest .
 ```
 
 ## Quick Start

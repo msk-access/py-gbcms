@@ -281,7 +281,9 @@ class VcfWriter(OutputWriter):
             "##source=gbcms_v2",
             '##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">',
             '##INFO=<ID=SB_PVAL,Number=1,Type=Float,Description="Fisher strand bias p-value">',
+            '##INFO=<ID=SB_OR,Number=1,Type=Float,Description="Fisher strand bias odds ratio">',
             '##INFO=<ID=FSB_PVAL,Number=1,Type=Float,Description="Fisher fragment strand bias p-value">',
+            '##INFO=<ID=FSB_OR,Number=1,Type=Float,Description="Fisher fragment strand bias odds ratio">',
             '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
             '##FORMAT=<ID=AD,Number=2,Type=Integer,Description="Allelic depths for the ref and alt alleles (fwd,rev)">',
             '##FORMAT=<ID=DP,Number=2,Type=Integer,Description="Approximate read depth (ref_total,alt_total)">',
@@ -303,7 +305,7 @@ class VcfWriter(OutputWriter):
         pos = variant.pos + 1
 
         # INFO fields
-        info = f"DP={counts.dp};SB_PVAL={counts.sb_pval:.4e};FSB_PVAL={counts.fsb_pval:.4e}"
+        info = f"DP={counts.dp};SB_PVAL={counts.sb_pval:.4e};SB_OR={counts.sb_or:.4f};FSB_PVAL={counts.fsb_pval:.4e};FSB_OR={counts.fsb_or:.4f}"
 
         # FORMAT fields
         # GT: Simple 0/1 if alt > 0? Or ./1?

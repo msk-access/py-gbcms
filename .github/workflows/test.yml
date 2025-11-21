@@ -64,6 +64,14 @@ jobs:
 
       - name: Install package and test basic functionality
         run: |
+          # Install maturin to build the Rust extension
+          uv pip install --system maturin
+
+          # Build and install the Rust extension first
+          cd src/gbcms_rs
+          maturin develop --release
+          cd ../..
+
           # Install without fast dependencies on Ubuntu due to htslib issues
           if [ "$RUNNER_OS" = "Linux" ]; then
             uv pip install --system -e ".[dev]"
@@ -109,9 +117,18 @@ jobs:
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
 
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Install dependencies
         run: |
-          uv pip install --system  scipy-stubs
+          uv pip install --system scipy-stubs maturin
+          
+          # Build and install the Rust extension
+          cd src/gbcms_rs
+          maturin develop --release
+          cd ../..
+          
           uv pip install --system -e ".[dev]"
 
       - name: Run black

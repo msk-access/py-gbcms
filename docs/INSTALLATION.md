@@ -38,3 +38,31 @@ gbcms --help
 ```
 
 You should see the help message for the `gbcms` command.
+
+## Using Docker
+
+Docker is the recommended way to run gbcms to ensure a consistent environment.
+
+### 1. Build the Image
+
+```bash
+docker build -t gbcms:latest .
+```
+
+### 2. Run with Docker
+
+When running with Docker, you need to mount your data directories so the container can access them.
+
+```bash
+docker run --rm \
+    -v /path/to/data:/data \
+    gbcms:latest \
+    run \
+    --variants /data/variants.vcf \
+    --fasta /data/reference.fa \
+    --bam /data/sample.bam \
+    --output-dir /data/output
+```
+
+**Note**: All paths passed to `gbcms` must be paths *inside* the container (e.g., `/data/...`).
+

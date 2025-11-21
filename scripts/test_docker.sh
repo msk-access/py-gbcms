@@ -50,13 +50,7 @@ fi
 
 echo
 
-# Test 4: Check cyvcf2 availability
-echo "Test 4: Checking cyvcf2 availability..."
-if docker run --rm gbcms:test-build python -c "import cyvcf2; print('cyvcf2 version:', cyvcf2.__version__)" ; then
-    echo -e "${GREEN}✅ cyvcf2 is available${NC}"
-else
-    echo -e "${YELLOW}⚠️  cyvcf2 not available (optional)${NC}"
-fi
+
 
 echo
 

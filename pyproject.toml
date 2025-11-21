@@ -26,14 +26,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-fast = [
-    "cyvcf2>=0.30.0",
-]
+fast = []
 
-
-all = [
-    "cyvcf2>=0.30.0",
-]
+all = []
 
 dev = [
     "pytest>=7.4.0",
@@ -42,7 +37,6 @@ dev = [
     "black>=23.0.0",
     "ruff>=0.1.0",
     "mypy>=1.5.0",
-    "pre-commit>=3.3.0",
     "types-pyyaml>=6.0.0",
 ]
 
@@ -121,8 +115,6 @@ disable_error_code = ["call-arg"]
 [[tool.mypy.overrides]]
 module = [
     "pysam.*",
-    "numba.*",
-    "cyvcf2.*",
     "gbcms_rs",
 ]
 ignore_missing_imports = true
@@ -146,7 +138,6 @@ exclude_lines = [
 dev = [
     "black>=25.9.0",
     "mypy>=1.18.2",
-    "pre-commit>=4.3.0",
     "pytest>=8.4.2",
     "pytest-cov>=4.1.0",
     "pytest-benchmark>=5.1.0",

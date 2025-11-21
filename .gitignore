@@ -33,6 +33,9 @@ htmlcov/
 .tox/
 coverage.xml
 *.cover
+.mypy_cache/
+.ruff_cache/
+.benchmarks/
 
 # IDEs
 .vscode/

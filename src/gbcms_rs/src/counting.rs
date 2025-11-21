@@ -25,45 +25,54 @@ pub fn count_bam(
     filter_qc_failed: bool,
     filter_improper_pair: bool,
     filter_indel: bool,
+    threads: usize,
 ) -> PyResult<Vec<BaseCounts>> {
     // We cannot share a single IndexedReader across threads because it's not Sync.
     // Instead, we use rayon's map_init to initialize a reader for each thread.
     // This is efficient because map_init reuses the thread-local state (the reader)
     // for multiple items processed by that thread.
 
+    // Configure thread pool
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(threads)
+        .build()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to build thread pool: {}", e)))?;
+
     // Release GIL for parallel execution
     let results: Result<Vec<BaseCounts>, anyhow::Error> = py.allow_threads(move || {
-        variants
-            .par_iter()
-            .map_init(
-                || {
-                    // Initialize thread-local BAM reader
-                    bam::IndexedReader::from_path(&bam_path).map_err(|e| {
-                        anyhow::anyhow!("Failed to open BAM: {}", e)
-                    })
-                },
-                |bam_result, variant| {
-                    // Get the reader or return error if initialization failed
-                    let bam = match bam_result {
-                        Ok(b) => b,
-                        Err(e) => return Err(anyhow::anyhow!("BAM init failed: {}", e)),
-                    };
+        pool.install(|| {
+            variants
+                .par_iter()
+                .map_init(
+                    || {
+                        // Initialize thread-local BAM reader
+                        bam::IndexedReader::from_path(&bam_path).map_err(|e| {
+                            anyhow::anyhow!("Failed to open BAM: {}", e)
+                        })
+                    },
+                    |bam_result, variant| {
+                        // Get the reader or return error if initialization failed
+                        let bam = match bam_result {
+                            Ok(b) => b,
+                            Err(e) => return Err(anyhow::anyhow!("BAM init failed: {}", e)),
+                        };
 
-                    count_single_variant(
-                        bam,
-                        variant,
-                        min_mapq,
-                        min_baseq,
-                        filter_duplicates,
-                        filter_secondary,
-                        filter_supplementary,
-                        filter_qc_failed,
-                        filter_improper_pair,
-                        filter_indel,
-                    )
-                },
-            )
-            .collect()
+                        count_single_variant(
+                            bam,
+                            variant,
+                            min_mapq,
+                            min_baseq,
+                            filter_duplicates,
+                            filter_secondary,
+                            filter_supplementary,
+                            filter_qc_failed,
+                            filter_improper_pair,
+                            filter_indel,
+                        )
+                    },
+                )
+                .collect()
+        })
     });
 
     // Map anyhow::Error back to PyErr

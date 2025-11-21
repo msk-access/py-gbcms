@@ -42,9 +42,17 @@ jobs:
 
     - name: Setup and test package
       run: |
-        # Create virtual environment and install package in development mode
+        # Create virtual environment
         uv venv .venv
         source .venv/bin/activate
+
+        # Install maturin to build the Rust extension
+        uv pip install maturin
+
+        # Build and install the Rust extension first
+        cd src/gbcms_rs
+        maturin develop --release
+        cd ../..
 
         # Install the package with all dependencies
         uv pip install -e ".[dev]"

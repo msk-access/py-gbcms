@@ -32,8 +32,10 @@ A standard VCF file containing the input variants with added FORMAT fields for c
 *   `ADF`: Alternate Fragment Depth (`fwd,rev`)
 *   `VAF`: Variant Allele Fraction (Read Level)
 *   `FAF`: Variant Allele Fraction (Fragment Level)
+*   `SB_PVAL`: Fisher's Exact Test p-value for strand bias (read-level).
+*   `SB_OR`: Odds Ratio for strand bias (read-level).
 *   `FSB_PVAL`: Fisher's Exact Test p-value for strand bias (fragment-level).
-*   `FSB_OR`: Odds Ratio for strand bias.
+*   `FSB_OR`: Odds Ratio for strand bias (fragment-level).
 
 ### MAF Output (`--format maf`)
 A tab-separated file containing standard GDC MAF columns plus custom count columns.
