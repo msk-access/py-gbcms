@@ -33,6 +33,9 @@ htmlcov/
 .tox/
 coverage.xml
 *.cover
+.mypy_cache/
+.ruff_cache/
+.benchmarks/
 
 # IDEs
 .vscode/
@@ -56,6 +59,16 @@ test_data/
 *.maf
 output/
 results/
+test_output*/
+*.txt
+
+# Exception: Allow test data files
+!tests/testdata/*.bam
+!tests/testdata/*.bam.bai
+!tests/testdata/*.fa
+!tests/testdata/*.fa.fai
+!tests/testdata/*.vcf
+!tests/testdata/*.maf
 
 # Logs
 *.log

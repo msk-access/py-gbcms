@@ -1,124 +1,68 @@
-# Installation Guide
+# Installation
 
-Complete installation and setup guide for py-gbcms.
+gbcms requires a Python environment and the Rust toolchain to build the core engine.
 
-## Installation Methods
+## Prerequisites
 
-### Using uv (recommended)
+*   **Python**: 3.10 or higher
+*   **Rust**: Latest stable version (install via [rustup](https://rustup.rs/))
+
+## Installing from Source
+
+1.  **Clone the repository**:
+    ```bash
+    git clone https://github.com/msk-access/py-gbcms.git
+    cd py-gbcms
+    ```
+
+2.  **Create a virtual environment** (recommended):
+    ```bash
+    python -m venv .venv
+    source .venv/bin/activate
+    ```
+
+3.  **Install dependencies and build**:
+    This command will install Python dependencies and compile the Rust extension (`gbcms_rs`).
+    ```bash
+    pip install .
+    ```
+
+    *Note: If you are developing, use `pip install -e .` for editable mode.*
+
+## Verifying Installation
+
+Run the help command to verify that the CLI is accessible:
 
 ```bash
-# Install uv if you haven't already
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Install the package
-uv pip install py-gbcms
+gbcms --help
 ```
 
-### Using pip
+You should see the help message for the `gbcms` command.
+
+## Using Docker
+
+Docker is the recommended way to run gbcms to ensure a consistent environment.
+
+### 1. Build the Image
 
 ```bash
-# Basic installation
-pip install py-gbcms
-
-# With fast VCF parsing (10-100x faster)
-pip install "py-gbcms[fast]"
-
-# With Ray support for distributed computing
-pip install "py-gbcms[ray]"
-
-# With all optional features (fast + Ray)
-pip install "py-gbcms[all]"
+docker build -t gbcms:latest .
 ```
 
-### From source
+### 2. Run with Docker
+
+When running with Docker, you need to mount your data directories so the container can access them.
 
 ```bash
-git clone https://github.com/msk-access/gbcms.git
-cd gbcms
-
-# For production use
-uv pip install .
-
-# For development (includes scipy-stubs for type checking)
-uv pip install -e ".[dev]"
-```
-
-### Using Docker
-
-```bash
-docker pull mskaccess/gbcms:latest
-
-# Run the container
 docker run --rm \
-    -v $(pwd)/data:/data \
-    mskaccess/gbcms:latest \
-    gbcms count run \
+    -v /path/to/data:/data \
+    gbcms:latest \
+    run \
+    --variants /data/variants.vcf \
     --fasta /data/reference.fa \
-    --bam sample1:/data/sample1.bam \
-    --vcf /data/variants.vcf \
-    --output /data/output.txt
+    --bam /data/sample.bam \
+    --output-dir /data/output
 ```
 
-## Verification
+**Note**: All paths passed to `gbcms` must be paths *inside* the container (e.g., `/data/...`).
 
-### 1. Quick Check
-
-```bash
-gbcms version
-```
-
-Expected output:
-```
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃                              Version Info                               ┃
-┃                                                                          ┃
-┃                           py-gbcms                                      ┃
-┃                        Version: 2.0.0                                   ┃
-┃          Python implementation of gbcms (gbcms)     ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-```
-
-### 2. Comprehensive Verification
-
-```bash
-python3 scripts/verify_installation.py
-```
-
-This checks:
-- All dependencies installed
-- Modules importable
-- CLI accessible
-
-### 3. Run Tests
-
-```bash
-# Unit tests
-pytest
-
-# With coverage
-pytest --cov=gbcms
-
-# End-to-end workflow tests
-make test-workflows
-
-# Type checking (requires scipy-stubs)
-mypy src/
-```
-
-## Complete Setup
-
-Run the complete setup and test script:
-
-```bash
-make setup
-```
-
-This will:
-1. Check Python version
-2. Install/verify uv
-3. Install py-gbcms with all dependencies (including scipy-stubs for type checking)
-4. Verify installation
-5. Check CLI
-6. Run unit tests
-7. Run VCF workflow test
-8. Run MAF workflow test

@@ -57,36 +57,28 @@ EOF
 echo "Indexing BAM..."
 samtools index sample1.bam
 
-# Validate files
-echo
-echo "Validating files..."
-gbcms validate files \
-    --fasta reference.fa \
-    --bam sample1:sample1.bam \
-    --vcf variants.vcf
-
-# Run GetBaseCounts
+# Run gbcms
 echo
 echo "Running py-gbcms..."
-gbcms count run \
+export PYTHONPATH=$PYTHONPATH:$(pwd)/../../src
+python3 -m gbcms.cli run \
     --fasta reference.fa \
-    --bam sample1:sample1.bam \
-    --vcf variants.vcf \
-    --output counts.txt \
-    --thread 2 \
-    --verbose
+    --bam sample1.bam \
+    --variants variants.vcf \
+    --output-dir output \
+    --format vcf
 
 # Check output
 echo
 echo "Checking output..."
-if [ -f counts.txt ]; then
+if [ -f output/sample1.vcf ]; then
     echo "✅ Output file created"
     echo
     echo "First few lines of output:"
-    head -n 5 counts.txt
+    head -n 15 output/sample1.vcf
     
-    # Count variants
-    VARIANT_COUNT=$(tail -n +2 counts.txt | wc -l)
+    # Count variants (excluding header)
+    VARIANT_COUNT=$(grep -v "^#" output/sample1.vcf | wc -l)
     echo
     echo "Variants processed: $VARIANT_COUNT"
     

@@ -1,4 +1,4 @@
-.PHONY: help install install-dev install-all test test-cov test-workflows lint format clean verify setup docker-build docker-test docker-run
+.PHONY: help install install-dev install-all test test-cov test-workflows lint format clean verify setup docker-build docker-run
 
 help:
 	@echo "Available commands:"
@@ -22,7 +22,6 @@ help:
 	@echo ""
 	@echo "Docker:"
 	@echo "  docker-build  - Build Docker image"
-	@echo "  docker-test   - Run tests in Docker"
 	@echo "  docker-run    - Run example in Docker"
 
 install:
@@ -30,11 +29,9 @@ install:
 
 install-dev:
 	uv pip install -e ".[dev]"
-	pre-commit install
 
 install-all:
 	uv pip install -e ".[dev,all]"
-	pre-commit install
 
 setup:
 	@chmod +x scripts/setup_and_test.sh
@@ -82,14 +79,6 @@ docker-build:
 	@echo ""
 	@echo "✅ Docker image built successfully!"
 	@echo "Test it with: docker run --rm gbcms:latest version"
-
-docker-test:
-	docker build -f Dockerfile.test -t gbcms:test .
-	docker run --rm gbcms:test
-
-docker-test-full:
-	@chmod +x scripts/test_docker.sh
-	@bash scripts/test_docker.sh
 
 docker-run:
 	@echo "Example Docker run (mount your data directory):"

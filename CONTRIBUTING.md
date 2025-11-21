@@ -20,10 +20,7 @@ Thank you for your interest in contributing to GetBaseCounts! This document prov
    uv pip install -e ".[dev]"
    ```
 
-4. **Install pre-commit hooks**
-   ```bash
-   pre-commit install
-   ```
+
 
 ## Development Workflow
 
@@ -64,10 +61,6 @@ mypy src/
 ```bash
 # Build Docker image
 docker build -t gbcms:latest .
-
-# Run tests in Docker
-docker build -f Dockerfile.test -t gbcms:test .
-docker run --rm gbcms:test
 ```
 
 ## Code Style

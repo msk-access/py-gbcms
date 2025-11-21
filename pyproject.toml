@@ -6,7 +6,7 @@ authors = [
     {name = "MSK-ACCESS", email = "shahr2@mskcc.org"}
 ]
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 license = {text = "AGPL-3.0"}
 keywords = ["bioinformatics", "genomics", "bam", "vcf", "maf", "base-counts", "gbcms"]
 classifiers = [
@@ -19,27 +19,16 @@ classifiers = [
 ]
 
 dependencies = [
-    "pysam>=0.22.0",
-    "numpy>=1.24.0",
+    "pysam>=0.21.0",
     "typer>=0.9.0",
     "rich>=13.0.0",
-    "pandas>=2.0.0",
     "pydantic>=2.0.0",
-    "pydantic-settings>=2.0.0",
-    "numba>=0.58.0",
-    "joblib>=1.3.0",
-    "scipy>=1.11.0",
 ]
 
 [project.optional-dependencies]
-fast = [
-    "cyvcf2>=0.30.0",
-]
+fast = []
 
-
-all = [
-    "cyvcf2>=0.30.0",
-]
+all = []
 
 dev = [
     "pytest>=7.4.0",
@@ -48,7 +37,6 @@ dev = [
     "black>=23.0.0",
     "ruff>=0.1.0",
     "mypy>=1.5.0",
-    "pre-commit>=3.3.0",
     "types-pyyaml>=6.0.0",
 ]
 
@@ -56,10 +44,10 @@ dev = [
 gbcms = "gbcms.cli:app"
 
 [project.urls]
-Homepage = "https://github.com/msk-access/getbasecounts"
-Repository = "https://github.com/msk-access/getbasecounts"
-Documentation = "https://github.com/msk-access/getbasecounts#readme"
-"Bug Tracker" = "https://github.com/msk-access/getbasecounts/issues"
+Homepage = "https://github.com/msk-access/py-gbcms"
+Repository = "https://github.com/msk-access/py-gbcms"
+Documentation = "https://github.com/msk-access/py-gbcms#readme"
+"Bug Tracker" = "https://github.com/msk-access/py-gbcms/issues"
 
 [build-system]
 requires = ["hatchling"]
@@ -127,9 +115,7 @@ disable_error_code = ["call-arg"]
 [[tool.mypy.overrides]]
 module = [
     "pysam.*",
-    "numba.*",
-    "joblib.*",
-    "cyvcf2.*",
+    "gbcms_rs",
 ]
 ignore_missing_imports = true
 
@@ -152,7 +138,6 @@ exclude_lines = [
 dev = [
     "black>=25.9.0",
     "mypy>=1.18.2",
-    "pre-commit>=4.3.0",
     "pytest>=8.4.2",
     "pytest-cov>=4.1.0",
     "pytest-benchmark>=5.1.0",
