@@ -1,5 +1,3 @@
-from typing import List
-
 class Variant:
     chrom: str
     pos: int
@@ -39,7 +37,7 @@ class BaseCounts:
 
 def count_bam(
     bam_path: str,
-    variants: List[Variant],
+    variants: list[Variant],
     min_mapq: int,
     min_baseq: int,
     filter_duplicates: bool,
@@ -49,4 +47,4 @@ def count_bam(
     filter_improper_pair: bool,
     filter_indel: bool,
     threads: int,
-) -> List[BaseCounts]: ...
+) -> list[BaseCounts]: ...

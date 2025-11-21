@@ -62,6 +62,14 @@ results/
 test_output*/
 *.txt
 
+# Exception: Allow test data files
+!tests/testdata/*.bam
+!tests/testdata/*.bam.bai
+!tests/testdata/*.fa
+!tests/testdata/*.fa.fai
+!tests/testdata/*.vcf
+!tests/testdata/*.maf
+
 # Logs
 *.log
 
