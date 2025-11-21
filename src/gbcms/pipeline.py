@@ -202,7 +202,9 @@ class Pipeline:
         else:
             writer = MafWriter(output_path)
 
-        for v, counts in zip(variants, counts_list, strict=True):  # Changed 'results' to 'counts_list'
+        for v, counts in zip(
+            variants, counts_list, strict=True
+        ):  # Changed 'results' to 'counts_list'
             writer.write(v, counts, sample_name=sample_name)
 
         writer.close()

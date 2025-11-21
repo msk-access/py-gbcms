@@ -9,7 +9,7 @@ use crate::types::{BaseCounts, Variant};
 use rayon::prelude::*;
 
 use anyhow::{Context, Result};
-use log::{debug, warn};
+use log::debug;
 
 /// Count bases for a list of variants in a BAM file.
 #[pyfunction]
