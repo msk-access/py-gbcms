@@ -1,0 +1,58 @@
+name: Deploy GitBook Documentation
+
+on:
+  push:
+    branches: [gh-pages]
+    paths:
+      - 'docs/**'
+      - '.gitbook.yaml'
+      - '.github/workflows/deploy-docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy-docs:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install GitBook CLI
+        run: |
+          npm install -g gitbook-cli
+          gitbook --version || echo "GitBook CLI installed"
+      
+      - name: Install GitBook plugins
+        run: |
+          cd docs
+          gitbook install || echo "No plugins to install"
+      
+      - name: Build GitBook
+        run: |
+          cd docs
+          gitbook build . _book
+      
+      - name: Deploy to gh-pages root
+        run: |
+          # Move built docs to root, preserving source
+          cp -r docs/_book/* .
+          # Clean up build artifacts
+          rm -rf docs/_book
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add .
+          git commit -m "Deploy GitBook documentation [skip ci]" || echo "No changes to commit"
+          git push origin gh-pages
