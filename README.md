@@ -21,15 +21,20 @@ Original gbcms: https://github.com/zengzheng123/GetBaseCountsMultiSample
 
 **Full documentation is available at: https://msk-access.github.io/py-gbcms/**
 
+Quick Links:
 - [Quick Start Guide](https://msk-access.github.io/py-gbcms/quick-start.html)
 - [Installation Guide](https://msk-access.github.io/py-gbcms/INSTALLATION.html)
 - [CLI Reference](https://msk-access.github.io/py-gbcms/CLI_FEATURES.html)
 - [Advanced Usage](https://msk-access.github.io/py-gbcms/advanced-usage.html)
 - [Architecture](https://msk-access.github.io/py-gbcms/architecture.html)
 
+**Contributing to Documentation:**
+Documentation lives in the [`gh-pages` branch](https://github.com/msk-access/py-gbcms/tree/gh-pages). 
+See the [gh-pages README](https://github.com/msk-access/py-gbcms/blob/gh-pages/README.md) for contribution guidelines.
+
 ## Installation
 
-For detailed installation instructions, including building from source and using Docker, see [Installation Guide](docs/INSTALLATION.md).
+For detailed installation instructions, see the [Installation Guide](https://msk-access.github.io/py-gbcms/INSTALLATION.html).
 
 ### Quick Install (from source)
 
