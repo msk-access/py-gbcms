@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM python:3.11-bookworm as builder
+FROM python:3.11-bookworm AS builder
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
