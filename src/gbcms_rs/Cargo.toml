@@ -9,12 +9,12 @@ name = "gbcms_rs"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.21.2", features = ["extension-module"] }
-rust-htslib = "0.46.0"
-thiserror = "1.0"
+pyo3 = { version = "0.27.1", features = ["extension-module"] }
+rust-htslib = "0.51.0"
+thiserror = "2.0"
 anyhow = "1.0"
 bio-types = "1.0"
-statrs = "0.16.0"  # For Fisher's exact test
+statrs = "0.18.0"  # For Fisher's exact test
 rayon = "1.10"
 log = "0.4"
-pyo3-log = "0.10"
+pyo3-log = "0.13.2"

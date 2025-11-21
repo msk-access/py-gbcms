@@ -10,7 +10,7 @@ from gbcms.io.output import MafWriter
 
 
 def test_pipeline_v2(tmp_path):
-    base_dir = Path("tests/testdata")
+    base_dir = Path(__file__).parent / "testdata"
     bam_path = str(base_dir / "sample1_integration_test.bam")
     vcf_path = str(base_dir / "integration_test_variants.vcf")
     fasta_path = str(base_dir / "integration_test_reference.fa")
@@ -48,6 +48,7 @@ def test_pipeline_v2(tmp_path):
         filter_qc_failed=False,
         filter_improper_pair=False,
         filter_indel=False,
+        threads=1,
     )
 
     assert len(results) == len(variants)

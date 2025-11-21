@@ -196,6 +196,7 @@ def test_snp_accuracy(synthetic_bam):
         filter_qc_failed=False,
         filter_improper_pair=False,
         filter_indel=False,
+        threads=1,
     )
 
     counts = results[0]
@@ -245,6 +246,7 @@ def test_insertion_accuracy(synthetic_bam):
         filter_qc_failed=False,
         filter_improper_pair=False,
         filter_indel=False,
+        threads=1,
     )
 
     counts = results[0]
@@ -357,6 +359,7 @@ def test_complex_accuracy(synthetic_bam):
         filter_qc_failed=False,
         filter_improper_pair=False,
         filter_indel=False,
+        threads=1,
     )
 
     # Cleanup
@@ -400,6 +403,7 @@ def test_deletion_accuracy(synthetic_bam):
         filter_qc_failed=False,
         filter_improper_pair=False,
         filter_indel=False,
+        threads=1,
     )
 
     counts = results[0]
@@ -426,6 +430,7 @@ def test_mnp_accuracy(synthetic_bam):
         filter_qc_failed=False,
         filter_improper_pair=False,
         filter_indel=False,
+        threads=1,
     )
 
     counts = results[0]

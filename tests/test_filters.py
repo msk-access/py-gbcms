@@ -102,6 +102,7 @@ def test_filters(mock_bam_with_flags):
         filter_qc_failed=False,
         filter_improper_pair=False,
         filter_indel=False,
+        threads=1,
     )[0]
 
     # Expect:
@@ -125,6 +126,7 @@ def test_filters(mock_bam_with_flags):
         filter_qc_failed=True,
         filter_improper_pair=False,
         filter_indel=False,
+        threads=1,
     )[0]
     # read_qc_fail removed. Total = 4
     assert counts.dp == 4
@@ -141,6 +143,7 @@ def test_filters(mock_bam_with_flags):
         filter_qc_failed=False,
         filter_improper_pair=True,
         filter_indel=False,
+        threads=1,
     )[0]
     # read_improper removed. Total = 4
     assert counts.dp == 4
@@ -157,6 +160,7 @@ def test_filters(mock_bam_with_flags):
         filter_qc_failed=False,
         filter_improper_pair=False,
         filter_indel=True,
+        threads=1,
     )[0]
     # read_indel removed. Total = 4
     assert counts.dp == 4
@@ -173,6 +177,7 @@ def test_filters(mock_bam_with_flags):
         filter_qc_failed=False,
         filter_improper_pair=False,
         filter_indel=False,
+        threads=1,
     )[0]
     # read_secondary removed. Total = 4
     assert counts.dp == 4
@@ -189,6 +194,7 @@ def test_filters(mock_bam_with_flags):
         filter_qc_failed=True,
         filter_improper_pair=True,
         filter_indel=True,
+        threads=1,
     )[0]
     # Only read1 remains. Total = 1
     assert counts.dp == 1

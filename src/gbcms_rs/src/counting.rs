@@ -39,6 +39,7 @@ pub fn count_bam(
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to build thread pool: {}", e)))?;
 
     // Release GIL for parallel execution
+    #[allow(deprecated)]
     let results: Result<Vec<BaseCounts>, anyhow::Error> = py.allow_threads(move || {
         pool.install(|| {
             variants
