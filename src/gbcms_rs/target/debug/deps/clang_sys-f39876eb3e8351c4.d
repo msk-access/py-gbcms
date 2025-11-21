@@ -1,0 +1,14 @@
+/Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/deps/clang_sys-f39876eb3e8351c4.d: /Users/shahr2/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clang-sys-1.8.1/src/lib.rs /Users/shahr2/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clang-sys-1.8.1/src/support.rs /Users/shahr2/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clang-sys-1.8.1/src/link.rs /Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/clang-sys-932acf0076bb5b53/out/macros.rs /Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/clang-sys-932acf0076bb5b53/out/common.rs /Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/clang-sys-932acf0076bb5b53/out/dynamic.rs
+
+/Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/deps/libclang_sys-f39876eb3e8351c4.rlib: /Users/shahr2/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clang-sys-1.8.1/src/lib.rs /Users/shahr2/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clang-sys-1.8.1/src/support.rs /Users/shahr2/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clang-sys-1.8.1/src/link.rs /Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/clang-sys-932acf0076bb5b53/out/macros.rs /Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/clang-sys-932acf0076bb5b53/out/common.rs /Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/clang-sys-932acf0076bb5b53/out/dynamic.rs
+
+/Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/deps/libclang_sys-f39876eb3e8351c4.rmeta: /Users/shahr2/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clang-sys-1.8.1/src/lib.rs /Users/shahr2/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clang-sys-1.8.1/src/support.rs /Users/shahr2/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clang-sys-1.8.1/src/link.rs /Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/clang-sys-932acf0076bb5b53/out/macros.rs /Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/clang-sys-932acf0076bb5b53/out/common.rs /Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/clang-sys-932acf0076bb5b53/out/dynamic.rs
+
+/Users/shahr2/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clang-sys-1.8.1/src/lib.rs:
+/Users/shahr2/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clang-sys-1.8.1/src/support.rs:
+/Users/shahr2/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clang-sys-1.8.1/src/link.rs:
+/Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/clang-sys-932acf0076bb5b53/out/macros.rs:
+/Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/clang-sys-932acf0076bb5b53/out/common.rs:
+/Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/clang-sys-932acf0076bb5b53/out/dynamic.rs:
+
+# env-dep:OUT_DIR=/Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/clang-sys-932acf0076bb5b53/out

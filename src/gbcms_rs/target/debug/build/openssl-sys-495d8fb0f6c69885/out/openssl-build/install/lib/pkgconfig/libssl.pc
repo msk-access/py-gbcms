@@ -1,0 +1,11 @@
+prefix=/Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/openssl-sys-495d8fb0f6c69885/out/openssl-build/install
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include 
+
+Name: OpenSSL-libssl
+Description: Secure Sockets Layer and cryptography libraries
+Version: 3.5.4
+Requires.private: libcrypto
+Libs: -L${libdir} -lssl
+Cflags: -I${includedir}

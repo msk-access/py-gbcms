@@ -1,0 +1,15 @@
+prefix=/Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/libz-sys-760dd5fb308dfec5/out
+exec_prefix=${prefix}
+symbol_prefix=
+bindir=${exec_prefix}/bin
+libdir=${exec_prefix}/lib
+sharedlibdir=${libdir}
+includedir=${prefix}/include
+
+Name: zlib
+Description: zlib-ng compression library
+Version: 1.3.1.zlib-ng
+
+Requires:
+Libs: -L${libdir} -L${sharedlibdir} -lz
+Cflags: -I${includedir} -DWITH_GZFILEOP

@@ -1,0 +1,14 @@
+/Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/deps/pyo3_build_config-0541dd81e7b504cf.d: /Users/shahr2/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-build-config-0.21.2/src/lib.rs /Users/shahr2/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-build-config-0.21.2/src/errors.rs /Users/shahr2/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-build-config-0.21.2/src/impl_.rs /Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/pyo3-build-config-a16164dda0b77b2a/out/pyo3-build-config-file.txt /Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/pyo3-build-config-a16164dda0b77b2a/out/pyo3-build-config.txt
+
+/Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/deps/libpyo3_build_config-0541dd81e7b504cf.rlib: /Users/shahr2/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-build-config-0.21.2/src/lib.rs /Users/shahr2/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-build-config-0.21.2/src/errors.rs /Users/shahr2/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-build-config-0.21.2/src/impl_.rs /Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/pyo3-build-config-a16164dda0b77b2a/out/pyo3-build-config-file.txt /Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/pyo3-build-config-a16164dda0b77b2a/out/pyo3-build-config.txt
+
+/Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/deps/libpyo3_build_config-0541dd81e7b504cf.rmeta: /Users/shahr2/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-build-config-0.21.2/src/lib.rs /Users/shahr2/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-build-config-0.21.2/src/errors.rs /Users/shahr2/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-build-config-0.21.2/src/impl_.rs /Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/pyo3-build-config-a16164dda0b77b2a/out/pyo3-build-config-file.txt /Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/pyo3-build-config-a16164dda0b77b2a/out/pyo3-build-config.txt
+
+/Users/shahr2/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-build-config-0.21.2/src/lib.rs:
+/Users/shahr2/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-build-config-0.21.2/src/errors.rs:
+/Users/shahr2/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-build-config-0.21.2/src/impl_.rs:
+/Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/pyo3-build-config-a16164dda0b77b2a/out/pyo3-build-config-file.txt:
+/Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/pyo3-build-config-a16164dda0b77b2a/out/pyo3-build-config.txt:
+
+# env-dep:CARGO_PKG_VERSION=0.21.2
+# env-dep:OUT_DIR=/Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/pyo3-build-config-a16164dda0b77b2a/out
