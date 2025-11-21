@@ -1,0 +1,69 @@
+site_name: py-gbcms Documentation
+site_url: https://msk-access.github.io/py-gbcms/
+site_description: GetBaseCountsMultiSample - Fast variant counting from BAM files
+site_author: MSK-ACCESS
+repo_url: https://github.com/msk-access/py-gbcms
+repo_name: msk-access/py-gbcms
+edit_uri: edit/gh-pages/docs/
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: README.md
+  - Getting Started:
+      - Installation: INSTALLATION.md
+      - Quick Start: quick-start.md
+  - Usage:
+      - CLI Reference: CLI_FEATURES.md
+      - Input & Output: INPUT_OUTPUT.md
+      - Advanced Usage: advanced-usage.md
+  - Development:
+      - Contributing: CONTRIBUTING.md
+      - Architecture: architecture.md
+      - Changelog: CHANGELOG.md
+
+plugins:
+  - search
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/msk-access/py-gbcms
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/py-gbcms/
