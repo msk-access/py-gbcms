@@ -69,7 +69,8 @@ jobs:
 
           # Build and install the Rust extension first
           cd src/gbcms_rs
-          maturin develop --release
+          maturin build --release
+          uv pip install --system target/wheels/*.whl
           cd ../..
 
           # Install without fast dependencies on Ubuntu due to htslib issues
@@ -126,7 +127,8 @@ jobs:
           
           # Build and install the Rust extension
           cd src/gbcms_rs
-          maturin develop --release
+          maturin build --release
+          uv pip install --system target/wheels/*.whl
           cd ../..
           
           uv pip install --system -e ".[dev]"
