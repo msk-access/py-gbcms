@@ -75,70 +75,42 @@ Tumor1	Tumor1.bam
 Normal1	Normal1.bam
 EOF
 
-# Validate files
-echo
-echo "Validating files..."
-gbcms validate files \
-    --fasta reference.fa \
-    --bam Tumor1:Tumor1.bam \
-    --bam Normal1:Normal1.bam \
-    --maf variants.maf
-
-# Run GetBaseCounts (fillout format)
-echo
-echo "Running py-gbcms (fillout format)..."
-gbcms count run \
-    --fasta reference.fa \
-    --bam-fof bam_files.txt \
-    --maf variants.maf \
-    --output counts_fillout.txt \
-    --thread 2 \
-    --verbose
-
-# Run GetBaseCounts (MAF format)
+# Run gbcms (MAF format)
 echo
 echo "Running py-gbcms (MAF format)..."
-gbcms count run \
+export PYTHONPATH=$PYTHONPATH:$(pwd)/../../src
+python3 -m gbcms.cli run \
     --fasta reference.fa \
-    --bam-fof bam_files.txt \
-    --maf variants.maf \
-    --output counts.maf \
-    --omaf \
-    --thread 2 \
-    --verbose
+    --bam-list bam_files.txt \
+    --variants variants.maf \
+    --output-dir output \
+    --format maf
 
 # Check outputs
 echo
 echo "Checking outputs..."
 EXIT_CODE=0
 
-if [ -f counts_fillout.txt ]; then
-    echo "✅ Fillout output created"
+if [ -f output/Tumor1.maf ]; then
+    echo "✅ Tumor1 MAF output created"
     echo
-    echo "First few lines of fillout output:"
-    head -n 3 counts_fillout.txt
+    echo "First few lines of Tumor1 output:"
+    head -n 3 output/Tumor1.maf
     
-    VARIANT_COUNT=$(tail -n +2 counts_fillout.txt | wc -l)
+    VARIANT_COUNT=$(tail -n +2 output/Tumor1.maf | wc -l)
     echo
-    echo "Variants in fillout: $VARIANT_COUNT"
+    echo "Variants in Tumor1 MAF: $VARIANT_COUNT"
 else
-    echo "❌ Fillout output not created"
+    echo "❌ Tumor1 MAF output not created"
     EXIT_CODE=1
 fi
 
 echo
 
-if [ -f counts.maf ]; then
-    echo "✅ MAF output created"
-    echo
-    echo "First few lines of MAF output:"
-    head -n 3 counts.maf
-    
-    VARIANT_COUNT=$(tail -n +2 counts.maf | wc -l)
-    echo
-    echo "Variants in MAF: $VARIANT_COUNT"
+if [ -f output/Normal1.maf ]; then
+    echo "✅ Normal1 MAF output created"
 else
-    echo "❌ MAF output not created"
+    echo "❌ Normal1 MAF output not created"
     EXIT_CODE=1
 fi
 
