@@ -53,22 +53,27 @@ docker build -t gbcms:latest .
 
 ## Quick Start
 
+
+### Count variants from VCF with BAM alignments
 ```bash
-# Count variants from VCF with BAM alignments
 gbcms run --fasta reference.fa --bam sample1.bam --variants variants.vcf --output-dir results/
+```
 
-# Count variants from MAF with BAM alignments (sample-agnostic MAF output)
+### Count variants from MAF with BAM alignments (sample-agnostic MAF output)
+```bash
 gbcms run --fasta reference.fa --bam sample1.bam --variants variants.maf --output-dir results/ --format maf
-
-# Process multiple BAMs using a File of Files (FoF)
+```
+### Process multiple BAMs using a File of Files (FoF)
+```bash
 gbcms run --fasta reference.fa --bam-list bam_list.txt --variants variants.vcf --output-dir results/
-
+```
 ## Advanced Usage
 
 ### Explicit Sample IDs
 You can explicitly specify sample IDs for your BAM files. This ID will be used in the output filename and internal file headers.
 
 **CLI Argument:**
+
 ```bash
 gbcms run ... --bam "MySampleID:/path/to/sample.bam"
 ```
