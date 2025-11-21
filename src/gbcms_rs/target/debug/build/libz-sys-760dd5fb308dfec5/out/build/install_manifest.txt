@@ -1,9 +1,0 @@
-/Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/libz-sys-760dd5fb308dfec5/out/lib/libz.a
-/Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/libz-sys-760dd5fb308dfec5/out/include/zlib.h
-/Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/libz-sys-760dd5fb308dfec5/out/include/zlib_name_mangling.h
-/Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/libz-sys-760dd5fb308dfec5/out/include/zconf.h
-/Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/libz-sys-760dd5fb308dfec5/out/lib/pkgconfig/zlib.pc
-/Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/libz-sys-760dd5fb308dfec5/out/lib/cmake/ZLIB/ZLIB.cmake
-/Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/libz-sys-760dd5fb308dfec5/out/lib/cmake/ZLIB/ZLIB-debug.cmake
-/Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/libz-sys-760dd5fb308dfec5/out/lib/cmake/ZLIB/zlib-config.cmake
-/Users/shahr2/Documents/Github/py-gbcms/src/gbcms_rs/target/debug/build/libz-sys-760dd5fb308dfec5/out/lib/cmake/ZLIB/zlib-config-version.cmake
