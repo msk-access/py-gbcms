@@ -13,6 +13,7 @@
     *   Standard depth (DP), reference depth (RD), and alternate depth (AD).
     *   Strand-specific counts (Forward/Reverse).
     *   Fragment-level counts (deduplicated by fragment ID).
+    *   Variant Allele Fractions (VAF) at read and fragment levels.
     *   **Strand Bias Statistics**: Fisher's Exact Test p-values (`FSB_PVAL`) and Odds Ratios (`FSB_OR`) calculated at the fragment level.
 *   **Modern CLI**: User-friendly command-line interface with rich output and progress bars.
 *   **Flexible Input**: Support for single BAMs, lists of BAMs (File of Files), and automatic sample naming.

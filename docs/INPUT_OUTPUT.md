@@ -25,10 +25,13 @@ gbcms produces one output file per input BAM sample, named `{sample_name}.{ext}`
 A standard VCF file containing the input variants with added FORMAT fields for counts.
 
 **Header Fields:**
-*   `DP`: Total Depth
-*   `RD`: Reference Depth
-*   `AD`: Alternate Depth
-*   `VAF`: Variant Allele Frequency
+*   `DP`: Total Depth (`ref_total,alt_total`)
+*   `RD`: Reference Read Depth (`fwd,rev`)
+*   `AD`: Alternate Read Depth (`fwd,rev`)
+*   `RDF`: Reference Fragment Depth (`fwd,rev`)
+*   `ADF`: Alternate Fragment Depth (`fwd,rev`)
+*   `VAF`: Variant Allele Fraction (Read Level)
+*   `FAF`: Variant Allele Fraction (Fragment Level)
 *   `FSB_PVAL`: Fisher's Exact Test p-value for strand bias (fragment-level).
 *   `FSB_OR`: Odds Ratio for strand bias.
 
@@ -39,6 +42,12 @@ A tab-separated file containing standard GDC MAF columns plus custom count colum
 *   `Hugo_Symbol`, `Chromosome`, `Start_Position`, `End_Position`, `Reference_Allele`, `Tumor_Seq_Allele2`, `Tumor_Sample_Barcode`, `t_depth`, `t_ref_count`, `t_alt_count`.
 
 **Custom Columns:**
+*   `t_ref_count_forward`, `t_ref_count_reverse`
+*   `t_alt_count_forward`, `t_alt_count_reverse`
+*   `t_ref_count_fragment_forward`, `t_ref_count_fragment_reverse`
+*   `t_alt_count_fragment_forward`, `t_alt_count_fragment_reverse`
+*   `t_vaf`: Variant Allele Fraction (Read Level)
+*   `t_vaf_fragment`: Variant Allele Fraction (Fragment Level)
 *   `vcf_region`: `CHROM:POS:REF:ALT` (VCF-style representation).
 *   `fsb_pval`: Fisher's Exact Test p-value for strand bias.
 *   `fsb_or`: Odds Ratio for strand bias.

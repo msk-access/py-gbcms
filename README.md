@@ -23,16 +23,62 @@ pip install gbcms
 
 ```bash
 # Count variants from VCF with BAM alignments
-python -m gbcms.cli run --fasta reference.fa --bam sample1.bam --variants variants.vcf --output-dir results/
+gbcms run --fasta reference.fa --bam sample1.bam --variants variants.vcf --output-dir results/
 
 # Count variants from MAF with BAM alignments (sample-agnostic MAF output)
-python -m gbcms.cli run --fasta reference.fa --bam sample1.bam --variants variants.maf --output-dir results/ --format maf
+gbcms run --fasta reference.fa --bam sample1.bam --variants variants.maf --output-dir results/ --format maf
 
 # Process multiple BAMs using a File of Files (FoF)
-python -m gbcms.cli run --fasta reference.fa --bam-list bam_list.txt --variants variants.vcf --output-dir results/
+gbcms run --fasta reference.fa --bam-list bam_list.txt --variants variants.vcf --output-dir results/
 
-# Enable fragment counting (implicit in v2, always calculated)
+## Advanced Usage
+
+### Explicit Sample IDs
+You can explicitly specify sample IDs for your BAM files. This ID will be used in the output filename and internal file headers.
+
+**CLI Argument:**
+```bash
+gbcms run ... --bam "MySampleID:/path/to/sample.bam"
 ```
+
+**BAM List File:**
+The BAM list file supports a two-column format (whitespace separated):
+```text
+SampleID1   /path/to/sample1.bam
+SampleID2   /path/to/sample2.bam
+```
+
+### Output Suffix
+You can append a custom suffix to the output filenames using the `--suffix` flag.
+```bash
+gbcms run ... --suffix .genotyped
+# Output: {SampleID}.genotyped.vcf
+```
+
+## Output Format Details
+
+gbcms provides detailed strand-specific counts and allele fractions by default.
+
+### VCF Output
+The following `FORMAT` fields are added:
+
+- **DP**: Total Depth (`ref_total,alt_total`)
+- **RD**: Reference Read Depth (`fwd,rev`)
+- **AD**: Alternate Read Depth (`fwd,rev`)
+- **RDF**: Reference Fragment Depth (`fwd,rev`)
+- **ADF**: Alternate Fragment Depth (`fwd,rev`)
+- **VAF**: Variant Allele Fraction (Read Level)
+- **FAF**: Variant Allele Fraction (Fragment Level)
+
+### MAF Output
+The following columns are added to the MAF output:
+
+- `t_ref_count_forward`, `t_ref_count_reverse`
+- `t_alt_count_forward`, `t_alt_count_reverse`
+- `t_ref_count_fragment_forward`, `t_ref_count_fragment_reverse`
+- `t_alt_count_fragment_forward`, `t_alt_count_fragment_reverse`
+- `t_vaf` (Read Level VAF)
+- `t_vaf_fragment` (Fragment Level VAF)
 
 ## Variant Classification and Counting Strategy
 
@@ -55,4 +101,3 @@ All methods provide identical output including read counts, strand analysis, fra
 
 - **VCF**: Standard VCF format with custom fields for counts and statistics
 - **MAF**: Mutation Annotation Format with counting information
-- **Fillout**: Broad Institute Firehose format compatibility

@@ -3,7 +3,7 @@
 The primary entry point for gbcms is the `run` command.
 
 ```bash
-python -m gbcms.cli run [OPTIONS]
+gbcms run [OPTIONS]
 ```
 
 ## Arguments
@@ -13,11 +13,18 @@ python -m gbcms.cli run [OPTIONS]
 | `--variants` | `-v` | Path to VCF or MAF file containing variants to count. | **Yes** |
 | `--fasta` | `-f` | Path to the reference genome FASTA file. | **Yes** |
 | `--output-dir` | `-o` | Directory where output files will be written. | **Yes** |
-| `--bam` | `-b` | Path to a BAM file. Can be used multiple times. | No* |
-| `--bam-list` | `-L` | Path to a file containing a list of BAM paths (one per line). | No* |
+| `--bam` | `-b` | Path to a BAM file. Can be used multiple times. Supports `ID:path` format. | No* |
+| `--bam-list` | `-L` | Path to a file containing a list of BAM paths (one per line, optional ID column). | No* |
 | `--format` | | Output format: `vcf` or `maf`. Default: `vcf`. | No |
+| `--suffix` | `-S` | Suffix to append to output filename (e.g. `.genotyped`). | No |
 | `--min-mapq` | | Minimum mapping quality (MAPQ) to include a read. Default: `20`. | No |
 | `--min-baseq` | | Minimum base quality to count a base. Default: `0`. | No |
+| `--filter-duplicates` | | Filter duplicate reads. Default: `True`. | No |
+| `--filter-qc-failed` | | Filter reads failing platform/vendor quality checks. Default: `False`. | No |
+| `--filter-improper-pair` | | Filter reads that are not marked as proper pairs. Default: `False`. | No |
+| `--filter-indel` | | Filter reads containing insertions or deletions. Default: `False`. | No |
+| `--filter-secondary` | | Filter secondary alignments. Default: `False`. | No |
+| `--filter-supplementary` | | Filter supplementary alignments. Default: `False`. | No |
 
 *\* At least one of `--bam` or `--bam-list` must be provided.*
 
@@ -26,7 +33,7 @@ python -m gbcms.cli run [OPTIONS]
 ### 1. Single Sample, VCF Output
 
 ```bash
-python -m gbcms.cli run \
+gbcms run \
     --variants input.vcf \
     --fasta reference.fa \
     --bam sample1.bam \
@@ -37,7 +44,7 @@ python -m gbcms.cli run \
 ### 2. Multiple Samples, MAF Output
 
 ```bash
-python -m gbcms.cli run \
+gbcms run \
     --variants input.maf \
     --fasta reference.fa \
     --bam sample1.bam \
@@ -51,15 +58,14 @@ python -m gbcms.cli run \
 If you have many BAM files, list them in a text file (e.g., `bams.txt`):
 
 ```text
-/path/to/sample1.bam
-/path/to/sample2.bam
-/path/to/sample3.bam
+SampleID1   /path/to/sample1.bam
+SampleID2   /path/to/sample2.bam
 ```
 
 Then run:
 
 ```bash
-python -m gbcms.cli run \
+gbcms run \
     --variants input.vcf \
     --fasta reference.fa \
     --bam-list bams.txt \

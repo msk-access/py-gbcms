@@ -7,7 +7,7 @@ to output files, handling format-specific columns and headers.
 
 import csv
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..models.core import Variant
 
@@ -32,7 +32,7 @@ class MafWriter(OutputWriter):
     def __init__(self, path: Path):
         self.path = path
         self.file = open(path, "w")
-        self.writer: Optional[csv.DictWriter] = None
+        self.writer: csv.DictWriter | None = None
         self._headers_written = False
 
     def _init_writer(self):
@@ -171,15 +171,26 @@ class MafWriter(OutputWriter):
             "strand_bias_odds_ratio",
             "fragment_strand_bias_p_value",
             "fragment_strand_bias_odds_ratio",
+            # Strand counts
+            "t_ref_count_forward",
+            "t_ref_count_reverse",
+            "t_alt_count_forward",
+            "t_alt_count_reverse",
+            "t_ref_count_fragment_forward",
+            "t_ref_count_fragment_reverse",
+            "t_alt_count_fragment_forward",
+            "t_alt_count_fragment_reverse",
         ]
-        self.writer = csv.DictWriter(self.file, fieldnames=self.fieldnames, delimiter="\t")
+        self.writer = csv.DictWriter(
+            self.file, fieldnames=self.fieldnames, delimiter="\t", extrasaction="ignore"
+        )
         self.writer.writeheader()
         self._headers_written = True
 
     def write(self, variant: Variant, counts: Any, sample_name: str = "TUMOR"):
         if not self._headers_written:
             self._init_writer()
-            
+
         assert self.writer is not None
 
         # Calculate VAFs
@@ -204,8 +215,10 @@ class MafWriter(OutputWriter):
             # Actually, standard MAF usually has Start=End for insertions (between bases).
             end_pos = start_pos + 1  # To indicate range?
 
-        # Populate row with defaults for missing fields
+        # Populate row with defaults for missing fields, starting with metadata
         row = dict.fromkeys(self.fieldnames, "")
+        if variant.metadata:
+            row.update(variant.metadata)
 
         # Fill known fields
         row.update(
@@ -231,6 +244,15 @@ class MafWriter(OutputWriter):
                 "fragment_strand_bias_odds_ratio": f"{counts.fsb_or:.4f}",
                 "vcf_region": f"{variant.chrom}:{start_pos}-{end_pos}",  # Simple region string
                 "vcf_pos": str(start_pos),
+                # Strand counts
+                "t_ref_count_forward": str(counts.rd_fwd),
+                "t_ref_count_reverse": str(counts.rd_rev),
+                "t_alt_count_forward": str(counts.ad_fwd),
+                "t_alt_count_reverse": str(counts.ad_rev),
+                "t_ref_count_fragment_forward": str(counts.rdf_fwd),
+                "t_ref_count_fragment_reverse": str(counts.rdf_rev),
+                "t_alt_count_fragment_forward": str(counts.adf_fwd),
+                "t_alt_count_fragment_reverse": str(counts.adf_rev),
             }
         )
 
@@ -261,10 +283,13 @@ class VcfWriter(OutputWriter):
             '##INFO=<ID=SB_PVAL,Number=1,Type=Float,Description="Fisher strand bias p-value">',
             '##INFO=<ID=FSB_PVAL,Number=1,Type=Float,Description="Fisher fragment strand bias p-value">',
             '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
-            '##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths for the ref and alt alleles">',
-            '##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth">',
-            '##FORMAT=<ID=RDF,Number=1,Type=Integer,Description="Ref Fragment Count">',
-            '##FORMAT=<ID=ADF,Number=1,Type=Integer,Description="Alt Fragment Count">',
+            '##FORMAT=<ID=AD,Number=2,Type=Integer,Description="Allelic depths for the ref and alt alleles (fwd,rev)">',
+            '##FORMAT=<ID=DP,Number=2,Type=Integer,Description="Approximate read depth (ref_total,alt_total)">',
+            '##FORMAT=<ID=RD,Number=2,Type=Integer,Description="Reference read depth (fwd,rev)">',
+            '##FORMAT=<ID=RDF,Number=2,Type=Integer,Description="Ref Fragment Count (fwd,rev)">',
+            '##FORMAT=<ID=ADF,Number=2,Type=Integer,Description="Alt Fragment Count (fwd,rev)">',
+            '##FORMAT=<ID=VAF,Number=1,Type=Float,Description="Variant Allele Fraction (read level)">',
+            '##FORMAT=<ID=FAF,Number=1,Type=Float,Description="Variant Allele Fraction (fragment level)">',
             f"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{self.sample_name}",
         ]
         self.file.write("\n".join(headers) + "\n")
@@ -284,13 +309,31 @@ class VcfWriter(OutputWriter):
         # GT: Simple 0/1 if alt > 0? Or ./1?
         # Let's assume 0/1 if we have alt counts, else 0/0
         gt = "0/1" if counts.ad > 0 else "0/0"
-        ad = f"{counts.rd},{counts.ad}"
-        dp = counts.dp
-        rdf = counts.rdf
-        adf = counts.adf
 
-        format_str = "GT:AD:DP:RDF:ADF"
-        sample_data = f"{gt}:{ad}:{dp}:{rdf}:{adf}"
+        # DP: ref_total,alt_total
+        dp = f"{counts.rd},{counts.ad}"
+
+        # RD: ref_fwd,ref_rev
+        rd = f"{counts.rd_fwd},{counts.rd_rev}"
+
+        # AD: alt_fwd,alt_rev
+        ad = f"{counts.ad_fwd},{counts.ad_rev}"
+
+        # RDF: ref_frag_fwd,ref_frag_rev
+        rdf = f"{counts.rdf_fwd},{counts.rdf_rev}"
+
+        # ADF: alt_frag_fwd,alt_frag_rev
+        adf = f"{counts.adf_fwd},{counts.adf_rev}"
+
+        # VAF calculations
+        total_reads = counts.rd + counts.ad
+        vaf = counts.ad / total_reads if total_reads > 0 else 0.0
+
+        total_frags = counts.rdf + counts.adf
+        faf = counts.adf / total_frags if total_frags > 0 else 0.0
+
+        format_str = "GT:DP:RD:AD:RDF:ADF:VAF:FAF"
+        sample_data = f"{gt}:{dp}:{rd}:{ad}:{rdf}:{adf}:{vaf:.4f}:{faf:.4f}"
 
         row = [
             variant.chrom,

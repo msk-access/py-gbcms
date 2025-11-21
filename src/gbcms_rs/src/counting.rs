@@ -22,6 +22,9 @@ pub fn count_bam(
     filter_duplicates: bool,
     filter_secondary: bool,
     filter_supplementary: bool,
+    filter_qc_failed: bool,
+    filter_improper_pair: bool,
+    filter_indel: bool,
 ) -> PyResult<Vec<BaseCounts>> {
     // We cannot share a single IndexedReader across threads because it's not Sync.
     // Instead, we use rayon's map_init to initialize a reader for each thread.
@@ -54,6 +57,9 @@ pub fn count_bam(
                         filter_duplicates,
                         filter_secondary,
                         filter_supplementary,
+                        filter_qc_failed,
+                        filter_improper_pair,
+                        filter_indel,
                     )
                 },
             )
@@ -75,6 +81,9 @@ fn count_single_variant(
     filter_duplicates: bool,
     filter_secondary: bool,
     filter_supplementary: bool,
+    filter_qc_failed: bool,
+    filter_improper_pair: bool,
+    filter_indel: bool,
 ) -> Result<BaseCounts> {
     let tid = bam.header().tid(variant.chrom.as_bytes()).ok_or_else(|| {
         anyhow::anyhow!("Chromosome not found in BAM: {}", variant.chrom)
@@ -110,6 +119,21 @@ fn count_single_variant(
         if filter_supplementary && record.is_supplementary() {
             continue;
         }
+        if filter_qc_failed && record.is_quality_check_failed() {
+            continue;
+        }
+        if filter_improper_pair && !record.is_proper_pair() {
+            continue;
+        }
+        
+        // Indel filter: check CIGAR for Ins or Del
+        if filter_indel {
+             let has_indel = record.cigar().iter().any(|op| matches!(op, Cigar::Ins(_) | Cigar::Del(_)));
+             if has_indel {
+                 continue;
+             }
+        }
+
         if record.mapq() < min_mapq {
             continue;
         }

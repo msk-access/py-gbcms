@@ -38,22 +38,29 @@ def run(
     output_format: OutputFormat = typer.Option(
         OutputFormat.VCF, "--format", help="Output format (vcf or maf)"
     ),
+    output_suffix: str = typer.Option(
+        "", "--suffix", "-S", help="Suffix to append to output filename (e.g. '.genotyped')"
+    ),
     min_mapq: int = typer.Option(20, "--min-mapq", help="Minimum mapping quality"),
     min_baseq: int = typer.Option(0, "--min-baseq", help="Minimum base quality"),
     filter_duplicates: bool = typer.Option(True, help="Filter duplicate reads"),
+    filter_secondary: bool = typer.Option(False, help="Filter secondary alignments"),
+    filter_supplementary: bool = typer.Option(False, help="Filter supplementary alignments"),
+    filter_qc_failed: bool = typer.Option(False, help="Filter reads failing QC"),
+    filter_improper_pair: bool = typer.Option(False, help="Filter improperly paired reads"),
+    filter_indel: bool = typer.Option(False, help="Filter reads containing indels"),
     threads: int = typer.Option(
         1, "--threads", "-t", help="Number of threads (not yet implemented in v2 python layer)"
     ),
-    verbose: bool = typer.Option(
-        False, "--verbose", "-V", help="Enable verbose debug logging"
-    ),
+    verbose: bool = typer.Option(False, "--verbose", "-V", help="Enable verbose debug logging"),
 ):
     """
     Run gbcms on one or more BAM files.
     """
+    import logging
+
     from rich.console import Console
     from rich.logging import RichHandler
-    import logging
 
     # Configure logging
     log_level = logging.DEBUG if verbose else logging.INFO
@@ -61,7 +68,7 @@ def run(
         level=log_level,
         format="%(message)s",
         datefmt="[%X]",
-        handlers=[RichHandler(rich_tracebacks=True, markup=True)]
+        handlers=[RichHandler(rich_tracebacks=True, markup=True)],
     )
 
     console = Console()
@@ -71,11 +78,21 @@ def run(
 
     # 1. Process direct BAM arguments
     if bam_files:
-        for bam_path in bam_files:
+        for bam_arg in bam_files:
+            # Check for sample_id:path format
+            bam_str = str(bam_arg)
+            if ":" in bam_str:
+                parts = bam_str.split(":", 1)
+                sample_name = parts[0]
+                bam_path = Path(parts[1])
+            else:
+                bam_path = bam_arg
+                sample_name = bam_path.stem
+
             if not bam_path.exists():
                 console.print(f"[bold red]Error: BAM file not found: {bam_path}[/bold red]")
                 raise typer.Exit(code=1)
-            sample_name = bam_path.stem
+
             bams_dict[sample_name] = bam_path
 
     # 2. Process BAM list file
@@ -90,13 +107,20 @@ def run(
                     line = line.strip()
                     if not line or line.startswith("#"):
                         continue
-                    bam_path = Path(line)
+                    # Check for 2 columns (sample_id path)
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        sample_name = parts[0]
+                        bam_path = Path(parts[1])
+                    else:
+                        bam_path = Path(parts[0])
+                        sample_name = bam_path.stem
+
                     if not bam_path.exists():
                         console.print(
                             f"[yellow]Warning: BAM file from list not found: {bam_path}[/yellow]"
                         )
                         continue
-                    sample_name = bam_path.stem
                     bams_dict[sample_name] = bam_path
         except Exception as e:
             console.print(f"[bold red]Error reading BAM list file {bam_list}: {e}[/bold red]")
@@ -115,9 +139,15 @@ def run(
             reference_fasta=reference,
             output_dir=output_dir,
             output_format=output_format,
+            output_suffix=output_suffix,
             min_mapping_quality=min_mapq,
             min_base_quality=min_baseq,
             filter_duplicates=filter_duplicates,
+            filter_secondary=filter_secondary,
+            filter_supplementary=filter_supplementary,
+            filter_qc_failed=filter_qc_failed,
+            filter_improper_pair=filter_improper_pair,
+            filter_indel=filter_indel,
             threads=threads,
         )
 

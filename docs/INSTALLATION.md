@@ -34,7 +34,7 @@ gbcms requires a Python environment and the Rust toolchain to build the core eng
 Run the help command to verify that the CLI is accessible:
 
 ```bash
-python -m gbcms.cli --help
+gbcms --help
 ```
 
 You should see the help message for the `gbcms` command.

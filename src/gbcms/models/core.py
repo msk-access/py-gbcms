@@ -48,6 +48,9 @@ class Variant(BaseModel):
 
     # Original input metadata (optional)
     original_id: str | None = None
+    metadata: dict[str, str] = Field(
+        default_factory=dict, description="Original input metadata/columns"
+    )
 
     @property
     def interval(self) -> GenomicInterval:
@@ -86,6 +89,7 @@ class GbcmsConfig(BaseModel):
     # Output
     output_dir: Path
     output_format: OutputFormat = OutputFormat.VCF
+    output_suffix: str = ""
 
     # Filters
     min_mapping_quality: int = Field(default=20, ge=0)
@@ -93,6 +97,9 @@ class GbcmsConfig(BaseModel):
     filter_duplicates: bool = True
     filter_secondary: bool = False
     filter_supplementary: bool = False
+    filter_qc_failed: bool = False
+    filter_improper_pair: bool = False
+    filter_indel: bool = False
 
     # Performance
     threads: int = Field(default=1, ge=1)

@@ -45,8 +45,8 @@ class VcfReader(VariantReader):
             for alt in record.alts or []:
                 # VCF POS is record.pos (1-based) or record.start + 1
                 if not record.ref:
-                    continue # Skip if no REF
-                    
+                    continue  # Skip if no REF
+
                 yield CoordinateKernel.vcf_to_internal(
                     chrom=record.chrom,
                     pos=record.pos,
@@ -149,14 +149,14 @@ class MafReader(VariantReader):
 
                         yield CoordinateKernel.vcf_to_internal(
                             chrom=chrom, pos=vcf_pos, ref=vcf_ref, alt=vcf_alt
-                        )
+                        ).model_copy(update={"metadata": row})
                     else:
                         # Fallback to old behavior or direct mapping for SNPs
                         # For SNPs, MAF Start_Position == VCF POS
                         if len(ref) == len(alt) == 1 and ref != "-" and alt != "-":
                             yield CoordinateKernel.vcf_to_internal(
                                 chrom=chrom, pos=start_pos, ref=ref, alt=alt
-                            )
+                            ).model_copy(update={"metadata": row})
                         else:
                             # Fallback for complex/unhandled without FASTA
                             # This might fail in Rust engine if it expects anchor
@@ -166,7 +166,7 @@ class MafReader(VariantReader):
                                 end_pos=int(row["End_Position"]),
                                 ref=ref,
                                 alt=alt,
-                            )
+                            ).model_copy(update={"metadata": row})
 
                 except (KeyError, ValueError, ValidationError):
                     # Log warning or skip malformed lines

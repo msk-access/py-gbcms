@@ -12,7 +12,6 @@ Ensures consistent representation of variants:
 - Deletions: 0-based index of the ANCHOR base (preceding the deletion).
 """
 
-
 from gbcms.models.core import Variant, VariantType
 
 

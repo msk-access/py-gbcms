@@ -1,61 +1,64 @@
-# syntax=docker/dockerfile:1
-FROM python:3.11-slim
+# Stage 1: Builder
+FROM python:3.11-bookworm as builder
 
-# Install OS-level build dependencies commonly needed for cyvcf2, pysam, numpy, etc.
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+WORKDIR /app
+
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    pkg-config \
+    git \
+    cmake \
+    clang \
+    libclang-dev \
+    llvm-dev \
     zlib1g-dev \
     libbz2-dev \
     liblzma-dev \
     libcurl4-openssl-dev \
-    libssl-dev \
-    libncurses5-dev \
-    libncursesw5-dev \
-    libsqlite3-dev \
-    libgdbm-dev \
-    libreadline-dev \
-    libffi-dev \
-    libxml2-dev \
-    libxslt1-dev \
-    gfortran \
-    libopenblas-dev \
-    liblapack-dev \
-    git \
-    autoconf \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+    libssl-dev
 
-# Install Rust toolchain
+ENV LIBCLANG_PATH="/usr/lib/llvm-14/lib"
+ENV BINDGEN_EXTRA_CLANG_ARGS="-I/usr/lib/llvm-14/lib/clang/14.0.6/include"
+
+# Install Rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# Install uv (optional helper) — you can remove if you prefer pip directly
-RUN pip install --no-cache-dir uv
+# Install build tools
+RUN pip install --no-cache-dir maturin build
+
+# Copy source
+COPY . /app
+
+# Build gbcms_rs wheel
+WORKDIR /app/src/gbcms_rs
+RUN maturin build --release --out /app/dist
+
+# Stage 2: Runtime
+FROM python:3.11-slim-bookworm
 
 WORKDIR /app
 
-# Copy only the files needed for installation first to leverage Docker cache
-COPY pyproject.toml pyproject.lock* README.md LICENSE* /app/
-COPY src/ /app/src/
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libcurl4 \
+    libssl3 \
+    zlib1g \
+    libbz2-1.0 \
+    liblzma5 \
+    && rm -rf /var/lib/apt/lists/*
 
-# Create a virtualenv, activate it and install the package with extras
-RUN uv venv .venv && \
-    /bin/bash -lc "source .venv/bin/activate && uv pip install --no-cache-dir '.[all]'" 
+# Copy wheels from builder
+COPY --from=builder /app/dist /app/dist
+COPY . /app
 
-# Ensure the venv bin is first in PATH
-ENV PATH="/app/.venv/bin:${PATH}"
+# Install
+RUN pip install --no-cache-dir /app/dist/*.whl
+RUN pip install --no-cache-dir .
 
-# Working directory for running
-WORKDIR /data
-
-# Entrypoint/command defaults
 ENTRYPOINT ["gbcms"]
 CMD ["--help"]
-
-LABEL org.opencontainers.image.title="py-gbcms"
-LABEL org.opencontainers.image.maintainer="MSK-ACCESS <shahr2@mskcc.org>"
-LABEL org.opencontainers.image.description="Python implementation of GetBaseCountsMultiSample (gbcms) for calculating base counts in BAM files"
-LABEL org.opencontainers.image.source="https://github.com/msk-access/py-gbcms"
-LABEL org.opencontainers.image.documentation="https://github.com/msk-access/py-gbcms/blob/main/README.md"
-LABEL org.opencontainers.image.licenses="AGPL-3.0"
-LABEL org.opencontainers.image.base.image="python:3.11-slim"

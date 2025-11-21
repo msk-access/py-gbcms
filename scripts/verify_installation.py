@@ -6,8 +6,9 @@ This script checks that all required components are properly installed
 and can be imported.
 """
 
-import sys
 import importlib.util
+import sys
+
 
 def check_import(module_name: str, package_name: str | None = None) -> tuple[bool, str]:
     """
@@ -99,7 +100,9 @@ def main():
         return 0
     else:
         print()
-        print("⚠️  Some checks failed. Please ensure dependencies are installed and the Rust extension is built.")
+        print(
+            "⚠️  Some checks failed. Please ensure dependencies are installed and the Rust extension is built."
+        )
         return 1
 
 

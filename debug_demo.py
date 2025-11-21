@@ -1,15 +1,17 @@
 import logging
-from rich.logging import RichHandler
-import gbcms_rs
-import pysam
 import os
+
+import pysam
+from rich.logging import RichHandler
+
+import gbcms_rs
 
 # Setup Logging
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(message)s",
     datefmt="[%X]",
-    handlers=[RichHandler(rich_tracebacks=True, markup=True)]
+    handlers=[RichHandler(rich_tracebacks=True, markup=True)],
 )
 
 log = logging.getLogger("rich")
@@ -17,7 +19,7 @@ log.info("Starting Debug Demo")
 
 # Create dummy BAM
 bam_path = "debug_demo.bam"
-header = { 'HD': {'VN': '1.0'}, 'SQ': [{'LN': 1000, 'SN': 'chr1'}] }
+header = {"HD": {"VN": "1.0"}, "SQ": [{"LN": 1000, "SN": "chr1"}]}
 with pysam.AlignmentFile(bam_path, "wb", header=header) as outf:
     a = pysam.AlignedSegment()
     a.query_name = "read1"
@@ -40,7 +42,7 @@ try:
     log.info("Calling Rust engine...")
     gbcms_rs.count_bam(bam_path, variants, 0, 0, True, True, True)
     log.info("Rust engine finished.")
-except Exception as e:
+except Exception:
     log.exception("Failed")
 finally:
     if os.path.exists(bam_path):

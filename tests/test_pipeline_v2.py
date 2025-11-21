@@ -45,6 +45,9 @@ def test_pipeline_v2(tmp_path):
         filter_duplicates=True,
         filter_secondary=False,
         filter_supplementary=False,
+        filter_qc_failed=False,
+        filter_improper_pair=False,
+        filter_indel=False,
     )
 
     assert len(results) == len(variants)
@@ -63,3 +66,5 @@ def test_pipeline_v2(tmp_path):
         header = lines[0].strip().split("\t")
         assert "t_ref_count" in header
         assert "t_vaf_fragment" in header
+        assert "t_ref_count_forward" in header
+        assert "t_alt_count_reverse" in header

@@ -9,7 +9,7 @@ This module handles:
 """
 
 from pathlib import Path
-from typing import List, Dict, Optional, Union
+
 import pysam
 from rich.console import Console
 from rich.progress import (
@@ -104,6 +104,9 @@ class Pipeline:
                         filter_duplicates=self.config.filter_duplicates,
                         filter_secondary=self.config.filter_secondary,
                         filter_supplementary=self.config.filter_supplementary,
+                        filter_qc_failed=self.config.filter_qc_failed,
+                        filter_improper_pair=self.config.filter_improper_pair,
+                        filter_indel=self.config.filter_indel,
                     )
 
                     # Write Output
@@ -190,16 +193,17 @@ class Pipeline:
     ):
         """Write results to output file."""
         ext = "vcf" if self.config.output_format == OutputFormat.VCF else "maf"
-        output_path = self.config.output_dir / f"{sample_name}.{ext}" # Re-added original path construction
-        writer: Union[VcfWriter, MafWriter]
+        suffix = self.config.output_suffix
+        output_path = self.config.output_dir / f"{sample_name}{suffix}.{ext}"
+        writer: VcfWriter | MafWriter
         if self.config.output_format == OutputFormat.VCF:
             writer = VcfWriter(output_path, sample_name=sample_name)
         else:
             writer = MafWriter(output_path)
-        
-        for v, counts in zip(variants, counts_list): # Changed 'results' to 'counts_list'
+
+        for v, counts in zip(variants, counts_list, strict=True):  # Changed 'results' to 'counts_list'
             writer.write(v, counts, sample_name=sample_name)
-            
+
         writer.close()
 
         # self.console.print(f"Results written to {output_path}")
