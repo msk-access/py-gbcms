@@ -18,3 +18,5 @@
 ## Development
 
 * [Architecture](architecture.md)
+* [Contributing](../CONTRIBUTING.md)
+* [Changelog](../CHANGELOG.md)
