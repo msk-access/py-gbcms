@@ -45,12 +45,8 @@ gbcms uses a hybrid Python/Rust architecture:
 Choose your path:
 
 **New to gbcms?**
-1. [Installation](INSTALLATION.md)
-2. [Usage Overview](WORKFLOWS.md) - Choose CLI or Nextflow
-3. [CLI Quick Start](quick-start.md) OR [Nextflow Guide](NEXTFLOW.md)
+1. [Usage Overview](WORKFLOWS.md) - Choose CLI or Nextflow
+2. [CLI Quick Start](quick-start.md) OR [Nextflow Guide](NEXTFLOW.md)
 
-**Already familiar?**
-- [CLI Features](CLI_FEATURES.md)
-- [Input & Output Formats](INPUT_OUTPUT.md)
-- [Advanced Usage](advanced-usage.md)
-- [Architecture Details](architecture.md)
+**Contributing:**
+- [Documentation Development](CONTRIBUTING_DOCS.md)

@@ -306,6 +306,5 @@ docker pull ghcr.io/msk-access/py-gbcms:2.0.0
 
 ## Next Steps
 
-- Read the [CLI Reference](CLI_FEATURES.md) for parameter details
-- Check [Input & Output Formats](INPUT_OUTPUT.md) for file specifications
+- See [Usage Patterns](WORKFLOWS.md) for comparison with CLI usage
 - See `nextflow/README.md` for additional workflow documentation

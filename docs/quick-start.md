@@ -12,7 +12,7 @@ This guide shows you how to get started with `py-gbcms` using the **standalone C
 - Reference FASTA with index (.fai)
 - Variants file (VCF or MAF)
 
-See [Installation Guide](INSTALLATION.md) for detailed setup instructions.
+Install via `pip install py-gbcms` or see the project README for detailed setup instructions.
 
 ## Basic Usage
 
@@ -176,7 +176,5 @@ docker run --rm -v $(pwd):/data ghcr.io/msk-access/py-gbcms:2.0.0 \
 
 ## Next Steps
 
-- **Advanced filtering:** See [Advanced Usage](advanced-usage.md)
-- **All CLI options:** See [CLI Reference](CLI_FEATURES.md)
-- **File formats:** See [Input & Output Formats](INPUT_OUTPUT.md)
 - **Many samples on HPC:** See [Nextflow Workflow](NEXTFLOW.md)
+- **Usage patterns:** See [Usage Overview](WORKFLOWS.md)
