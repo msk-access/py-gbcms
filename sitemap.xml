@@ -2,42 +2,26 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://msk-access.github.io/py-gbcms/</loc>
-         <lastmod>2025-11-21</lastmod>
+         <lastmod>2025-11-25</lastmod>
     </url>
     <url>
-         <loc>https://msk-access.github.io/py-gbcms/CHANGELOG/</loc>
-         <lastmod>2025-11-21</lastmod>
+         <loc>https://msk-access.github.io/py-gbcms/CONTRIBUTING_DOCS/</loc>
+         <lastmod>2025-11-25</lastmod>
     </url>
     <url>
-         <loc>https://msk-access.github.io/py-gbcms/CLI_FEATURES/</loc>
-         <lastmod>2025-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://msk-access.github.io/py-gbcms/CONTRIBUTING/</loc>
-         <lastmod>2025-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://msk-access.github.io/py-gbcms/INPUT_OUTPUT/</loc>
-         <lastmod>2025-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://msk-access.github.io/py-gbcms/INSTALLATION/</loc>
-         <lastmod>2025-11-21</lastmod>
+         <loc>https://msk-access.github.io/py-gbcms/NEXTFLOW/</loc>
+         <lastmod>2025-11-25</lastmod>
     </url>
     <url>
          <loc>https://msk-access.github.io/py-gbcms/SUMMARY/</loc>
-         <lastmod>2025-11-21</lastmod>
+         <lastmod>2025-11-25</lastmod>
     </url>
     <url>
-         <loc>https://msk-access.github.io/py-gbcms/advanced-usage/</loc>
-         <lastmod>2025-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://msk-access.github.io/py-gbcms/architecture/</loc>
-         <lastmod>2025-11-21</lastmod>
+         <loc>https://msk-access.github.io/py-gbcms/WORKFLOWS/</loc>
+         <lastmod>2025-11-25</lastmod>
     </url>
     <url>
          <loc>https://msk-access.github.io/py-gbcms/quick-start/</loc>
-         <lastmod>2025-11-21</lastmod>
+         <lastmod>2025-11-25</lastmod>
     </url>
 </urlset>

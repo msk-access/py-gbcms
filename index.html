@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="GetBaseCountsMultiSample - Fast variant counting from BAM files">
+        <meta name="description" content="Complete orientation-aware counting system for genomic variants">
       
       
         <meta name="author" content="MSK-ACCESS">
@@ -16,7 +16,7 @@
       
       
       
-        <link rel="next" href="INSTALLATION/">
+        <link rel="next" href="WORKFLOWS/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>py-gbcms Documentation</title>
+        <title>py-gbcms</title>
       
     
     
@@ -92,7 +92,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="." title="py-gbcms Documentation" class="md-header__button md-logo" aria-label="py-gbcms Documentation" data-md-component="logo">
+    <a href="." title="py-gbcms" class="md-header__button md-logo" aria-label="py-gbcms" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -106,7 +106,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            py-gbcms Documentation
+            py-gbcms
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -125,7 +125,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
     
       <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -135,7 +135,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
     
       <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -245,18 +245,17 @@
   
   
   
-    
-    
-      <li class="md-tabs__item">
-        <a href="INSTALLATION/" class="md-tabs__link">
-          
+    <li class="md-tabs__item">
+      <a href="INSTALLATION.md" class="md-tabs__link">
+        
   
   
-  Getting Started
+    
+  
+  Installation
 
-        </a>
-      </li>
-    
+      </a>
+    </li>
   
 
       
@@ -268,7 +267,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="CLI_FEATURES/" class="md-tabs__link">
+        <a href="WORKFLOWS/" class="md-tabs__link">
           
   
   
@@ -288,7 +287,27 @@
     
     
       <li class="md-tabs__item">
-        <a href="CONTRIBUTING/" class="md-tabs__link">
+        <a href="CLI_FEATURES.md" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="architecture.md" class="md-tabs__link">
           
   
   
@@ -322,13 +341,13 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="." title="py-gbcms Documentation" class="md-nav__button md-logo" aria-label="py-gbcms Documentation" data-md-component="logo">
+    <a href="." title="py-gbcms" class="md-nav__button md-logo" aria-label="py-gbcms" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    py-gbcms Documentation
+    py-gbcms
   </label>
   
     <div class="md-nav__source">
@@ -423,6 +442,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#two-ways-to-use-gbcms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two Ways to Use gbcms
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Two Ways to Use gbcms">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#standalone-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🔧 Standalone CLI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nextflow-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🔄 Nextflow Workflow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#architecture" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -458,6 +516,33 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="INSTALLATION.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     
     
     
@@ -472,17 +557,19 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
             
   
   
   <span class="md-ellipsis">
     
   
-    Getting Started
+    Usage
   
 
     
@@ -493,12 +580,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
   
-    Getting Started
+    Usage
   
 
           </label>
@@ -511,14 +598,14 @@
   
   
     <li class="md-nav__item">
-      <a href="INSTALLATION/" class="md-nav__link">
+      <a href="WORKFLOWS/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Installation
+    Overview
   
 
     
@@ -546,7 +633,35 @@
   <span class="md-ellipsis">
     
   
-    Quick Start
+    CLI Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="NEXTFLOW/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nextflow Workflow
   
 
     
@@ -587,17 +702,19 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
             
   
   
   <span class="md-ellipsis">
     
   
-    Usage
+    Reference
   
 
     
@@ -608,12 +725,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
   
-    Usage
+    Reference
   
 
           </label>
@@ -626,14 +743,14 @@
   
   
     <li class="md-nav__item">
-      <a href="CLI_FEATURES/" class="md-nav__link">
+      <a href="CLI_FEATURES.md" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    CLI Reference
+    CLI Features
   
 
     
@@ -654,7 +771,7 @@
   
   
     <li class="md-nav__item">
-      <a href="INPUT_OUTPUT/" class="md-nav__link">
+      <a href="INPUT_OUTPUT.md" class="md-nav__link">
         
   
   
@@ -682,7 +799,7 @@
   
   
     <li class="md-nav__item">
-      <a href="advanced-usage/" class="md-nav__link">
+      <a href="advanced-usage.md" class="md-nav__link">
         
   
   
@@ -730,10 +847,12 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
             
   
   
@@ -751,8 +870,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -769,35 +888,7 @@
   
   
     <li class="md-nav__item">
-      <a href="CONTRIBUTING/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Contributing
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="architecture/" class="md-nav__link">
+      <a href="architecture.md" class="md-nav__link">
         
   
   
@@ -825,7 +916,35 @@
   
   
     <li class="md-nav__item">
-      <a href="CHANGELOG/" class="md-nav__link">
+      <a href="../CONTRIBUTING.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CHANGELOG.md" class="md-nav__link">
         
   
   
@@ -891,6 +1010,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#two-ways-to-use-gbcms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two Ways to Use gbcms
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Two Ways to Use gbcms">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#standalone-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🔧 Standalone CLI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nextflow-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🔄 Nextflow Workflow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#architecture" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -929,46 +1087,47 @@
 
 
   
-    <a href="https://github.com/msk-access/py-gbcms/edit/gh-pages/docs/README.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
-      
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
-    </a>
-  
   
 
 
 <h1 id="introduction">Introduction<a class="headerlink" href="#introduction" title="Permanent link">&para;</a></h1>
-<p><strong>gbcms</strong> (Get Base Counts Multi-Sample) is a high-performance tool for extracting base counts and variant metrics from BAM files. It is designed for accuracy, speed, and ease of use in bioinformatics pipelines.</p>
+<p><strong>gbcms</strong> (Get Base Counts Multi-Sample) is a high-performance tool for extracting base counts and variant metrics from BAM files.</p>
 <h2 id="key-features">Key Features<a class="headerlink" href="#key-features" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Rust-Powered Engine</strong>: Core counting logic is implemented in Rust for maximum performance and memory efficiency.</li>
-<li><strong>Accurate Variant Handling</strong>: <ul>
-<li>Full support for VCF and MAF input formats.</li>
-<li>Rigorous normalization of indels and complex variants using the reference genome.</li>
-<li>Validation of input variants against the reference FASTA.</li>
+<li><strong>Rust-Powered Engine</strong>: Maximum performance and memory efficiency</li>
+<li><strong>Accurate Variant Handling</strong>: Full VCF/MAF support with rigorous normalization</li>
+<li><strong>Comprehensive Metrics</strong>: Depth, strand counts, fragment counts, VAF, and Fisher's strand bias</li>
+<li><strong>Modern CLI</strong>: User-friendly interface with rich output</li>
+<li><strong>Flexible Deployment</strong>: Standalone CLI or Nextflow workflow</li>
 </ul>
-</li>
-<li><strong>Comprehensive Metrics</strong>:<ul>
-<li>Standard depth (DP), reference depth (RD), and alternate depth (AD).</li>
-<li>Strand-specific counts (Forward/Reverse).</li>
-<li>Fragment-level counts (deduplicated by fragment ID).</li>
-<li>Variant Allele Fractions (VAF) at read and fragment levels.</li>
-<li><strong>Strand Bias Statistics</strong>: Fisher's Exact Test p-values (<code>FSB_PVAL</code>) and Odds Ratios (<code>FSB_OR</code>) calculated at the fragment level.</li>
-</ul>
-</li>
-<li><strong>Modern CLI</strong>: User-friendly command-line interface with rich output and progress bars.</li>
-<li><strong>Flexible Input</strong>: Support for single BAMs, lists of BAMs (File of Files), and automatic sample naming.</li>
-</ul>
+<h2 id="two-ways-to-use-gbcms">Two Ways to Use gbcms<a class="headerlink" href="#two-ways-to-use-gbcms" title="Permanent link">&para;</a></h2>
+<h3 id="standalone-cli">🔧 Standalone CLI<a class="headerlink" href="#standalone-cli" title="Permanent link">&para;</a></h3>
+<p>For processing <strong>1-10 samples</strong> locally or on a single server.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>gbcms<span class="w"> </span>run<span class="w"> </span>--variants<span class="w"> </span>variants.vcf<span class="w"> </span>--bam<span class="w"> </span>sample.bam<span class="w"> </span>--fasta<span class="w"> </span>ref.fa<span class="w"> </span>--output-dir<span class="w"> </span>results/
+</code></pre></div>
+<p><strong>→ <a href="quick-start/">CLI Quick Start</a></strong></p>
+<h3 id="nextflow-workflow">🔄 Nextflow Workflow<a class="headerlink" href="#nextflow-workflow" title="Permanent link">&para;</a></h3>
+<p>For processing <strong>10+ samples</strong> in parallel on HPC clusters.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>nextflow<span class="w"> </span>run<span class="w"> </span>nextflow/main.nf<span class="w"> </span>--input<span class="w"> </span>samples.csv<span class="w"> </span>--variants<span class="w"> </span>variants.vcf<span class="w"> </span>--fasta<span class="w"> </span>ref.fa<span class="w"> </span>-profile<span class="w"> </span>slurm
+</code></pre></div>
+<p><strong>→ <a href="NEXTFLOW/">Nextflow Workflow Guide</a></strong></p>
+<hr />
 <h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h2>
 <p>gbcms uses a hybrid Python/Rust architecture:
-*   <strong>Python (v2)</strong>: Handles CLI, input parsing (VCF/MAF), orchestration, and output formatting.
-*   <strong>Rust</strong>: Performs the computationally intensive task of iterating over reads, piling up bases, and calculating statistics.</p>
+- <strong>Python</strong>: CLI, input parsing (VCF/MAF), orchestration, and output formatting
+- <strong>Rust</strong>: Computationally intensive read iteration, base pileup, and statistics</p>
+<hr />
 <h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
-<ul>
-<li><a href="INSTALLATION/">Install gbcms</a></li>
-<li><a href="CLI_FEATURES/">Learn how to use the CLI</a></li>
-<li><a href="INPUT_OUTPUT/">Understand Input/Output formats</a></li>
-</ul>
+<p>Choose your path:</p>
+<p><strong>New to gbcms?</strong>
+1. <a href="INSTALLATION.md">Installation</a>
+2. <a href="WORKFLOWS/">Usage Overview</a> - Choose CLI or Nextflow
+3. <a href="quick-start/">CLI Quick Start</a> OR <a href="NEXTFLOW/">Nextflow Guide</a></p>
+<p><strong>Already familiar?</strong>
+- <a href="CLI_FEATURES.md">CLI Features</a>
+- <a href="INPUT_OUTPUT.md">Input &amp; Output Formats</a>
+- <a href="advanced-usage.md">Advanced Usage</a>
+- <a href="architecture.md">Architecture Details</a></p>
 
 
 
@@ -986,6 +1145,8 @@
             </div>
           
           
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
 <script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
         </div>
         
@@ -1011,33 +1172,6 @@
   
 </div>
       
-        
-<div class="md-social">
-  
-    
-    
-    
-    
-      
-      
-    
-    <a href="https://github.com/msk-access/py-gbcms" target="_blank" rel="noopener" title="github.com" class="md-social__link">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
-    </a>
-  
-    
-    
-    
-    
-      
-      
-    
-    <a href="https://pypi.org/project/py-gbcms/" target="_blank" rel="noopener" title="pypi.org" class="md-social__link">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.8 200.5c-7.7-30.9-22.3-54.2-53.4-54.2h-40.1v47.4c0 36.8-31.2 67.8-66.8 67.8H172.7c-29.2 0-53.4 25-53.4 54.3v101.8c0 29 25.2 46 53.4 54.3 33.8 9.9 66.3 11.7 106.8 0 26.9-7.8 53.4-23.5 53.4-54.3v-40.7H226.2v-13.6h160.2c31.1 0 42.6-21.7 53.4-54.2 11.2-33.5 10.7-65.7 0-108.6M286.2 444.7a20.4 20.4 0 1 1 0-40.7 20.4 20.4 0 1 1 0 40.7M167.8 248.1h106.8c29.7 0 53.4-24.5 53.4-54.3V91.9c0-29-24.4-50.7-53.4-55.6-35.8-5.9-74.7-5.6-106.8.1-45.2 8-53.4 24.7-53.4 55.6v40.7h106.9v13.6h-147c-31.1 0-58.3 18.7-66.8 54.2-9.8 40.7-10.2 66.1 0 108.6 7.6 31.6 25.7 54.2 56.8 54.2H101v-48.8c0-35.3 30.5-66.4 66.8-66.4m-6.6-183.4a20.4 20.4 0 1 1 0 40.8 20.4 20.4 0 1 1 0-40.8"/></svg>
-    </a>
-  
-</div>
-      
     </div>
   </div>
 </footer>
@@ -1051,7 +1185,7 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
       <script src="assets/javascripts/bundle.e71a0d61.min.js"></script>
