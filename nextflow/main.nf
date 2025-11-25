@@ -38,6 +38,9 @@ workflow {
             def meta = [:]
             meta.id = row.sample
             
+            // Per-sample suffix: use row.suffix if present, otherwise use global params.suffix
+            meta.suffix = row.containsKey('suffix') && row.suffix ? row.suffix : params.suffix
+            
             def bam = file(row.bam, checkIfExists: true)
             
             // Handle BAI: if provided use it, otherwise auto-discover and validate

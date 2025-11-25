@@ -1,3 +1,5 @@
-sample,bam,bai
-sample1,/path/to/sample1.bam,/path/to/sample1.bam.bai
-sample2,/path/to/sample2.bam,/path/to/sample2.bam.bai
+sample,bam,bai,suffix
+sample1,/path/to/sample1.duplex.bam,,-duplex
+sample1,/path/to/sample1.simplex.bam,,-simplex
+sample1,/path/to/sample1.unfiltered.bam,,-unfiltered
+sample2,/path/to/sample2.bam,,

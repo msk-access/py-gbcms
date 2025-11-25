@@ -11,13 +11,31 @@ This directory contains a Nextflow workflow for running `py-gbcms` on multiple s
 
 ### 1. Prepare a samplesheet (CSV format)
 
+**Basic samplesheet:**
 ```csv
 sample,bam,bai
 sample1,/path/to/sample1.bam,/path/to/sample1.bam.bai
 sample2,/path/to/sample2.bam,
 ```
 
-**Note**: The `bai` column is optional. If not provided, the workflow will look for `<bam>.bai`.
+**With per-sample suffix (for multiple BAM types per sample):**
+```csv
+sample,bam,bai,suffix
+sample1,/path/to/sample1.duplex.bam,,-duplex
+sample1,/path/to/sample1.simplex.bam,,-simplex
+sample1,/path/to/sample1.unfiltered.bam,,-unfiltered
+sample2,/path/to/sample2.bam,,
+```
+
+**Output:**
+- `sample1-duplex.vcf`
+- `sample1-simplex.vcf`  
+- `sample1-unfiltered.vcf`
+- `sample2.vcf` (or `sample2{--suffix}.vcf` if global suffix set)
+
+**Notes:**
+- `bai` column is optional - will auto-discover `<bam>.bai` if not provided
+- `suffix` column is optional - per-row suffix overrides global `--suffix` parameter
 
 ### 2. Run the workflow
 

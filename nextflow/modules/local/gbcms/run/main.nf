@@ -23,6 +23,9 @@ process GBCMS_RUN {
     def prefix = task.ext.prefix ?: "${meta.id}"
     def format = params.format ?: 'vcf'
     
+    // Use per-sample suffix from meta, fallback to global params.suffix
+    def suffix = meta.suffix ?: params.suffix
+    
     // Construct filter arguments
     def filters = ""
     if (params.filter_duplicates)    filters += " --filter-duplicates"
@@ -39,7 +42,7 @@ process GBCMS_RUN {
         --fasta ${fasta} \\
         --output-dir . \\
         --format ${format} \\
-        --suffix ${params.suffix} \\
+        --suffix ${suffix} \\
         --threads ${task.cpus} \\
         --min-mapq ${params.min_mapq} \\
         --min-baseq ${params.min_baseq} \\

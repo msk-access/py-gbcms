@@ -1,116 +1,180 @@
-# gbcms: Genomic Base Count and Analysis
+# py-gbcms
 
 **Complete orientation-aware counting system for genomic variants**
 
+[![Tests](https://github.com/msk-access/py-gbcms/workflows/Tests/badge.svg)](https://github.com/msk-access/py-gbcms/actions)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+
 ## Features
 
-- **High Performance**: **Rust-powered** core engine with multi-threading support for maximum speed.
-- **Complete variant analysis**: SNP, MNP, insertion, deletion, and **complex variants** (DelIns, SNP+Indel)
-- **Orientation-aware counting**: Forward and reverse strand analysis
-- **Fragment counting**: Proper fragment-level analysis with orientation using **Majority Rule** approach
-- **Statistical analysis**: Strand bias calculation using Fisher's exact test
-- **Multiple input formats**: VCF and MAF file support
-- **Multiple output formats**: VCF and MAF support
-- **Comprehensive filtering**: 7 quality control conditions
+- 🚀 **High Performance**: Rust-powered core engine with multi-threading
+- 🧬 **Complete Variant Support**: SNP, MNP, insertion, deletion, and complex variants (DelIns, SNP+Indel)
+- 📊 **Orientation-Aware**: Forward and reverse strand analysis with fragment counting
+- 🔬 **Statistical Analysis**: Fisher's exact test for strand bias
+- 📁 **Flexible I/O**: VCF and MAF input/output formats
+- 🎯 **Quality Filters**: 7 configurable read filtering options
 
 ## Installation
 
-For detailed installation instructions, including building from source and using Docker, see [Installation Guide](docs/INSTALLATION.md).
-
-### Quick Install (from source)
-
+**Quick install:**
 ```bash
-# Requires Rust toolchain
+pip install py-gbcms
+```
+
+**From source (requires Rust):**
+```bash
+git clone https://github.com/msk-access/py-gbcms.git
+cd py-gbcms
 pip install .
 ```
 
-### Docker
-
+**Docker:**
 ```bash
-docker pull msk-access/gbcms:latest
-# or build locally
-docker build -t gbcms:latest .
+docker pull ghcr.io/msk-access/py-gbcms:2.0.0
 ```
 
-## Quick Start
+📖 **Detailed instructions:** [Installation Guide](docs/INSTALLATION.md)
+
+---
+
+## Usage
+
+`py-gbcms` can be used in two ways:
+
+### 🔧 Option 1: Standalone CLI (1-10 samples)
+
+**Best for:** Quick analysis, local processing, direct control
 
 ```bash
-# Count variants from VCF with BAM alignments
-gbcms run --fasta reference.fa --bam sample1.bam --variants variants.vcf --output-dir results/
+gbcms run \
+    --variants variants.vcf \
+    --bam sample1.bam \
+    --fasta reference.fa \
+    --output-dir results/
+```
 
-# Count variants from MAF with BAM alignments (sample-agnostic MAF output)
-gbcms run --fasta reference.fa --bam sample1.bam --variants variants.maf --output-dir results/ --format maf
+**Output:** `results/sample1.vcf`
 
-# Process multiple BAMs using a File of Files (FoF)
-gbcms run --fasta reference.fa --bam-list bam_list.txt --variants variants.vcf --output-dir results/
+**Learn more:**
+- 📘 [CLI Quick Start](https://cmo-ci.gitbook.io/py-gbcms/quick-start)
+- 📖 [CLI Reference](https://cmo-ci.gitbook.io/py-gbcms/cli_features)
 
-## Advanced Usage
+---
 
-### Explicit Sample IDs
-You can explicitly specify sample IDs for your BAM files. This ID will be used in the output filename and internal file headers.
+### 🔄 Option 2: Nextflow Workflow (10+ samples, HPC)
 
-**CLI Argument:**
+**Best for:** Many samples, HPC clusters (SLURM), reproducible pipelines
+
 ```bash
-gbcms run ... --bam "MySampleID:/path/to/sample.bam"
+nextflow run nextflow/main.nf \
+    --input samplesheet.csv \
+    --variants variants.vcf \
+    --fasta reference.fa \
+    -profile slurm
 ```
 
-**BAM List File:**
-The BAM list file supports a two-column format (whitespace separated):
-```text
-SampleID1   /path/to/sample1.bam
-SampleID2   /path/to/sample2.bam
-```
+**Features:**
+- ✅ Automatic parallelization across samples
+- ✅ SLURM/HPC integration
+- ✅ Container support (Docker/Singularity)
+- ✅ Resume failed runs
 
-### Output Suffix
-You can append a custom suffix to the output filenames using the `--suffix` flag.
+**Learn more:**
+- 🔄 [Nextflow Workflow Guide](https://cmo-ci.gitbook.io/py-gbcms/nextflow)
+- 📋 [Usage Patterns Comparison](https://cmo-ci.gitbook.io/py-gbcms/workflows)
+
+---
+
+## Which Should I Use?
+
+| Scenario | Recommendation |
+|----------|----------------|
+| 1-10 samples, local machine | **CLI** |
+| 10+ samples, HPC cluster | **Nextflow** |
+| Quick ad-hoc analysis | **CLI** |
+| Production pipeline | **Nextflow** |
+| Need auto-parallelization | **Nextflow** |
+| Full manual control | **CLI** |
+
+---
+
+## Quick Examples
+
+### CLI: Single Sample
 ```bash
-gbcms run ... --suffix .genotyped
-# Output: {SampleID}.genotyped.vcf
+gbcms run \
+    --variants variants.vcf \
+    --bam tumor.bam \
+    --fasta hg19.fa \
+    --output-dir results/ \
+    --threads 4
 ```
 
-## Output Format Details
+### CLI: Multiple Samples (Sequential)
+```bash
+gbcms run \
+    --variants variants.vcf \
+    --bam-list samples.txt \
+    --fasta hg19.fa \
+    --output-dir results/
+```
 
-gbcms provides detailed strand-specific counts and allele fractions by default.
+### Nextflow: Many Samples (Parallel)
+```bash
+# samplesheet.csv:
+# sample,bam,bai
+# tumor1,/path/to/tumor1.bam,
+# tumor2,/path/to/tumor2.bam,
 
-### VCF Output
-The following `FORMAT` fields are added:
+nextflow run nextflow/main.nf \
+    --input samplesheet.csv \
+    --variants variants.vcf \
+    --fasta hg19.fa \
+    --outdir results \
+    -profile slurm
+```
 
-- **DP**: Total Depth (`ref_total,alt_total`)
-- **RD**: Reference Read Depth (`fwd,rev`)
-- **AD**: Alternate Read Depth (`fwd,rev`)
-- **RDF**: Reference Fragment Depth (`fwd,rev`)
-- **ADF**: Alternate Fragment Depth (`fwd,rev`)
-- **VAF**: Variant Allele Fraction (Read Level)
-- **FAF**: Variant Allele Fraction (Fragment Level)
+---
 
-### MAF Output
-The following columns are added to the MAF output:
+## Documentation
 
-- `t_ref_count_forward`, `t_ref_count_reverse`
-- `t_alt_count_forward`, `t_alt_count_reverse`
-- `t_ref_count_fragment_forward`, `t_ref_count_fragment_reverse`
-- `t_alt_count_fragment_forward`, `t_alt_count_fragment_reverse`
-- `t_vaf` (Read Level VAF)
-- `t_vaf_fragment` (Fragment Level VAF)
+📚 **Full Documentation:** https://cmo-ci.gitbook.io/py-gbcms/
 
-## Variant Classification and Counting Strategy
+**Quick Links:**
+- [Installation](https://cmo-ci.gitbook.io/py-gbcms/installation)
+- [CLI Quick Start](https://cmo-ci.gitbook.io/py-gbcms/quick-start)
+- [Nextflow Workflow](https://cmo-ci.gitbook.io/py-gbcms/nextflow)
+- [CLI Reference](https://cmo-ci.gitbook.io/py-gbcms/cli_features)
+- [Input & Output Formats](https://cmo-ci.gitbook.io/py-gbcms/input_output)
+- [Architecture](https://cmo-ci.gitbook.io/py-gbcms/architecture)
 
-gbcms automatically classifies variants and uses appropriate counting methods:
+---
 
-### Variant Classification
-- **SNP**: Single nucleotide variants (e.g., A→T)
-- **MNP**: Multi-nucleotide polymorphisms (e.g., AT→CG)
-- **Insertion**: Insertions after single reference base (e.g., A→ATC)
-- **Deletion**: Deletions to single alternate base (e.g., ATC→A)
-- **Complex**: Multi-base variants and complex indels
+## Contributing
 
-### Counting Methods
-- **Standard counting**: Optimized methods for SNP, insertion, and deletion variants
-- **Haplotype Reconstruction**: Advanced sequence reconstruction for complex variants (e.g. DelIns, SNP+Indel) to ensure accurate counting regardless of CIGAR complexity.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 
-All methods provide identical output including read counts, strand analysis, fragment counts, and statistical analysis readiness.
+To contribute to documentation, see the [`gh-pages` branch](https://github.com/msk-access/py-gbcms/tree/gh-pages).
 
-## Output Formats
+---
 
-- **VCF**: Standard VCF format with custom fields for counts and statistics
-- **MAF**: Mutation Annotation Format with counting information
+## Citation
+
+If you use `py-gbcms` in your research, please cite:
+
+```
+[Citation to be added]
+```
+
+---
+
+## License
+
+AGPL-3.0 - see [LICENSE](LICENSE) for details.
+
+---
+
+## Support
+
+- 🐛 **Issues:** https://github.com/msk-access/py-gbcms/issues
+- 💬 **Discussions:** https://github.com/msk-access/py-gbcms/discussions
