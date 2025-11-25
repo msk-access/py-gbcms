@@ -1,0 +1,9 @@
+recursive-include src *.py *.pyi
+include pyproject.toml README.md LICENSE
+# Exclude large documentation and assets
+prune docs
+prune nextflow/assets
+prune tests
+prune examples
+prune .github
+prune .gitignore

@@ -1,6 +1,9 @@
 # Table of Contents
 
 * [Introduction](README.md)
+
+## Getting Started
+
 * [Installation](INSTALLATION.md)
 
 ## Usage Patterns
@@ -9,14 +12,10 @@
 * [CLI Quick Start](quick-start.md)
 * [Nextflow Workflow](NEXTFLOW.md)
 
-## CLI Reference
+## Reference
 
-* [CLI Features](CLI_FEATURES.md)
-* [Input & Output Formats](INPUT_OUTPUT.md)
-* [Advanced Usage](advanced-usage.md)
+* [Changelog](CHANGELOG.md)
 
 ## Development
 
-* [Architecture](architecture.md)
-* [Contributing](../CONTRIBUTING.md)
-* [Changelog](../CHANGELOG.md)
+* [Contributing](CONTRIBUTING.md)
