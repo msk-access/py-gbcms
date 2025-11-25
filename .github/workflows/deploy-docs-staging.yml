@@ -1,0 +1,53 @@
+name: Deploy Documentation (Staging)
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout develop
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+          fetch-depth: 0
+          
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+          
+      - name: Install MkDocs and Material theme
+        run: |
+          pip install mkdocs-material
+          
+      - name: Build docs
+        run: mkdocs build
+          
+      - name: Deploy to gh-pages-staging
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email github-actions[bot]@users.noreply.github.com
+          
+          # Create or checkout staging branch
+          git checkout -b gh-pages-staging || git checkout gh-pages-staging
+          
+          # Remove old content
+          git rm -rf . || true
+          
+          # Copy built site
+          cp -r site/* .
+          touch .nojekyll
+          
+          # Commit and push
+          git add .
+          git diff --quiet && git diff --staged --quiet || git commit -m "Deploy staging docs from develop"
+          git push origin gh-pages-staging --force

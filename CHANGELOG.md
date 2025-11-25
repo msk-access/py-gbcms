@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2025-11-25
+
+### ✨ Added
+
+#### Nextflow Workflow
+- **Production-ready Nextflow workflow** for processing multiple samples in parallel
+- **SLURM cluster support** with customizable queue configuration
+- **Per-sample suffix support** via optional `suffix` column in samplesheet
+- **Docker and Singularity profiles** for containerized execution
+- **Automatic BAI index discovery** with validation
+- **Resume capability** for failed workflow runs
+- **Resource management** with automatic retry and scaling
+- **Comprehensive documentation** in `docs/NEXTFLOW.md` and `nextflow/README.md`
+
+#### Documentation
+- **Usage pattern comparison** guide (`docs/WORKFLOWS.md`) for choosing between CLI and Nextflow
+- **MkDocs integration** for beautiful GitHub Pages documentation
+- **Local documentation preview** with live reload (`mkdocs serve`)
+- **Staging deployment** from `develop` branch for testing docs
+- **Production deployment** from `main` branch
+- **Reorganized documentation structure** with clear CLI vs Nextflow separation
+- **CLI Quick Start guide** (`docs/quick-start.md`)
+
+### 🔧 Changed
+- **Documentation workflow**: docs now live on `main` branch with automated deployment
+- **GitBook integration**: configured to read from `main` branch
+- **Nextflow module**: improved parameter passing with meta.suffix support
+
+### 📝 Documentation
+- Complete Nextflow workflow guide with SLURM examples
+- Per-sample suffix usage examples
+- Git-flow documentation workflow guide
+- Local preview instructions
+- Updated README with clear usage pattern separation
+
 ## [2.0.0] - 2025-11-21
 
 ### 🚀 Major Rewrite
