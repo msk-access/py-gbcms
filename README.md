@@ -30,10 +30,10 @@ pip install .
 
 **Docker:**
 ```bash
-docker pull ghcr.io/msk-access/py-gbcms:2.0.0
+docker pull ghcr.io/msk-access/py-gbcms:2.1.0
 ```
 
-📖 **Detailed instructions:** [Installation Guide](docs/INSTALLATION.md)
+📖 **Full documentation:** https://msk-access.github.io/py-gbcms/
 
 ---
 

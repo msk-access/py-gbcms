@@ -59,9 +59,13 @@ plugins:
 
 nav:
   - Home: README.md
+  - Getting Started:
+      - Installation: INSTALLATION.md
   - Usage:
       - Overview: WORKFLOWS.md
       - CLI Quick Start: quick-start.md
       - Nextflow Workflow: NEXTFLOW.md
+  - Reference:
+      - Changelog: CHANGELOG.md
   - Development:
-      - Contributing to Docs: CONTRIBUTING_DOCS.md
+      - Contributing: CONTRIBUTING.md

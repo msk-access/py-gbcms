@@ -49,4 +49,4 @@ Choose your path:
 2. [CLI Quick Start](quick-start.md) OR [Nextflow Guide](NEXTFLOW.md)
 
 **Contributing:**
-- [Documentation Development](CONTRIBUTING_DOCS.md)
+- [Contributing Guide](CONTRIBUTING.md)
