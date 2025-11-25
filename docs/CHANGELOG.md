@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.2] - 2025-11-25
+
+### 🔧 Fixed
+- **PyPI Distribution**: Fixed source distribution size issue by correctly excluding large files (tests, docs, etc.) via `pyproject.toml` configuration.
+
+## [2.1.1] - 2025-11-25 [YANKED]
+
+> [!WARNING]
+> This release was yanked from PyPI due to a source distribution size limit error. Use 2.1.2 instead.
+
+### 🔧 Fixed
+- **PyPI Distribution**: Added MANIFEST.in (failed to work with Hatchling) to reduce source distribution size
+- **Documentation**: Added comprehensive Installation guide
+- **Documentation**: Unified Contributing guide (merged code + docs contributions)
+- **Documentation**: Added Changelog to documentation navigation
+
 ## [2.1.0] - 2025-11-25
 
 ### ✨ Added
