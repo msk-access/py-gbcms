@@ -8,6 +8,7 @@ This module handles:
 4. Writing results to per-sample output files.
 """
 
+import logging
 from pathlib import Path
 
 import pysam
@@ -27,6 +28,11 @@ from .core.kernel import CoordinateKernel
 from .io.input import MafReader, ReferenceChecker, VariantReader, VcfReader
 from .io.output import MafWriter, VcfWriter
 from .models.core import GbcmsConfig, OutputFormat, Variant
+
+logger = logging.getLogger(__name__)
+
+__all__ = ["Pipeline"]
+
 
 
 class Pipeline:
@@ -208,5 +214,4 @@ class Pipeline:
             writer.write(v, counts, sample_name=sample_name)
 
         writer.close()
-
-        # self.console.print(f"Results written to {output_path}")
+        logger.debug("Results written to %s", output_path)

@@ -11,9 +11,8 @@ from typing import Any
 
 from ..models.core import Variant
 
-# Import BaseCounts from Rust extension via a wrapper or direct import if possible
-# For now, we assume we receive objects with the attributes defined in Rust
-# We can define a Protocol for type hinting if needed.
+__all__ = ["OutputWriter", "MafWriter", "VcfWriter"]
+
 
 
 class OutputWriter:
@@ -354,8 +353,3 @@ class VcfWriter(OutputWriter):
 
     def close(self):
         self.file.close()
-
-
-# VCF Writer would require a template VCF or constructing a header from scratch.
-# For MVP, MAF/Table output is often preferred for downstream analysis.
-# We can add VCFWriter later if strictly needed, or use pysam.

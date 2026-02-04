@@ -7,6 +7,15 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+__all__ = [
+    "VariantType",
+    "GenomicInterval",
+    "Variant",
+    "OutputFormat",
+    "GbcmsConfig",
+]
+
+
 
 class VariantType(str, Enum):
     """Type of genomic variant."""
@@ -65,13 +74,9 @@ class Variant(BaseModel):
         # For now, a simple approximation based on ref length.
         return GenomicInterval(chrom=self.chrom, start=self.pos, end=self.pos + len(self.ref))
 
-
-class InputFormat(str, Enum):
-    VCF = "vcf"
-    MAF = "maf"
-
-
 class OutputFormat(str, Enum):
+    """Supported output formats for gbcms."""
+
     VCF = "vcf"
     MAF = "maf"
 

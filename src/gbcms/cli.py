@@ -9,6 +9,8 @@ import typer
 from .models.core import GbcmsConfig, OutputFormat
 from .pipeline import Pipeline
 
+__all__ = ["app", "run"]
+
 app = typer.Typer(help="gbcms: Get Base Counts Multi-Sample")
 
 
