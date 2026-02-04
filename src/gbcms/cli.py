@@ -126,9 +126,7 @@ def run(
         raise typer.Exit(code=1) from e
 
 
-def _parse_bam_inputs(
-    bam_files: list[Path] | None, bam_list: Path | None
-) -> dict[str, Path]:
+def _parse_bam_inputs(bam_files: list[Path] | None, bam_list: Path | None) -> dict[str, Path]:
     """
     Parse BAM inputs from direct arguments and/or BAM list file.
 

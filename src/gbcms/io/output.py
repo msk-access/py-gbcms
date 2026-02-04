@@ -14,7 +14,6 @@ from ..models.core import Variant
 __all__ = ["OutputWriter", "MafWriter", "VcfWriter"]
 
 
-
 class OutputWriter:
     """Abstract base class for output writers."""
 

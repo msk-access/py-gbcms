@@ -83,8 +83,7 @@ class Pipeline:
 
         # 3. Prepare Rust Variants
         rs_variants = [
-            gbcms_rs.Variant(v.chrom, v.pos, v.ref, v.alt, v.variant_type.value)
-            for v in variants
+            gbcms_rs.Variant(v.chrom, v.pos, v.ref, v.alt, v.variant_type.value) for v in variants
         ]
 
         # 4. Process Each Sample
@@ -222,9 +221,7 @@ class Pipeline:
             with pysam.AlignmentFile(str(bam_path), "rb") as bam:
                 bam_chroms = set(bam.references)
 
-            norm_bam_chroms = {
-                CoordinateKernel.normalize_chromosome(c) for c in bam_chroms
-            }
+            norm_bam_chroms = {CoordinateKernel.normalize_chromosome(c) for c in bam_chroms}
 
             if variants:
                 v = variants[0]

@@ -45,9 +45,7 @@ class GenomicInterval(BaseModel):
     @model_validator(mode="after")
     def validate_interval(self) -> "GenomicInterval":
         if self.end < self.start:
-            raise ValueError(
-                f"End position ({self.end}) must be >= start position ({self.start})"
-            )
+            raise ValueError(f"End position ({self.end}) must be >= start position ({self.start})")
         return self
 
 
@@ -69,9 +67,7 @@ class Variant(BaseModel):
     @property
     def interval(self) -> GenomicInterval:
         """Get the genomic interval covered by this variant."""
-        return GenomicInterval(
-            chrom=self.chrom, start=self.pos, end=self.pos + len(self.ref)
-        )
+        return GenomicInterval(chrom=self.chrom, start=self.pos, end=self.pos + len(self.ref))
 
 
 class OutputFormat(str, Enum):
@@ -96,37 +92,25 @@ class ReadFilters(BaseModel):
 
     duplicates: bool = Field(default=True, description="Filter duplicate reads")
     secondary: bool = Field(default=False, description="Filter secondary alignments")
-    supplementary: bool = Field(
-        default=False, description="Filter supplementary alignments"
-    )
+    supplementary: bool = Field(default=False, description="Filter supplementary alignments")
     qc_failed: bool = Field(default=False, description="Filter reads failing QC")
-    improper_pair: bool = Field(
-        default=False, description="Filter improperly paired reads"
-    )
+    improper_pair: bool = Field(default=False, description="Filter improperly paired reads")
     indel: bool = Field(default=False, description="Filter reads containing indels")
 
 
 class QualityThresholds(BaseModel):
     """Quality score thresholds for filtering reads and bases."""
 
-    min_mapping_quality: int = Field(
-        default=20, ge=0, description="Minimum mapping quality (MAPQ)"
-    )
-    min_base_quality: int = Field(
-        default=0, ge=0, description="Minimum base quality (BQ)"
-    )
+    min_mapping_quality: int = Field(default=20, ge=0, description="Minimum mapping quality (MAPQ)")
+    min_base_quality: int = Field(default=0, ge=0, description="Minimum base quality (BQ)")
 
 
 class OutputConfig(BaseModel):
     """Output configuration settings."""
 
     directory: Path = Field(description="Directory to write output files")
-    format: OutputFormat = Field(
-        default=OutputFormat.VCF, description="Output format (vcf or maf)"
-    )
-    suffix: str = Field(
-        default="", description="Suffix to append to output filename"
-    )
+    format: OutputFormat = Field(default=OutputFormat.VCF, description="Output format (vcf or maf)")
+    suffix: str = Field(default="", description="Suffix to append to output filename")
 
     @field_validator("directory")
     @classmethod
@@ -158,9 +142,7 @@ class GbcmsConfig(BaseModel):
     threads: int = Field(default=1, ge=1, description="Number of threads")
 
     # Advanced
-    fragment_counting: bool = Field(
-        default=False, description="Enable fragment-based counting"
-    )
+    fragment_counting: bool = Field(default=False, description="Enable fragment-based counting")
 
     @field_validator("variant_file", "reference_fasta")
     @classmethod

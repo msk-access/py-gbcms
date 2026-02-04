@@ -21,7 +21,6 @@ logger = logging.getLogger(__name__)
 __all__ = ["VariantReader", "VcfReader", "MafReader", "ReferenceChecker"]
 
 
-
 class VariantReader:
     """Abstract base class for variant readers."""
 

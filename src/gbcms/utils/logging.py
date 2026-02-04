@@ -8,9 +8,10 @@ Provides centralized logging configuration with dual output:
 
 import logging
 import time
+from collections.abc import Callable
 from contextlib import contextmanager
 from functools import wraps
-from typing import Any, Callable
+from typing import Any
 
 from rich.console import Console
 from rich.logging import RichHandler

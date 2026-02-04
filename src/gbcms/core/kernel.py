@@ -13,6 +13,7 @@ Ensures consistent representation of variants:
 """
 
 from gbcms.models.core import Variant, VariantType
+
 __all__ = ["CoordinateKernel"]
 
 
