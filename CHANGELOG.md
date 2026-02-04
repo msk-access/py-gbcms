@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-02-04
+
+### ✨ Added
+- **Multi-platform Wheel Publishing**: Maturin-based CI builds for Linux (x86_64, aarch64), macOS (Intel, Apple Silicon), and Windows
+- **Structured Logging**: New `utils/logging.py` module with Rich console output, timing utilities, and log file support
+- **Mermaid Diagrams**: Architecture documentation with interactive flowcharts
+- **Release Guide**: Comprehensive `docs/RELEASE.md` with git-flow workflow
+
+### 🔄 Changed
+- **Folder Restructure**: Moved `src/gbcms_rs/` to `rust/` for clarity
+- **Config Hierarchy**: Nested Pydantic models (`ReadFilters`, `QualityThresholds`, `OutputConfig`) for better organization
+- **Code Quality**: Added `__all__` exports, docstrings, and type hints across all modules
+- **StrEnum**: Modern enum pattern with Python 3.10 backport
+
+### 📚 Documentation
+- New `docs/ARCHITECTURE.md` with system diagrams
+- New `docs/DEVELOPMENT.md` (developer guide)
+- New `docs/TESTING.md` (testing guide)
+- Updated MkDocs with mermaid2 plugin and snippet includes
+
 ## [2.1.2] - 2025-11-25
 
 ### 🔧 Fixed
