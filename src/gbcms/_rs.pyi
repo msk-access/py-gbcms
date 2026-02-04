@@ -9,7 +9,7 @@ class Variant:
     ref_allele: str
     alt_allele: str
     variant_type: str
-    
+
     def __init__(
         self,
         chrom: str,
