@@ -7,24 +7,25 @@
 <meta content="width=device-width,initial-scale=1" name="viewport"/>
 <meta content="High-performance variant counting from BAM files" name="description"/>
 <meta content="MSK-ACCESS" name="author"/>
-<link href="https://msk-access.github.io/py-gbcms/" rel="canonical"/>
-<link href="INSTALLATION/" rel="next"/>
-<link href="assets/images/favicon.png" rel="icon"/>
+<link href="https://msk-access.github.io/py-gbcms/DEVELOPMENT/" rel="canonical"/>
+<link href="../CHANGELOG/" rel="prev"/>
+<link href="../TESTING/" rel="next"/>
+<link href="../assets/images/favicon.png" rel="icon"/>
 <meta content="mkdocs-1.6.1, mkdocs-material-9.7.1" name="generator"/>
-<title>py-gbcms</title>
-<link href="assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet"/>
-<link href="assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<title>Developer Guide - py-gbcms</title>
+<link href="../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet"/>
+<link href="../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
 <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
-<script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+<script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
 </head>
 <body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
 <input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
 <label class="md-overlay" for="__drawer"></label>
 <div data-md-component="skip">
-<a class="md-skip" href="#py-gbcms">
+<a class="md-skip" href="#developer-guide">
           Skip to content
         </a>
 </div>
@@ -32,7 +33,7 @@
 </div>
 <header class="md-header" data-md-component="header">
 <nav aria-label="Header" class="md-header__inner md-grid">
-<a aria-label="py-gbcms" class="md-header__button md-logo" data-md-component="logo" href="." title="py-gbcms">
+<a aria-label="py-gbcms" class="md-header__button md-logo" data-md-component="logo" href=".." title="py-gbcms">
 <svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
 </a>
 <label class="md-header__button md-icon" for="__drawer">
@@ -48,7 +49,7 @@
 <div class="md-header__topic" data-md-component="header-topic">
 <span class="md-ellipsis">
             
-              Home
+              Developer Guide
             
           </span>
 </div>
@@ -112,8 +113,8 @@
 <nav aria-label="Tabs" class="md-tabs" data-md-component="tabs">
 <div class="md-grid">
 <ul class="md-tabs__list">
-<li class="md-tabs__item md-tabs__item--active">
-<a class="md-tabs__link" href=".">
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="..">
         
   
   
@@ -124,7 +125,7 @@
       </a>
 </li>
 <li class="md-tabs__item">
-<a class="md-tabs__link" href="INSTALLATION/">
+<a class="md-tabs__link" href="../INSTALLATION/">
           
   
   
@@ -133,7 +134,7 @@
         </a>
 </li>
 <li class="md-tabs__item">
-<a class="md-tabs__link" href="ARCHITECTURE/">
+<a class="md-tabs__link" href="../ARCHITECTURE/">
           
   
   
@@ -141,8 +142,8 @@
 
         </a>
 </li>
-<li class="md-tabs__item">
-<a class="md-tabs__link" href="DEVELOPMENT/">
+<li class="md-tabs__item md-tabs__item--active">
+<a class="md-tabs__link" href="./">
           
   
   
@@ -160,7 +161,7 @@
 <div class="md-sidebar__inner">
 <nav aria-label="Navigation" class="md-nav md-nav--primary md-nav--lifted" data-md-level="0">
 <label class="md-nav__title" for="__drawer">
-<a aria-label="py-gbcms" class="md-nav__button md-logo" data-md-component="logo" href="." title="py-gbcms">
+<a aria-label="py-gbcms" class="md-nav__button md-logo" data-md-component="logo" href=".." title="py-gbcms">
 <svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
 </a>
     py-gbcms
@@ -176,20 +177,8 @@
 </a>
 </div>
 <ul class="md-nav__list" data-md-scrollfix="">
-<li class="md-nav__item md-nav__item--active">
-<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
-<label class="md-nav__link md-nav__link--active" for="__toc">
-<span class="md-ellipsis">
-    
-  
-    Home
-  
-
-    
-  </span>
-<span class="md-nav__icon md-icon"></span>
-</label>
-<a class="md-nav__link md-nav__link--active" href=".">
+<li class="md-nav__item">
+<a class="md-nav__link" href="..">
 <span class="md-ellipsis">
     
   
@@ -199,72 +188,6 @@
     
   </span>
 </a>
-<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
-<label class="md-nav__title" for="__toc">
-<span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
-<li class="md-nav__item">
-<a class="md-nav__link" href="#what-it-does">
-<span class="md-ellipsis">
-      
-        What It Does
-      
-    </span>
-</a>
-<nav aria-label="What It Does" class="md-nav">
-<ul class="md-nav__list">
-<li class="md-nav__item">
-<a class="md-nav__link" href="#key-metrics">
-<span class="md-ellipsis">
-      
-        Key Metrics
-      
-    </span>
-</a>
-</li>
-</ul>
-</nav>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#quick-start">
-<span class="md-ellipsis">
-      
-        Quick Start
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#choose-your-workflow">
-<span class="md-ellipsis">
-      
-        Choose Your Workflow
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#architecture">
-<span class="md-ellipsis">
-      
-        Architecture
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#links">
-<span class="md-ellipsis">
-      
-        Links
-      
-    </span>
-</a>
-</li>
-</ul>
-</nav>
 </li>
 <li class="md-nav__item md-nav__item--nested">
 <input class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
@@ -290,7 +213,7 @@
           </label>
 <ul class="md-nav__list" data-md-scrollfix="">
 <li class="md-nav__item">
-<a class="md-nav__link" href="INSTALLATION/">
+<a class="md-nav__link" href="../INSTALLATION/">
 <span class="md-ellipsis">
     
   
@@ -302,7 +225,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="quick-start/">
+<a class="md-nav__link" href="../quick-start/">
 <span class="md-ellipsis">
     
   
@@ -314,7 +237,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="NEXTFLOW/">
+<a class="md-nav__link" href="../NEXTFLOW/">
 <span class="md-ellipsis">
     
   
@@ -352,7 +275,7 @@
           </label>
 <ul class="md-nav__list" data-md-scrollfix="">
 <li class="md-nav__item">
-<a class="md-nav__link" href="ARCHITECTURE/">
+<a class="md-nav__link" href="../ARCHITECTURE/">
 <span class="md-ellipsis">
     
   
@@ -364,7 +287,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="CHANGELOG/">
+<a class="md-nav__link" href="../CHANGELOG/">
 <span class="md-ellipsis">
     
   
@@ -378,9 +301,9 @@
 </ul>
 </nav>
 </li>
-<li class="md-nav__item md-nav__item--nested">
-<input class="md-nav__toggle md-toggle" id="__nav_4" type="checkbox"/>
-<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
 <span class="md-ellipsis">
     
   
@@ -391,7 +314,7 @@
   </span>
 <span class="md-nav__icon md-icon"></span>
 </label>
-<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<nav aria-expanded="true" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
 <label class="md-nav__title" for="__nav_4">
 <span class="md-nav__icon md-icon"></span>
             
@@ -401,8 +324,20 @@
 
           </label>
 <ul class="md-nav__list" data-md-scrollfix="">
-<li class="md-nav__item">
-<a class="md-nav__link" href="DEVELOPMENT/">
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    Developer Guide
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
 <span class="md-ellipsis">
     
   
@@ -412,9 +347,102 @@
     
   </span>
 </a>
+<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#setup">
+<span class="md-ellipsis">
+      
+        Setup
+      
+    </span>
+</a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="TESTING/">
+<a class="md-nav__link" href="#project-structure">
+<span class="md-ellipsis">
+      
+        Project Structure
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#build-commands">
+<span class="md-ellipsis">
+      
+        Build Commands
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#code-standards">
+<span class="md-ellipsis">
+      
+        Code Standards
+      
+    </span>
+</a>
+<nav aria-label="Code Standards" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#python">
+<span class="md-ellipsis">
+      
+        Python
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#rust">
+<span class="md-ellipsis">
+      
+        Rust
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#git-workflow-git-flow">
+<span class="md-ellipsis">
+      
+        Git Workflow (git-flow)
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#quality-checklist">
+<span class="md-ellipsis">
+      
+        Quality Checklist
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#environment-variables">
+<span class="md-ellipsis">
+      
+        Environment Variables
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../TESTING/">
 <span class="md-ellipsis">
     
   
@@ -426,7 +454,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="RELEASE/">
+<a class="md-nav__link" href="../RELEASE/">
 <span class="md-ellipsis">
     
   
@@ -438,7 +466,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="CONTRIBUTING/">
+<a class="md-nav__link" href="../CONTRIBUTING/">
 <span class="md-ellipsis">
     
   
@@ -467,20 +495,56 @@
     </label>
 <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#what-it-does">
+<a class="md-nav__link" href="#setup">
 <span class="md-ellipsis">
       
-        What It Does
+        Setup
       
     </span>
 </a>
-<nav aria-label="What It Does" class="md-nav">
-<ul class="md-nav__list">
+</li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#key-metrics">
+<a class="md-nav__link" href="#project-structure">
 <span class="md-ellipsis">
       
-        Key Metrics
+        Project Structure
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#build-commands">
+<span class="md-ellipsis">
+      
+        Build Commands
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#code-standards">
+<span class="md-ellipsis">
+      
+        Code Standards
+      
+    </span>
+</a>
+<nav aria-label="Code Standards" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#python">
+<span class="md-ellipsis">
+      
+        Python
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#rust">
+<span class="md-ellipsis">
+      
+        Rust
       
     </span>
 </a>
@@ -489,37 +553,28 @@
 </nav>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#quick-start">
+<a class="md-nav__link" href="#git-workflow-git-flow">
 <span class="md-ellipsis">
       
-        Quick Start
+        Git Workflow (git-flow)
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#choose-your-workflow">
+<a class="md-nav__link" href="#quality-checklist">
 <span class="md-ellipsis">
       
-        Choose Your Workflow
+        Quality Checklist
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#architecture">
+<a class="md-nav__link" href="#environment-variables">
 <span class="md-ellipsis">
       
-        Architecture
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#links">
-<span class="md-ellipsis">
-      
-        Links
+        Environment Variables
       
     </span>
 </a>
@@ -531,133 +586,189 @@
 </div>
 <div class="md-content" data-md-component="content">
 <article class="md-content__inner md-typeset">
-<h1 id="py-gbcms">py-gbcms<a class="headerlink" href="#py-gbcms" title="Permanent link">¶</a></h1>
-<blockquote>
-<p><strong>Get Base Counts Multi-Sample</strong> — High-performance variant counting from BAM files</p>
-</blockquote>
-<p><a href="https://pypi.org/project/py-gbcms/"><img alt="Version" src="https://img.shields.io/pypi/v/py-gbcms"/></a>
-<a href="https://pypi.org/project/py-gbcms/"><img alt="Python" src="https://img.shields.io/pypi/pyversions/py-gbcms"/></a>
-<a href="https://github.com/msk-access/py-gbcms/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/msk-access/py-gbcms"/></a></p>
-<h2 id="what-it-does">What It Does<a class="headerlink" href="#what-it-does" title="Permanent link">¶</a></h2>
-<p>gbcms extracts <strong>allele counts</strong> and <strong>variant metrics</strong> at specified positions in BAM files:</p>
+<h1 id="developer-guide">Developer Guide<a class="headerlink" href="#developer-guide" title="Permanent link">¶</a></h1>
+<p>Guide for contributing to py-gbcms.</p>
+<hr/>
+<h2 id="setup">Setup<a class="headerlink" href="#setup" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-0-1" id="__codelineno-0-1" name="__codelineno-0-1"></a><span class="c1"># Clone</span>
+<a href="#__codelineno-0-2" id="__codelineno-0-2" name="__codelineno-0-2"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/msk-access/py-gbcms.git
+<a href="#__codelineno-0-3" id="__codelineno-0-3" name="__codelineno-0-3"></a><span class="nb">cd</span><span class="w"> </span>py-gbcms
+<a href="#__codelineno-0-4" id="__codelineno-0-4" name="__codelineno-0-4"></a>
+<a href="#__codelineno-0-5" id="__codelineno-0-5" name="__codelineno-0-5"></a><span class="c1"># Virtual environment</span>
+<a href="#__codelineno-0-6" id="__codelineno-0-6" name="__codelineno-0-6"></a>python<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>.venv
+<a href="#__codelineno-0-7" id="__codelineno-0-7" name="__codelineno-0-7"></a><span class="nb">source</span><span class="w"> </span>.venv/bin/activate
+<a href="#__codelineno-0-8" id="__codelineno-0-8" name="__codelineno-0-8"></a>
+<a href="#__codelineno-0-9" id="__codelineno-0-9" name="__codelineno-0-9"></a><span class="c1"># Install (builds Rust extension)</span>
+<a href="#__codelineno-0-10" id="__codelineno-0-10" name="__codelineno-0-10"></a>maturin<span class="w"> </span>develop<span class="w"> </span>--release
+<a href="#__codelineno-0-11" id="__codelineno-0-11" name="__codelineno-0-11"></a>
+<a href="#__codelineno-0-12" id="__codelineno-0-12" name="__codelineno-0-12"></a><span class="c1"># Verify</span>
+<a href="#__codelineno-0-13" id="__codelineno-0-13" name="__codelineno-0-13"></a>gbcms<span class="w"> </span>--version
+</code></pre></div>
+<hr/>
+<h2 id="project-structure">Project Structure<a class="headerlink" href="#project-structure" title="Permanent link">¶</a></h2>
 <pre class="mermaid"><code>flowchart LR
-    subgraph Input
-        VCF[VCF/MAF]
-        BAM[BAM Files]
+    subgraph Python["src/gbcms/"]
+        CLI[cli.py] --&gt; Pipeline[pipeline.py]
+        Pipeline --&gt; IO[io/]
+        Pipeline --&gt; Models[models/]
     end
 
-    subgraph Output
-        Counts[Allele Counts]
-        Metrics[VAF, Strand Bias]
+    subgraph Rust["rust/src/"]
+        Lib[lib.rs] --&gt; Count[counting.rs]
+        Count --&gt; Stats[stats.rs]
     end
 
-    VCF --&gt; Engine[gbcms]
-    BAM --&gt; Engine
-    Engine --&gt; Counts
-    Engine --&gt; Metrics
+    Pipeline --&gt; Rust
 </code></pre>
-<h3 id="key-metrics">Key Metrics<a class="headerlink" href="#key-metrics" title="Permanent link">¶</a></h3>
+<hr/>
+<h2 id="build-commands">Build Commands<a class="headerlink" href="#build-commands" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-1-1" id="__codelineno-1-1" name="__codelineno-1-1"></a><span class="c1"># Development (fast)</span>
+<a href="#__codelineno-1-2" id="__codelineno-1-2" name="__codelineno-1-2"></a>maturin<span class="w"> </span>develop
+<a href="#__codelineno-1-3" id="__codelineno-1-3" name="__codelineno-1-3"></a>
+<a href="#__codelineno-1-4" id="__codelineno-1-4" name="__codelineno-1-4"></a><span class="c1"># Release (optimized)</span>
+<a href="#__codelineno-1-5" id="__codelineno-1-5" name="__codelineno-1-5"></a>maturin<span class="w"> </span>develop<span class="w"> </span>--release
+<a href="#__codelineno-1-6" id="__codelineno-1-6" name="__codelineno-1-6"></a>
+<a href="#__codelineno-1-7" id="__codelineno-1-7" name="__codelineno-1-7"></a><span class="c1"># Build wheel</span>
+<a href="#__codelineno-1-8" id="__codelineno-1-8" name="__codelineno-1-8"></a>maturin<span class="w"> </span>build<span class="w"> </span>--release<span class="w"> </span>--out<span class="w"> </span>dist
+</code></pre></div>
+<hr/>
+<h2 id="code-standards">Code Standards<a class="headerlink" href="#code-standards" title="Permanent link">¶</a></h2>
+<h3 id="python">Python<a class="headerlink" href="#python" title="Permanent link">¶</a></h3>
 <table>
 <thead>
 <tr>
-<th style="text-align: left;">Metric</th>
-<th style="text-align: left;">Formula</th>
+<th style="text-align: left;">Standard</th>
+<th style="text-align: left;">Requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Type hints</td>
+<td style="text-align: left;">All public functions</td>
+</tr>
+<tr>
+<td style="text-align: left;">Docstrings</td>
+<td style="text-align: left;">Google style</td>
+</tr>
+<tr>
+<td style="text-align: left;">Exports</td>
+<td style="text-align: left;"><code>__all__</code> in every module</td>
+</tr>
+<tr>
+<td style="text-align: left;">Logging</td>
+<td style="text-align: left;">Use <code>logging</code>, not <code>print()</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Config</td>
+<td style="text-align: left;">Pydantic models</td>
+</tr>
+</tbody>
+</table>
+<h3 id="rust">Rust<a class="headerlink" href="#rust" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Standard</th>
+<th style="text-align: left;">Requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Docs</td>
+<td style="text-align: left;"><code>///</code> on public items</td>
+</tr>
+<tr>
+<td style="text-align: left;">Errors</td>
+<td style="text-align: left;"><code>anyhow::Result</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Logging</td>
+<td style="text-align: left;"><code>log</code> crate</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="git-workflow-git-flow">Git Workflow (git-flow)<a class="headerlink" href="#git-workflow-git-flow" title="Permanent link">¶</a></h2>
+<pre class="mermaid"><code>gitGraph
+    commit id: "main"
+    branch develop
+    commit id: "develop"
+    branch feature/new-thing
+    commit id: "work"
+    checkout develop
+    merge feature/new-thing
+    branch release/2.3.0
+    commit id: "bump"
+    checkout main
+    merge release/2.3.0 tag: "2.3.0"
+    checkout develop
+    merge release/2.3.0
+</code></pre>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Branch</th>
+<th style="text-align: left;">Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>main</code></td>
+<td style="text-align: left;">Production releases</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>develop</code></td>
+<td style="text-align: left;">Integration</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>feature/*</code></td>
+<td style="text-align: left;">New features</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>release/*</code></td>
+<td style="text-align: left;">Release candidates</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>hotfix/*</code></td>
+<td style="text-align: left;">Production fixes</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="quality-checklist">Quality Checklist<a class="headerlink" href="#quality-checklist" title="Permanent link">¶</a></h2>
+<p>Before committing:</p>
+<ul class="task-list">
+<li class="task-list-item"><label class="task-list-control"><input disabled="" type="checkbox"><span class="task-list-indicator"></span></input></label> <code>make lint</code> passes</li>
+<li class="task-list-item"><label class="task-list-control"><input disabled="" type="checkbox"><span class="task-list-indicator"></span></input></label> <code>pytest</code> passes</li>
+<li class="task-list-item"><label class="task-list-control"><input disabled="" type="checkbox"><span class="task-list-indicator"></span></input></label> Type hints complete</li>
+<li class="task-list-item"><label class="task-list-control"><input disabled="" type="checkbox"><span class="task-list-indicator"></span></input></label> Docstrings added</li>
+<li class="task-list-item"><label class="task-list-control"><input disabled="" type="checkbox"><span class="task-list-indicator"></span></input></label> No dead code</li>
+</ul>
+<hr/>
+<h2 id="environment-variables">Environment Variables<a class="headerlink" href="#environment-variables" title="Permanent link">¶</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Variable</th>
+<th style="text-align: left;">Default</th>
 <th style="text-align: left;">Description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td style="text-align: left;"><strong>VAF</strong></td>
-<td style="text-align: left;"><code>AD / (RD + AD)</code></td>
-<td style="text-align: left;">Variant Allele Frequency</td>
+<td style="text-align: left;"><code>GBCMS_LOG_LEVEL</code></td>
+<td style="text-align: left;">INFO</td>
+<td style="text-align: left;">Logging level</td>
 </tr>
 <tr>
-<td style="text-align: left;"><strong>Strand Bias</strong></td>
-<td style="text-align: left;">Fisher's exact test</td>
-<td style="text-align: left;">Detect sequencing artifacts</td>
-</tr>
-<tr>
-<td style="text-align: left;"><strong>Fragment Counts</strong></td>
-<td style="text-align: left;">Deduplicated pairs</td>
-<td style="text-align: left;">PCR-aware counting</td>
+<td style="text-align: left;"><code>RUST_LOG</code></td>
+<td style="text-align: left;">—</td>
+<td style="text-align: left;">Rust logging</td>
 </tr>
 </tbody>
 </table>
-<hr/>
-<h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">¶</a></h2>
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-0-1" id="__codelineno-0-1" name="__codelineno-0-1"></a><span class="c1"># Install</span>
-<a href="#__codelineno-0-2" id="__codelineno-0-2" name="__codelineno-0-2"></a>pip<span class="w"> </span>install<span class="w"> </span>py-gbcms
-<a href="#__codelineno-0-3" id="__codelineno-0-3" name="__codelineno-0-3"></a>
-<a href="#__codelineno-0-4" id="__codelineno-0-4" name="__codelineno-0-4"></a><span class="c1"># Run</span>
-<a href="#__codelineno-0-5" id="__codelineno-0-5" name="__codelineno-0-5"></a>gbcms<span class="w"> </span>run<span class="w"> </span>--variants<span class="w"> </span>variants.vcf<span class="w"> </span>--bam<span class="w"> </span>sample.bam<span class="w"> </span>--fasta<span class="w"> </span>ref.fa<span class="w"> </span>--output-dir<span class="w"> </span>results/
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-2-1" id="__codelineno-2-1" name="__codelineno-2-1"></a><span class="nv">GBCMS_LOG_LEVEL</span><span class="o">=</span>DEBUG<span class="w"> </span><span class="nv">RUST_LOG</span><span class="o">=</span>debug<span class="w"> </span>gbcms<span class="w"> </span>run<span class="w"> </span>...
 </code></pre></div>
-<p><strong>→ <a href="INSTALLATION/">Full Installation Guide</a></strong> | <strong>→ <a href="quick-start/">CLI Examples</a></strong></p>
-<hr/>
-<h2 id="choose-your-workflow">Choose Your Workflow<a class="headerlink" href="#choose-your-workflow" title="Permanent link">¶</a></h2>
-<pre class="mermaid"><code>flowchart TD
-    Start[How many samples?] --&gt; Few{1-10 samples}
-    Start --&gt; Many{10+ samples}
-
-    Few --&gt; CLI[Use CLI<br/>gbcms run ...]
-    Many --&gt; HPC{HPC cluster?}
-
-    HPC --&gt; |Yes| Nextflow[Use Nextflow<br/>nextflow run ...]
-    HPC --&gt; |No| CLI
-
-    style CLI fill:#4caf50,color:white
-    style Nextflow fill:#2196f3,color:white
-</code></pre>
-<table>
-<thead>
-<tr>
-<th style="text-align: left;">Workflow</th>
-<th style="text-align: left;">Best For</th>
-<th style="text-align: left;">Guide</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align: left;"><strong>CLI</strong></td>
-<td style="text-align: left;">1-10 samples, local/single server</td>
-<td style="text-align: left;"><a href="quick-start/">Quick Start</a></td>
-</tr>
-<tr>
-<td style="text-align: left;"><strong>Nextflow</strong></td>
-<td style="text-align: left;">10+ samples, HPC/SLURM</td>
-<td style="text-align: left;"><a href="NEXTFLOW/">Nextflow Guide</a></td>
-</tr>
-</tbody>
-</table>
-<hr/>
-<h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">¶</a></h2>
-<p>Python/Rust hybrid for maximum performance:</p>
-<pre class="mermaid"><code>flowchart TB
-    subgraph Python["🐍 Python"]
-        CLI[CLI] --&gt; Pipeline[Orchestration]
-        Pipeline --&gt; IO[VCF/MAF I/O]
-    end
-
-    subgraph Rust["🦀 Rust"]
-        Counter[BAM Counting]
-        Stats[Fisher's Test]
-    end
-
-    Pipeline --&gt; Counter
-    Counter --&gt; Stats
-
-    style Python fill:#3776ab,color:#fff
-    style Rust fill:#dea584,color:#000
-</code></pre>
-<p><strong>→ <a href="ARCHITECTURE/">Technical Details</a></strong></p>
-<hr/>
-<h2 id="links">Links<a class="headerlink" href="#links" title="Permanent link">¶</a></h2>
-<ul>
-<li><strong><a href="INSTALLATION/">Installation</a></strong> — PyPI, Docker, source</li>
-<li><strong><a href="quick-start/">CLI Guide</a></strong> — Command examples  </li>
-<li><strong><a href="NEXTFLOW/">Nextflow</a></strong> — HPC pipeline</li>
-<li><strong><a href="CONTRIBUTING/">Contributing</a></strong> — Development guide</li>
-<li><strong><a href="CHANGELOG/">Changelog</a></strong> — Version history</li>
-</ul>
 </article>
 </div>
 <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
@@ -686,8 +797,8 @@
 <div class="md-dialog" data-md-component="dialog">
 <div class="md-dialog__inner md-typeset"></div>
 </div>
-<script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
-<script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+<script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+<script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
 <script type="module">import mermaid from "https://unpkg.com/mermaid@10.4.0/dist/mermaid.esm.min.mjs";
 window.mermaidConfig = {default: {
     startOnLoad: false
