@@ -1,52 +1,112 @@
-# Introduction
+# py-gbcms
 
-**gbcms** (Get Base Counts Multi-Sample) is a high-performance tool for extracting base counts and variant metrics from BAM files.
+> **Get Base Counts Multi-Sample** — High-performance variant counting from BAM files
 
-## Key Features
+[![Version](https://img.shields.io/pypi/v/py-gbcms)](https://pypi.org/project/py-gbcms/)
+[![Python](https://img.shields.io/pypi/pyversions/py-gbcms)](https://pypi.org/project/py-gbcms/)
+[![License](https://img.shields.io/github/license/msk-access/py-gbcms)](https://github.com/msk-access/py-gbcms/blob/main/LICENSE)
 
-- **Rust-Powered Engine**: Maximum performance and memory efficiency
-- **Accurate Variant Handling**: Full VCF/MAF support with rigorous normalization
-- **Comprehensive Metrics**: Depth, strand counts, fragment counts, VAF, and Fisher's strand bias
-- **Modern CLI**: User-friendly interface with rich output
-- **Flexible Deployment**: Standalone CLI or Nextflow workflow
+## What It Does
 
-## Two Ways to Use gbcms
+gbcms extracts **allele counts** and **variant metrics** at specified positions in BAM files:
 
-### 🔧 Standalone CLI
-For processing **1-10 samples** locally or on a single server.
+```mermaid
+flowchart LR
+    subgraph Input
+        VCF[VCF/MAF]
+        BAM[BAM Files]
+    end
+    
+    subgraph Output
+        Counts[Allele Counts]
+        Metrics[VAF, Strand Bias]
+    end
+    
+    VCF --> Engine[gbcms]
+    BAM --> Engine
+    Engine --> Counts
+    Engine --> Metrics
+```
+
+### Key Metrics
+
+| Metric | Formula | Description |
+|:-------|:--------|:------------|
+| **VAF** | `AD / (RD + AD)` | Variant Allele Frequency |
+| **Strand Bias** | Fisher's exact test | Detect sequencing artifacts |
+| **Fragment Counts** | Deduplicated pairs | PCR-aware counting |
+
+---
+
+## Quick Start
 
 ```bash
+# Install
+pip install py-gbcms
+
+# Run
 gbcms run --variants variants.vcf --bam sample.bam --fasta ref.fa --output-dir results/
 ```
 
-**→ [CLI Quick Start](quick-start.md)**
+**→ [Full Installation Guide](INSTALLATION.md)** | **→ [CLI Examples](quick-start.md)**
 
-### 🔄 Nextflow Workflow
-For processing **10+ samples** in parallel on HPC clusters.
+---
 
-```bash
-nextflow run nextflow/main.nf --input samples.csv --variants variants.vcf --fasta ref.fa -profile slurm
+## Choose Your Workflow
+
+```mermaid
+flowchart TD
+    Start[How many samples?] --> Few{1-10 samples}
+    Start --> Many{10+ samples}
+    
+    Few --> CLI[Use CLI<br/>gbcms run ...]
+    Many --> HPC{HPC cluster?}
+    
+    HPC --> |Yes| Nextflow[Use Nextflow<br/>nextflow run ...]
+    HPC --> |No| CLI
+    
+    style CLI fill:#4caf50,color:white
+    style Nextflow fill:#2196f3,color:white
 ```
 
-**→ [Nextflow Workflow Guide](NEXTFLOW.md)**
+| Workflow | Best For | Guide |
+|:---------|:---------|:------|
+| **CLI** | 1-10 samples, local/single server | [Quick Start](quick-start.md) |
+| **Nextflow** | 10+ samples, HPC/SLURM | [Nextflow Guide](NEXTFLOW.md) |
 
 ---
 
 ## Architecture
 
-gbcms uses a hybrid Python/Rust architecture:
-- **Python**: CLI, input parsing (VCF/MAF), orchestration, and output formatting
-- **Rust**: Computationally intensive read iteration, base pileup, and statistics
+Python/Rust hybrid for maximum performance:
+
+```mermaid
+flowchart TB
+    subgraph Python["🐍 Python"]
+        CLI[CLI] --> Pipeline[Orchestration]
+        Pipeline --> IO[VCF/MAF I/O]
+    end
+    
+    subgraph Rust["🦀 Rust"]
+        Counter[BAM Counting]
+        Stats[Fisher's Test]
+    end
+    
+    Pipeline --> Counter
+    Counter --> Stats
+    
+    style Python fill:#3776ab,color:#fff
+    style Rust fill:#dea584,color:#000
+```
+
+**→ [Technical Details](ARCHITECTURE.md)**
 
 ---
 
-## Next Steps
+## Links
 
-Choose your path:
-
-**New to gbcms?**
-1. [Usage Overview](WORKFLOWS.md) - Choose CLI or Nextflow
-2. [CLI Quick Start](quick-start.md) OR [Nextflow Guide](NEXTFLOW.md)
-
-**Contributing:**
-- [Contributing Guide](CONTRIBUTING.md)
+- **[Installation](INSTALLATION.md)** — PyPI, Docker, source
+- **[CLI Guide](quick-start.md)** — Command examples  
+- **[Nextflow](NEXTFLOW.md)** — HPC pipeline
+- **[Contributing](CONTRIBUTING.md)** — Development guide
+- **[Changelog](CHANGELOG.md)** — Version history

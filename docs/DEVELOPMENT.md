@@ -1,34 +1,60 @@
 # Developer Guide
 
-This guide covers development setup, code standards, and workflow for contributing to py-gbcms.
+Guide for contributing to py-gbcms.
 
-## Development Setup
+---
 
-### Prerequisites
-
-- Python 3.10+
-- Rust toolchain (rustup)
-- maturin (for Rust/Python builds)
-
-### Quick Start
+## Setup
 
 ```bash
-# Clone repository
+# Clone
 git clone https://github.com/msk-access/py-gbcms.git
 cd py-gbcms
 
-# Create virtual environment
+# Virtual environment
 python -m venv .venv
 source .venv/bin/activate
 
-# Install in development mode
-pip install -e ".[dev]"
+# Install (builds Rust extension)
+maturin develop --release
 
-# Build Rust extension
-cd rust && maturin develop && cd ..
-
-# Verify installation
+# Verify
 gbcms --version
+```
+
+---
+
+## Project Structure
+
+```mermaid
+flowchart LR
+    subgraph Python["src/gbcms/"]
+        CLI[cli.py] --> Pipeline[pipeline.py]
+        Pipeline --> IO[io/]
+        Pipeline --> Models[models/]
+    end
+    
+    subgraph Rust["rust/src/"]
+        Lib[lib.rs] --> Count[counting.rs]
+        Count --> Stats[stats.rs]
+    end
+    
+    Pipeline --> Rust
+```
+
+---
+
+## Build Commands
+
+```bash
+# Development (fast)
+maturin develop
+
+# Release (optimized)
+maturin develop --release
+
+# Build wheel
+maturin build --release --out dist
 ```
 
 ---
@@ -39,100 +65,60 @@ gbcms --version
 
 | Standard | Requirement |
 |:---------|:------------|
-| **Type hints** | All public functions |
-| **Docstrings** | Google style for all public APIs |
-| **Exports** | `__all__` in every module |
-| **Logging** | Use `logging` module, not `print()` |
-| **Config** | Pydantic models for settings |
+| Type hints | All public functions |
+| Docstrings | Google style |
+| Exports | `__all__` in every module |
+| Logging | Use `logging`, not `print()` |
+| Config | Pydantic models |
 
 ### Rust
 
 | Standard | Requirement |
 |:---------|:------------|
-| **Documentation** | `///` doc comments on public items |
-| **Error handling** | `anyhow::Result` for fallible ops |
-| **Logging** | `log` crate via `pyo3-log` |
+| Docs | `///` on public items |
+| Errors | `anyhow::Result` |
+| Logging | `log` crate |
 
 ---
 
-## Project Layout
+## Git Workflow (git-flow)
 
 ```mermaid
-flowchart LR
-    subgraph Python["Python (src/gbcms/)"]
-        CLI[cli.py]
-        Pipe[pipeline.py]
-        IO[io/]
-        Models[models/]
-    end
-    
-    subgraph Rust["Rust (rust/)"]
-        Lib[lib.rs]
-        Count[counting.rs]
-        Stats[stats.rs]
-    end
-    
-    CLI --> Pipe --> IO
-    Pipe --> Rust
+gitGraph
+    commit id: "main"
+    branch develop
+    commit id: "develop"
+    branch feature/new-thing
+    commit id: "work"
+    checkout develop
+    merge feature/new-thing
+    branch release/2.3.0
+    commit id: "bump"
+    checkout main
+    merge release/2.3.0 tag: "2.3.0"
+    checkout develop
+    merge release/2.3.0
 ```
-
----
-
-## Git Workflow
-
-We use **git-flow** with these branches:
 
 | Branch | Purpose |
 |:-------|:--------|
 | `main` | Production releases |
-| `develop` | Integration branch |
+| `develop` | Integration |
 | `feature/*` | New features |
 | `release/*` | Release candidates |
 | `hotfix/*` | Production fixes |
 
-### Feature Development
-
-```bash
-# Start feature
-git checkout develop
-git checkout -b feature/my-feature
-
-# Commit work
-git add -A && git commit -m "feat: add feature"
-
-# Merge back
-git checkout develop
-git merge feature/my-feature
-```
-
 ---
 
-## Code Quality Checklist
+## Quality Checklist
 
-Before committing, verify:
+Before committing:
 
-- [ ] **Logging** — proper levels, no `print()`, timing included
-- [ ] **Docstrings** — all public functions documented
-- [ ] **Type hints** — complete annotations
-- [ ] **Tests** — new code has test coverage
-- [ ] **No dead code** — unused imports/functions removed
-- [ ] **`__all__`** — exports match public API
-
----
-
-## Building the Rust Extension
-
-```bash
-# Development build (fast, unoptimized)
-cd rust
-maturin develop
-
-# Release build (optimized)
-maturin develop --release
-
-# Build wheel
-maturin build --release
-```
+- [ ] `make lint` passes
+- [ ] `pytest` passes
+- [ ] Type hints complete
+- [ ] Docstrings added
+- [ ] No dead code
 
 ---
 
@@ -140,10 +126,8 @@ maturin build --release
 
 | Variable | Default | Description |
 |:---------|:--------|:------------|
-| `GBCMS_LOG_LEVEL` | `INFO` | Logging verbosity |
-| `RUST_LOG` | — | Rust-side logging |
-
-Set logging for debugging:
+| `GBCMS_LOG_LEVEL` | INFO | Logging level |
+| `RUST_LOG` | — | Rust logging |
 
 ```bash
 GBCMS_LOG_LEVEL=DEBUG RUST_LOG=debug gbcms run ...

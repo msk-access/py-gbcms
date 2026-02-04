@@ -1,5 +1,5 @@
 site_name: py-gbcms
-site_description: Complete orientation-aware counting system for genomic variants
+site_description: High-performance variant counting from BAM files
 site_author: MSK-ACCESS
 site_url: https://msk-access.github.io/py-gbcms/
 
@@ -10,7 +10,6 @@ edit_uri: edit/main/docs/
 theme:
   name: material
   palette:
-    # Light mode
     - media: "(prefers-color-scheme: light)"
       scheme: default
       primary: indigo
@@ -18,7 +17,6 @@ theme:
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
-    # Dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
       primary: indigo
@@ -31,7 +29,6 @@ theme:
     - navigation.tracking
     - navigation.tabs
     - navigation.sections
-    - navigation.expand
     - navigation.top
     - search.suggest
     - search.highlight
@@ -43,7 +40,6 @@ plugins:
   - mermaid2
 
 markdown_extensions:
-  # Python Markdown
   - abbr
   - admonition
   - attr_list
@@ -52,7 +48,6 @@ markdown_extensions:
   - md_in_html
   - toc:
       permalink: true
-  # Python Markdown Extensions
   - pymdownx.details
   - pymdownx.highlight:
       anchor_linenums: true
@@ -75,17 +70,15 @@ markdown_extensions:
 
 nav:
   - Home: README.md
-  - Getting Started:
+  - User Guide:
       - Installation: INSTALLATION.md
-      - Quick Start: quick-start.md
-  - Usage:
-      - CLI Workflows: WORKFLOWS.md
+      - CLI Quick Start: quick-start.md
       - Nextflow Pipeline: NEXTFLOW.md
-  - Development:
+  - Reference:
       - Architecture: ARCHITECTURE.md
+      - Changelog: CHANGELOG.md
+  - Developer:
       - Developer Guide: DEVELOPMENT.md
       - Testing Guide: TESTING.md
       - Release Guide: RELEASE.md
       - Contributing: CONTRIBUTING.md
-  - Reference:
-      - Changelog: CHANGELOG.md
