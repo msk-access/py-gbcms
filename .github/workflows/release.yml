@@ -32,8 +32,8 @@ jobs:
               SUDO="sudo"
             fi
             if command -v yum &> /dev/null; then
-              # perl-IPC-Cmd needed for OpenSSL build
-              $SUDO yum install -y zlib-devel bzip2-devel xz-devel libcurl-devel openssl-devel clang llvm-devel perl-IPC-Cmd
+              # perl modules needed for OpenSSL build
+              $SUDO yum install -y zlib-devel bzip2-devel xz-devel libcurl-devel openssl-devel clang llvm-devel perl-IPC-Cmd perl-Time-Piece
             elif command -v apt-get &> /dev/null; then
               $SUDO apt-get update && $SUDO apt-get install -y zlib1g-dev libbz2-dev liblzma-dev libcurl4-openssl-dev libssl-dev clang libclang-dev
             fi
