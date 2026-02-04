@@ -58,7 +58,7 @@ class Pipeline:
         """
         start_time = time.perf_counter()
         logger.info("Starting gbcms pipeline")
-        logger.info("Output directory: %s", self.config.output_dir)
+        logger.info("Output directory: %s", self.config.output.directory)
 
         # 1. Load Variants
         logger.debug("Loading variants from %s", self.config.variant_file)
@@ -88,7 +88,7 @@ class Pipeline:
         ]
 
         # 4. Process Each Sample
-        self.config.output_dir.mkdir(parents=True, exist_ok=True)
+        self.config.output.directory.mkdir(parents=True, exist_ok=True)
         samples = list(self.config.bam_files.items())
 
         with Progress(
@@ -143,19 +143,19 @@ class Pipeline:
             )
 
         try:
-            # Run Rust Engine
+            # Run Rust Engine with nested config accessors
             rust_start = time.perf_counter()
             counts_list = gbcms_rs.count_bam(
                 str(bam_path),
                 rs_variants,
-                min_mapq=self.config.min_mapping_quality,
-                min_baseq=self.config.min_base_quality,
-                filter_duplicates=self.config.filter_duplicates,
-                filter_secondary=self.config.filter_secondary,
-                filter_supplementary=self.config.filter_supplementary,
-                filter_qc_failed=self.config.filter_qc_failed,
-                filter_improper_pair=self.config.filter_improper_pair,
-                filter_indel=self.config.filter_indel,
+                min_mapq=self.config.quality.min_mapping_quality,
+                min_baseq=self.config.quality.min_base_quality,
+                filter_duplicates=self.config.filters.duplicates,
+                filter_secondary=self.config.filters.secondary,
+                filter_supplementary=self.config.filters.supplementary,
+                filter_qc_failed=self.config.filters.qc_failed,
+                filter_improper_pair=self.config.filters.improper_pair,
+                filter_indel=self.config.filters.indel,
                 threads=self.config.threads,
             )
             rust_time = time.perf_counter() - rust_start
@@ -243,12 +243,12 @@ class Pipeline:
         counts_list: list[gbcms_rs.BaseCounts],
     ) -> None:
         """Write results to output file."""
-        ext = "vcf" if self.config.output_format == OutputFormat.VCF else "maf"
-        suffix = self.config.output_suffix
-        output_path = self.config.output_dir / f"{sample_name}{suffix}.{ext}"
+        ext = "vcf" if self.config.output.format == OutputFormat.VCF else "maf"
+        suffix = self.config.output.suffix
+        output_path = self.config.output.directory / f"{sample_name}{suffix}.{ext}"
 
         writer: VcfWriter | MafWriter
-        if self.config.output_format == OutputFormat.VCF:
+        if self.config.output.format == OutputFormat.VCF:
             writer = VcfWriter(output_path, sample_name=sample_name)
         else:
             writer = MafWriter(output_path)

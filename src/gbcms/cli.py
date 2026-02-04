@@ -7,7 +7,13 @@ from pathlib import Path
 
 import typer
 
-from .models.core import GbcmsConfig, OutputFormat
+from .models.core import (
+    GbcmsConfig,
+    OutputConfig,
+    OutputFormat,
+    QualityThresholds,
+    ReadFilters,
+)
 from .pipeline import Pipeline
 from .utils import setup_logging
 
@@ -28,6 +34,7 @@ def main():
 
 @app.command()
 def run(
+    # Input options
     variant_file: Path = typer.Option(
         ..., "--variants", "-v", help="Path to VCF or MAF file containing variants"
     ),
@@ -38,6 +45,7 @@ def run(
         None, "--bam-list", "-L", help="File containing list of BAM paths (one per line)"
     ),
     reference: Path = typer.Option(..., "--fasta", "-f", help="Path to reference FASTA file"),
+    # Output options
     output_dir: Path = typer.Option(
         ..., "--output-dir", "-o", help="Directory to write output files"
     ),
@@ -47,14 +55,17 @@ def run(
     output_suffix: str = typer.Option(
         "", "--suffix", "-S", help="Suffix to append to output filename (e.g. '.genotyped')"
     ),
+    # Quality thresholds
     min_mapq: int = typer.Option(20, "--min-mapq", help="Minimum mapping quality"),
     min_baseq: int = typer.Option(0, "--min-baseq", help="Minimum base quality"),
+    # Read filters
     filter_duplicates: bool = typer.Option(True, help="Filter duplicate reads"),
     filter_secondary: bool = typer.Option(False, help="Filter secondary alignments"),
     filter_supplementary: bool = typer.Option(False, help="Filter supplementary alignments"),
     filter_qc_failed: bool = typer.Option(False, help="Filter reads failing QC"),
     filter_improper_pair: bool = typer.Option(False, help="Filter improperly paired reads"),
     filter_indel: bool = typer.Option(False, help="Filter reads containing indels"),
+    # Performance
     threads: int = typer.Option(
         1, "--threads", "-t", help="Number of threads for parallel processing"
     ),
@@ -76,21 +87,34 @@ def run(
     logger.info("Found %d BAM file(s) to process", len(bams_dict))
 
     try:
+        # Build nested config objects
+        output_config = OutputConfig(
+            directory=output_dir,
+            format=output_format,
+            suffix=output_suffix,
+        )
+
+        quality_config = QualityThresholds(
+            min_mapping_quality=min_mapq,
+            min_base_quality=min_baseq,
+        )
+
+        filter_config = ReadFilters(
+            duplicates=filter_duplicates,
+            secondary=filter_secondary,
+            supplementary=filter_supplementary,
+            qc_failed=filter_qc_failed,
+            improper_pair=filter_improper_pair,
+            indel=filter_indel,
+        )
+
         config = GbcmsConfig(
             variant_file=variant_file,
             bam_files=bams_dict,
             reference_fasta=reference,
-            output_dir=output_dir,
-            output_format=output_format,
-            output_suffix=output_suffix,
-            min_mapping_quality=min_mapq,
-            min_base_quality=min_baseq,
-            filter_duplicates=filter_duplicates,
-            filter_secondary=filter_secondary,
-            filter_supplementary=filter_supplementary,
-            filter_qc_failed=filter_qc_failed,
-            filter_improper_pair=filter_improper_pair,
-            filter_indel=filter_indel,
+            output=output_config,
+            quality=quality_config,
+            filters=filter_config,
             threads=threads,
         )
 
