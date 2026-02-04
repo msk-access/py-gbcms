@@ -85,6 +85,7 @@ nav:
       - Architecture: ARCHITECTURE.md
       - Developer Guide: DEVELOPMENT.md
       - Testing Guide: TESTING.md
+      - Release Guide: RELEASE.md
       - Contributing: CONTRIBUTING.md
   - Reference:
       - Changelog: CHANGELOG.md

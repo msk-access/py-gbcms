@@ -8,5 +8,6 @@
 * [Architecture](ARCHITECTURE.md)
 * [Developer Guide](DEVELOPMENT.md)
 * [Testing Guide](TESTING.md)
+* [Release Guide](RELEASE.md)
 * [Contributing](CONTRIBUTING.md)
 * [Changelog](CHANGELOG.md)
