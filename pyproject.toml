@@ -51,29 +51,14 @@ Documentation = "https://github.com/msk-access/py-gbcms#readme"
 "Bug Tracker" = "https://github.com/msk-access/py-gbcms/issues"
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/gbcms"]
+[tool.maturin]
+python-source = "src"
+manifest-path = "rust/Cargo.toml"
+module-name = "gbcms._rs"
 
-[tool.hatch.build.targets.sdist]
-exclude = [
-    "/.github",
-    "/docs",
-    "/tests",
-    "/nextflow",
-    "/examples",
-    "/.gitignore",
-    "/.gitbook.yaml",
-    "/mkdocs.yml",
-    "/docker-compose.yml",
-    "/Dockerfile",
-    "/Makefile",
-    "/test_real_data.sh",
-    "/git-flow-helper.sh",
-    "/scripts",
-]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -134,7 +119,7 @@ disable_error_code = ["call-arg"]
 [[tool.mypy.overrides]]
 module = [
     "pysam.*",
-    "gbcms_rs",
+    "gbcms._rs",
 ]
 ignore_missing_imports = true
 

@@ -68,7 +68,7 @@ def main():
         ("gbcms.io.input", "Input Readers"),
         ("gbcms.io.output", "Output Writers"),
         ("gbcms.pipeline", "Pipeline"),
-        ("gbcms_rs", "Rust Extension (gbcms_rs)"),
+        ("gbcms._rs", "Rust Extension (gbcms._rs)"),
     ]
 
     gb_results = [check_import(mod, pkg) for mod, pkg in gb_modules]

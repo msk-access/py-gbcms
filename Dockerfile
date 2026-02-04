@@ -1,14 +1,9 @@
 # Dockerfile for py-gbcms
 # 
-# For development/local builds (includes Rust compilation):
-#   docker build -t py-gbcms .
-#
-# For CI builds (uses pre-built wheel - faster):
-#   docker build --build-arg WHEEL_PATH=dist/*.whl -t py-gbcms .
+# Build: docker build -t py-gbcms .
+# Run:   docker run py-gbcms --help
 
-ARG WHEEL_PATH=""
-
-# Stage 1: Builder (only used if no pre-built wheel provided)
+# Stage 1: Builder (with Rust compilation)
 FROM python:3.11-bookworm AS builder
 
 ENV PYTHONUNBUFFERED=1 \
@@ -29,7 +24,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libbz2-dev \
     liblzma-dev \
     libcurl4-openssl-dev \
-    libssl-dev
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV LIBCLANG_PATH="/usr/lib/llvm-14/lib"
 ENV BINDGEN_EXTRA_CLANG_ARGS="-I/usr/lib/llvm-14/lib/clang/14.0.6/include"
@@ -38,17 +34,16 @@ ENV BINDGEN_EXTRA_CLANG_ARGS="-I/usr/lib/llvm-14/lib/clang/14.0.6/include"
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# Install build tools
-RUN pip install --no-cache-dir maturin build
+# Install maturin
+RUN pip install --no-cache-dir maturin
 
 # Copy source
 COPY . /app
 
-# Build gbcms_rs wheel
-WORKDIR /app/rust
+# Build unified wheel with maturin (includes both Python and Rust)
 RUN maturin build --release --out /app/dist
 
-# Stage 2: Runtime
+# Stage 2: Runtime (slim image)
 FROM python:3.11-slim-bookworm
 
 WORKDIR /app
@@ -62,16 +57,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     liblzma5 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy wheels from builder or use pre-built
-COPY --from=builder /app/dist /app/dist
-COPY . /app
-
-# Install Rust extension wheel first, then Python package
+# Copy and install the unified wheel
+COPY --from=builder /app/dist/*.whl /app/dist/
 RUN pip install --no-cache-dir /app/dist/*.whl
-RUN pip install --no-cache-dir .
 
 # Verify installation
-RUN python -c "import gbcms; import gbcms_rs; print(f'gbcms {gbcms.__version__} ready')"
+RUN python -c "from gbcms import _rs; import gbcms; print(f'gbcms {gbcms.__version__} ready')"
 
 ENTRYPOINT ["gbcms"]
 CMD ["--help"]

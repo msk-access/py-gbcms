@@ -1,7 +1,7 @@
 import pysam
 import pytest
 
-import gbcms_rs
+from gbcms import _rs as gbcms_rs
 from gbcms.models.core import Variant, VariantType
 
 

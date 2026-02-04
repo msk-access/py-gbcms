@@ -6,14 +6,12 @@ import sys
 import time
 from pathlib import Path
 
-# Add src to path to import gbcms_rs
-sys.path.append("src")
-
+# Note: gbcms package is needed
 from gbcms.config import Config
 from gbcms.processor import VariantProcessor
 from gbcms_v2.models.core import Variant, VariantType
 
-import gbcms_rs
+from gbcms import _rs as gbcms_rs
 
 
 def benchmark_rust(bam_path: str, variants: list[Variant]):

@@ -23,7 +23,7 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 
-import gbcms_rs
+from gbcms import _rs as gbcms_rs
 
 from .core.kernel import CoordinateKernel
 from .io.input import MafReader, ReferenceChecker, VariantReader, VcfReader

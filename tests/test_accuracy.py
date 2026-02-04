@@ -2,8 +2,7 @@ import os
 
 import pysam
 import pytest
-
-from gbcms_rs import count_bam
+from gbcms._rs import count_bam
 
 
 @pytest.fixture
@@ -181,7 +180,7 @@ def synthetic_bam(tmp_path):
 
 
 def test_snp_accuracy(synthetic_bam):
-    from gbcms_rs import Variant
+    from gbcms._rs import Variant
 
     variant = Variant(chrom="chr1", pos=100, ref_allele="A", alt_allele="T", variant_type="SNP")
 
@@ -229,7 +228,7 @@ def test_snp_accuracy(synthetic_bam):
 
 
 def test_insertion_accuracy(synthetic_bam):
-    from gbcms_rs import Variant
+    from gbcms._rs import Variant
 
     variant = Variant(
         chrom="chr1", pos=200, ref_allele="A", alt_allele="AT", variant_type="INSERTION"
@@ -272,7 +271,7 @@ def test_complex_accuracy(synthetic_bam):
     # We will create a separate BAM for these complex cases to have full control.
     import pysam
 
-    import gbcms_rs
+    from gbcms import _rs as gbcms_rs
 
     complex_bam = "test_complex.bam"
 
@@ -386,7 +385,7 @@ def test_complex_accuracy(synthetic_bam):
 
 
 def test_deletion_accuracy(synthetic_bam):
-    from gbcms_rs import Variant
+    from gbcms._rs import Variant
 
     variant = Variant(
         chrom="chr1", pos=300, ref_allele="AT", alt_allele="A", variant_type="DELETION"
@@ -415,7 +414,7 @@ def test_deletion_accuracy(synthetic_bam):
 
 
 def test_mnp_accuracy(synthetic_bam):
-    from gbcms_rs import Variant
+    from gbcms._rs import Variant
 
     variant = Variant(chrom="chr1", pos=400, ref_allele="AT", alt_allele="CG", variant_type="MNP")
 
