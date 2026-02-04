@@ -15,7 +15,7 @@ flowchart TB
         Reader --> Kernel[Coordinate Kernel<br>core/kernel.py]
     end
     
-    subgraph Rust["🦀 Rust Layer (gbcms_rs)"]
+    subgraph Rust["🦀 Rust Layer (gbcms._rs)"]
         Counter[count_bam<br>counting.rs] --> CIGAR[CIGAR Parser]
         Counter --> Stats[Strand Bias<br>stats.rs]
     end
@@ -81,7 +81,7 @@ py-gbcms/
 │   │   └── core.py      # Pydantic config models
 │   └── utils/
 │       └── logging.py   # Structured logging
-├── rust/                # Rust crate (gbcms_rs)
+├── rust/                # Rust crate (bundled as gbcms._rs)
 │   └── src/
 │       ├── lib.rs       # PyO3 module entry
 │       ├── counting.rs  # BAM counting logic
@@ -99,7 +99,7 @@ All coordinates are normalized to **0-based, half-open** internally:
 flowchart LR
     VCF["VCF<br>(1-based)"] -->|"-1"| Internal["Internal<br>(0-based)"]
     MAF["MAF<br>(1-based)"] -->|"-1"| Internal
-    Internal -->|"to Rust"| Rust["gbcms_rs"]
+    Internal -->|"to Rust"| Rust["gbcms._rs"]
     Rust -->|"+1"| Output["Output<br>(1-based)"]
 ```
 
@@ -118,7 +118,7 @@ The Rust `count_bam` function is exposed via PyO3:
 
 ```python
 # Python call
-from gbcms_rs import count_bam, Variant
+from gbcms._rs import count_bam, Variant
 
 results = count_bam(
     bam_path="sample.bam",

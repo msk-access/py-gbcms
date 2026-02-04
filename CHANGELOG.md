@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Release Guide**: Comprehensive `docs/RELEASE.md` with git-flow workflow
 
 ### 🔄 Changed
-- **Folder Restructure**: Moved `src/gbcms_rs/` to `rust/` for clarity
+- **Folder Restructure**: Moved Rust code to `rust/` (bundled as `gbcms._rs`)
 - **Config Hierarchy**: Nested Pydantic models (`ReadFilters`, `QualityThresholds`, `OutputConfig`) for better organization
 - **Code Quality**: Added `__all__` exports, docstrings, and type hints across all modules
 - **StrEnum**: Modern enum pattern with Python 3.10 backport
@@ -167,7 +167,7 @@ Version 2.0.0 represents a complete rewrite of py-gbcms with a focus on performa
 ### 🔧 Technical Details
 
 #### Rust Components
-- `gbcms_rs`: PyO3-based extension module
+- `gbcms._rs`: PyO3-based Rust extension (bundled in wheel)
 - Fisher's exact test via `statrs` crate
 - Rayon-based parallelism with configurable thread pools
 - Safe memory management with Rust's ownership model
