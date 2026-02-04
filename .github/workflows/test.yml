@@ -67,8 +67,9 @@ jobs:
           # Install maturin to build the unified Python+Rust package
           uv pip install --system maturin
           
-          # Build and install in development mode (unified build)
-          maturin develop --release
+          # Build wheel and install (works without virtualenv)
+          maturin build --release --out dist
+          uv pip install --system dist/*.whl
           
           # Install dev dependencies  
           uv pip install --system pytest pytest-cov pytest-mock
