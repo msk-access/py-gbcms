@@ -1,21 +1,20 @@
-# Table of Contents
+# Summary
 
-* [Introduction](README.md)
+## User Guide
 
-## Getting Started
-
+* [Home](README.md)
 * [Installation](INSTALLATION.md)
-
-## Usage Patterns
-
-* [Usage Overview](WORKFLOWS.md)
 * [CLI Quick Start](quick-start.md)
-* [Nextflow Workflow](NEXTFLOW.md)
+* [Nextflow Pipeline](NEXTFLOW.md)
 
 ## Reference
 
+* [Architecture](ARCHITECTURE.md)
 * [Changelog](CHANGELOG.md)
 
-## Development
+## Developer
 
+* [Developer Guide](DEVELOPMENT.md)
+* [Testing Guide](TESTING.md)
+* [Release Guide](RELEASE.md)
 * [Contributing](CONTRIBUTING.md)

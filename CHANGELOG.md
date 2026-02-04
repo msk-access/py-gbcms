@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-02-04
+
+### ✨ Added
+- **Multi-platform Wheel Publishing**: Maturin-based CI builds for Linux (x86_64, aarch64), macOS (Intel, Apple Silicon), and Windows
+- **Structured Logging**: New `utils/logging.py` module with Rich console output, timing utilities, and log file support
+- **Mermaid Diagrams**: Architecture documentation with interactive flowcharts
+- **Release Guide**: Comprehensive `docs/RELEASE.md` with git-flow workflow
+
+### 🔄 Changed
+- **Folder Restructure**: Moved Rust code to `rust/` (bundled as `gbcms._rs`)
+- **Config Hierarchy**: Nested Pydantic models (`ReadFilters`, `QualityThresholds`, `OutputConfig`) for better organization
+- **Code Quality**: Added `__all__` exports, docstrings, and type hints across all modules
+- **StrEnum**: Modern enum pattern with Python 3.10 backport
+
+### 📚 Documentation
+- New `docs/ARCHITECTURE.md` with system diagrams
+- New `docs/DEVELOPMENT.md` (developer guide)
+- New `docs/TESTING.md` (testing guide)
+- Updated MkDocs with mermaid2 plugin and snippet includes
+
 ## [2.1.2] - 2025-11-25
 
 ### 🔧 Fixed
@@ -147,7 +167,7 @@ Version 2.0.0 represents a complete rewrite of py-gbcms with a focus on performa
 ### 🔧 Technical Details
 
 #### Rust Components
-- `gbcms_rs`: PyO3-based extension module
+- `gbcms._rs`: PyO3-based Rust extension (bundled in wheel)
 - Fisher's exact test via `statrs` crate
 - Rayon-based parallelism with configurable thread pools
 - Safe memory management with Rust's ownership model

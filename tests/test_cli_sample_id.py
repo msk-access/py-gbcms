@@ -104,7 +104,7 @@ def test_cli_parsing_mocked(mock_pipeline_cls, tmp_path):
     # Check config passed to Pipeline
     config = mock_pipeline_cls.call_args[0][0]
     assert isinstance(config, GbcmsConfig)
-    assert config.output_suffix == ".genotyped"
+    assert config.output.suffix == ".genotyped"
     assert "mysample" in config.bam_files
     assert config.bam_files["mysample"] == bam
 

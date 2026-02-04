@@ -1,14 +1,39 @@
 """
 Core data models for gbcms v2.
+
+This module defines the data models for variants, configuration, and nested
+config groups (filters, quality thresholds, output settings).
 """
 
-from enum import Enum
+import sys
 from pathlib import Path
+
+if sys.version_info >= (3, 11):
+    from enum import StrEnum
+else:
+    from enum import Enum
+
+    class StrEnum(str, Enum):
+        """Backport of StrEnum for Python 3.10."""
+
+        pass
+
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+__all__ = [
+    "VariantType",
+    "GenomicInterval",
+    "Variant",
+    "OutputFormat",
+    "ReadFilters",
+    "QualityThresholds",
+    "OutputConfig",
+    "GbcmsConfig",
+]
 
-class VariantType(str, Enum):
+
+class VariantType(StrEnum):
     """Type of genomic variant."""
 
     SNP = "SNP"
@@ -36,9 +61,7 @@ class GenomicInterval(BaseModel):
 
 
 class Variant(BaseModel):
-    """
-    Normalized representation of a genomic variant.
-    """
+    """Normalized representation of a genomic variant."""
 
     chrom: str
     pos: int = Field(ge=0, description="0-based position of the variant")
@@ -54,79 +77,95 @@ class Variant(BaseModel):
 
     @property
     def interval(self) -> GenomicInterval:
-        """
-        Get the genomic interval covered by this variant.
-
-        For SNP: [pos, pos+1)
-        For Deletion: [pos, pos+len(ref)) (ref includes anchor? depends on normalization)
-        For Insertion: [pos, pos+1) (anchor base)
-        """
-        # Note: This logic depends on strict normalization rules which we will implement in the kernel.
-        # For now, a simple approximation based on ref length.
+        """Get the genomic interval covered by this variant."""
         return GenomicInterval(chrom=self.chrom, start=self.pos, end=self.pos + len(self.ref))
 
 
-class InputFormat(str, Enum):
+class OutputFormat(StrEnum):
+    """Supported output formats for gbcms."""
+
     VCF = "vcf"
     MAF = "maf"
 
 
-class OutputFormat(str, Enum):
-    VCF = "vcf"
-    MAF = "maf"
+# =============================================================================
+# Nested Configuration Models
+# =============================================================================
+
+
+class ReadFilters(BaseModel):
+    """
+    Filters for read selection during BAM processing.
+
+    These flags control which reads are excluded from counting.
+    When True, reads with the corresponding flag are filtered out.
+    """
+
+    duplicates: bool = Field(default=True, description="Filter duplicate reads")
+    secondary: bool = Field(default=False, description="Filter secondary alignments")
+    supplementary: bool = Field(default=False, description="Filter supplementary alignments")
+    qc_failed: bool = Field(default=False, description="Filter reads failing QC")
+    improper_pair: bool = Field(default=False, description="Filter improperly paired reads")
+    indel: bool = Field(default=False, description="Filter reads containing indels")
+
+
+class QualityThresholds(BaseModel):
+    """Quality score thresholds for filtering reads and bases."""
+
+    min_mapping_quality: int = Field(default=20, ge=0, description="Minimum mapping quality (MAPQ)")
+    min_base_quality: int = Field(default=0, ge=0, description="Minimum base quality (BQ)")
+
+
+class OutputConfig(BaseModel):
+    """Output configuration settings."""
+
+    directory: Path = Field(description="Directory to write output files")
+    format: OutputFormat = Field(default=OutputFormat.VCF, description="Output format (vcf or maf)")
+    suffix: str = Field(default="", description="Suffix to append to output filename")
+
+    @field_validator("directory")
+    @classmethod
+    def validate_output_dir(cls, v: Path) -> Path:
+        """Ensure output path is not a file."""
+        if v.exists() and v.is_file():
+            raise ValueError(f"Output path must be a directory, not a file: {v}")
+        return v
 
 
 class GbcmsConfig(BaseModel):
     """
     Global configuration for gbcms execution.
+
+    Groups related settings into nested models for cleaner organization.
     """
 
-    # Input
+    # Input files
     variant_file: Path
     bam_files: dict[str, Path]  # sample_name -> bam_path
     reference_fasta: Path
 
-    # Output
-    output_dir: Path
-    output_format: OutputFormat = OutputFormat.VCF
-    output_suffix: str = ""
-
-    # Filters
-    min_mapping_quality: int = Field(default=20, ge=0)
-    min_base_quality: int = Field(default=0, ge=0)
-    filter_duplicates: bool = True
-    filter_secondary: bool = False
-    filter_supplementary: bool = False
-    filter_qc_failed: bool = False
-    filter_improper_pair: bool = False
-    filter_indel: bool = False
+    # Nested configuration groups
+    output: OutputConfig
+    filters: ReadFilters = Field(default_factory=ReadFilters)
+    quality: QualityThresholds = Field(default_factory=QualityThresholds)
 
     # Performance
-    threads: int = Field(default=1, ge=1)
+    threads: int = Field(default=1, ge=1, description="Number of threads")
 
     # Advanced
-    fragment_counting: bool = False
+    fragment_counting: bool = Field(default=False, description="Enable fragment-based counting")
 
     @field_validator("variant_file", "reference_fasta")
     @classmethod
     def validate_file_exists(cls, v: Path) -> Path:
+        """Validate that input files exist."""
         if not v.exists():
             raise ValueError(f"File not found: {v}")
         return v
 
-    @field_validator("output_dir")
-    @classmethod
-    def validate_output_dir(cls, v: Path) -> Path:
-        if not v.exists():
-            # Try to create it? Or just fail?
-            # Usually safer to fail or let the pipeline create it.
-            # But for config validation, let's just ensure it's not a file.
-            if v.is_file():
-                raise ValueError(f"Output path must be a directory, not a file: {v}")
-        return v
-
     @model_validator(mode="after")
     def validate_bams(self) -> "GbcmsConfig":
+        """Validate that all BAM files exist."""
         for name, path in self.bam_files.items():
             if not path.exists():
                 raise ValueError(f"BAM file for sample '{name}' not found: {path}")

@@ -4,7 +4,7 @@ Integration test for gbcms v2 pipeline.
 
 from pathlib import Path
 
-import gbcms_rs
+from gbcms import _rs as gbcms_rs
 from gbcms.io.input import ReferenceChecker, VcfReader
 from gbcms.io.output import MafWriter
 

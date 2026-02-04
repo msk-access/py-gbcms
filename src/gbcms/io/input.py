@@ -6,6 +6,7 @@ converting them into the internal normalized representation using CoordinateKern
 """
 
 import csv
+import logging
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -14,6 +15,10 @@ from pydantic import ValidationError
 
 from ..core.kernel import CoordinateKernel
 from ..models.core import Variant
+
+logger = logging.getLogger(__name__)
+
+__all__ = ["VariantReader", "VcfReader", "MafReader", "ReferenceChecker"]
 
 
 class VariantReader:
@@ -207,7 +212,7 @@ class ReferenceChecker:
                         f"chr{chrom}", variant.pos, variant.pos + len(variant.ref)
                     )
                 except (ValueError, KeyError) as e:
-                    print(f"DEBUG: Failed to fetch {chrom} and chr{chrom}: {e}")
+                    logger.debug("Failed to fetch %s and chr%s: %s", chrom, chrom, e)
                     return False
 
             if ref_seq is None:

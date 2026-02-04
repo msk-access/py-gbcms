@@ -64,21 +64,15 @@ jobs:
 
       - name: Install package and test basic functionality
         run: |
-          # Install maturin to build the Rust extension
+          # Install maturin to build the unified Python+Rust package
           uv pip install --system maturin
-
-          # Build and install the Rust extension first
-          cd src/gbcms_rs
-          maturin build --release
-          uv pip install --system target/wheels/*.whl
-          cd ../..
-
-          # Install without fast dependencies on Ubuntu due to htslib issues
-          if [ "$RUNNER_OS" = "Linux" ]; then
-            uv pip install --system -e ".[dev]"
-          else
-            uv pip install --system -e ".[dev,all]"
-          fi
+          
+          # Build wheel and install (works without virtualenv)
+          maturin build --release --out dist
+          uv pip install --system dist/*.whl
+          
+          # Install dev dependencies  
+          uv pip install --system pytest pytest-cov pytest-mock
           gbcms --help
 
       - name: Run tests with coverage
@@ -126,10 +120,10 @@ jobs:
           uv pip install --system scipy-stubs maturin
           
           # Build and install the Rust extension
-          cd src/gbcms_rs
+          cd rust
           maturin build --release
           uv pip install --system target/wheels/*.whl
-          cd ../..
+          cd ..
           
           uv pip install --system -e ".[dev]"
 
