@@ -54,6 +54,7 @@ py-gbcms is a Python/Rust hybrid tool for counting bases at variant positions in
 | `core/kernel.py` | ~130 | Coordinate transforms |
 | `models/core.py` | ~130 | Data models |
 | `utils/logging.py` | ~110 | Logging utilities |
+| `rust/` | ~500 | Rust extension (gbcms_rs) |
 
 ## Data Flow
 

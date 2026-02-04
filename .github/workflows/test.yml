@@ -68,10 +68,10 @@ jobs:
           uv pip install --system maturin
 
           # Build and install the Rust extension first
-          cd src/gbcms_rs
+          cd rust
           maturin build --release
           uv pip install --system target/wheels/*.whl
-          cd ../..
+          cd ..
 
           # Install without fast dependencies on Ubuntu due to htslib issues
           if [ "$RUNNER_OS" = "Linux" ]; then
@@ -126,10 +126,10 @@ jobs:
           uv pip install --system scipy-stubs maturin
           
           # Build and install the Rust extension
-          cd src/gbcms_rs
+          cd rust
           maturin build --release
           uv pip install --system target/wheels/*.whl
-          cd ../..
+          cd ..
           
           uv pip install --system -e ".[dev]"
 

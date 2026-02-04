@@ -24,7 +24,7 @@ py-gbcms/
 │   ├── core/           # Coordinate kernel
 │   ├── models/         # Pydantic models
 │   └── utils/          # Logging utilities
-├── src/gbcms_rs/       # Rust extension
+├── rust/               # Rust extension (top-level)
 │   ├── src/
 │   │   ├── counting.rs # BAM processing
 │   │   ├── types.rs    # PyO3 bindings

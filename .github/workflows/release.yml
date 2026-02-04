@@ -36,7 +36,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --out dist --manifest-path src/gbcms_rs/Cargo.toml
+          args: --release --out dist --manifest-path rust/Cargo.toml
           sccache: 'true'
           manylinux: auto
       
@@ -66,7 +66,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --out dist --manifest-path src/gbcms_rs/Cargo.toml
+          args: --release --out dist --manifest-path rust/Cargo.toml
           sccache: 'true'
       
       - name: Upload wheels
@@ -84,7 +84,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: sdist
-          args: --out dist --manifest-path src/gbcms_rs/Cargo.toml
+          args: --out dist --manifest-path rust/Cargo.toml
       - name: Upload sdist
         uses: actions/upload-artifact@v4
         with:

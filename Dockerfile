@@ -45,7 +45,7 @@ RUN pip install --no-cache-dir maturin build
 COPY . /app
 
 # Build gbcms_rs wheel
-WORKDIR /app/src/gbcms_rs
+WORKDIR /app/rust
 RUN maturin build --release --out /app/dist
 
 # Stage 2: Runtime
