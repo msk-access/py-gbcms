@@ -30,7 +30,7 @@ py-gbcms is a Python/Rust hybrid tool for counting bases at variant positions in
 └──────────────────────────┬──────────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────────┐
-│                   Rust Engine (gbcms_rs)                     │
+│                   Rust Engine (gbcms._rs)                    │
 │  counting.rs - BAM processing, strand bias, Fisher's test   │
 │  types.rs    - Variant, BaseCounts (PyO3 bindings)          │
 └─────────────────────────────────────────────────────────────┘
@@ -54,14 +54,14 @@ py-gbcms is a Python/Rust hybrid tool for counting bases at variant positions in
 | `core/kernel.py` | ~130 | Coordinate transforms |
 | `models/core.py` | ~130 | Data models |
 | `utils/logging.py` | ~110 | Logging utilities |
-| `rust/` | ~500 | Rust extension (gbcms_rs) |
+| `rust/` | ~500 | Rust extension (bundled as gbcms._rs) |
 
 ## Data Flow
 
 ```
 VCF/MAF → VcfReader/MafReader → CoordinateKernel → Variant[]
                                                        ↓
-BAM + Variant[] → gbcms_rs.count_bam() → BaseCounts[]
+BAM + Variant[] → gbcms._rs.count_bam() → BaseCounts[]
                                               ↓
 BaseCounts[] + Variant[] → VcfWriter/MafWriter → Output File
 ```

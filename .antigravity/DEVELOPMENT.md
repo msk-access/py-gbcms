@@ -34,11 +34,14 @@ py-gbcms/
 └── docs/               # Documentation
 ```
 
-## Building Rust Extension
+## Building (Unified Python + Rust)
 
 ```bash
-cd src/gbcms_rs
+# Development build (editable install with Rust)
 maturin develop --release
+
+# Build wheel
+maturin build --release --out dist
 ```
 
 ## Code Quality Standards
