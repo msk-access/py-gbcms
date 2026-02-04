@@ -2,14 +2,18 @@
 CLI Entry Point: Exposes the gbcms functionality via command line.
 """
 
+import logging
 from pathlib import Path
 
 import typer
 
 from .models.core import GbcmsConfig, OutputFormat
 from .pipeline import Pipeline
+from .utils import setup_logging
 
 __all__ = ["app", "run"]
+
+logger = logging.getLogger(__name__)
 
 app = typer.Typer(help="gbcms: Get Base Counts Multi-Sample")
 
@@ -52,87 +56,24 @@ def run(
     filter_improper_pair: bool = typer.Option(False, help="Filter improperly paired reads"),
     filter_indel: bool = typer.Option(False, help="Filter reads containing indels"),
     threads: int = typer.Option(
-        1, "--threads", "-t", help="Number of threads (not yet implemented in v2 python layer)"
+        1, "--threads", "-t", help="Number of threads for parallel processing"
     ),
     verbose: bool = typer.Option(False, "--verbose", "-V", help="Enable verbose debug logging"),
 ):
     """
     Run gbcms on one or more BAM files.
     """
-    import logging
-
-    from rich.console import Console
-    from rich.logging import RichHandler
-
     # Configure logging
-    log_level = logging.DEBUG if verbose else logging.INFO
-    logging.basicConfig(
-        level=log_level,
-        format="%(message)s",
-        datefmt="[%X]",
-        handlers=[RichHandler(rich_tracebacks=True, markup=True)],
-    )
+    setup_logging(verbose=verbose)
 
-    console = Console()
-
-    # Map BAMs to sample names (filename stem for now)
-    bams_dict = {}
-
-    # 1. Process direct BAM arguments
-    if bam_files:
-        for bam_arg in bam_files:
-            # Check for sample_id:path format
-            bam_str = str(bam_arg)
-            if ":" in bam_str:
-                parts = bam_str.split(":", 1)
-                sample_name = parts[0]
-                bam_path = Path(parts[1])
-            else:
-                bam_path = bam_arg
-                sample_name = bam_path.stem
-
-            if not bam_path.exists():
-                console.print(f"[bold red]Error: BAM file not found: {bam_path}[/bold red]")
-                raise typer.Exit(code=1)
-
-            bams_dict[sample_name] = bam_path
-
-    # 2. Process BAM list file
-    if bam_list:
-        if not bam_list.exists():
-            console.print(f"[bold red]Error: BAM list file not found: {bam_list}[/bold red]")
-            raise typer.Exit(code=1)
-
-        try:
-            with open(bam_list) as f:
-                for line in f:
-                    line = line.strip()
-                    if not line or line.startswith("#"):
-                        continue
-                    # Check for 2 columns (sample_id path)
-                    parts = line.split()
-                    if len(parts) >= 2:
-                        sample_name = parts[0]
-                        bam_path = Path(parts[1])
-                    else:
-                        bam_path = Path(parts[0])
-                        sample_name = bam_path.stem
-
-                    if not bam_path.exists():
-                        console.print(
-                            f"[yellow]Warning: BAM file from list not found: {bam_path}[/yellow]"
-                        )
-                        continue
-                    bams_dict[sample_name] = bam_path
-        except Exception as e:
-            console.print(f"[bold red]Error reading BAM list file {bam_list}: {e}[/bold red]")
-            raise typer.Exit(code=1) from e
+    # Parse BAM inputs
+    bams_dict = _parse_bam_inputs(bam_files, bam_list)
 
     if not bams_dict:
-        console.print(
-            "[bold red]Error: No valid BAM files provided via --bam or --bam-list[/bold red]"
-        )
+        logger.error("No valid BAM files provided via --bam or --bam-list")
         raise typer.Exit(code=1)
+
+    logger.info("Found %d BAM file(s) to process", len(bams_dict))
 
     try:
         config = GbcmsConfig(
@@ -157,8 +98,84 @@ def run(
         pipeline.run()
 
     except Exception as e:
-        console.print(f"[bold red]Error: {e}[/bold red]")
+        logger.exception("Pipeline failed: %s", e)
         raise typer.Exit(code=1) from e
+
+
+def _parse_bam_inputs(
+    bam_files: list[Path] | None, bam_list: Path | None
+) -> dict[str, Path]:
+    """
+    Parse BAM inputs from direct arguments and/or BAM list file.
+
+    Args:
+        bam_files: List of BAM paths (optionally with sample_id:path format).
+        bam_list: Path to file containing BAM paths (one per line).
+
+    Returns:
+        Dictionary mapping sample names to BAM paths.
+    """
+    bams_dict: dict[str, Path] = {}
+
+    # 1. Process direct BAM arguments
+    if bam_files:
+        for bam_arg in bam_files:
+            sample_name, bam_path = _parse_bam_arg(bam_arg)
+
+            if not bam_path.exists():
+                logger.error("BAM file not found: %s", bam_path)
+                continue
+
+            bams_dict[sample_name] = bam_path
+
+    # 2. Process BAM list file
+    if bam_list:
+        if not bam_list.exists():
+            logger.error("BAM list file not found: %s", bam_list)
+            return bams_dict
+
+        try:
+            with open(bam_list) as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        sample_name = parts[0]
+                        bam_path = Path(parts[1])
+                    else:
+                        bam_path = Path(parts[0])
+                        sample_name = bam_path.stem
+
+                    if not bam_path.exists():
+                        logger.warning("BAM file from list not found: %s", bam_path)
+                        continue
+
+                    bams_dict[sample_name] = bam_path
+
+        except Exception as e:
+            logger.error("Error reading BAM list file %s: %s", bam_list, e)
+
+    return bams_dict
+
+
+def _parse_bam_arg(bam_arg: Path) -> tuple[str, Path]:
+    """
+    Parse a BAM argument that may be in sample_id:path format.
+
+    Args:
+        bam_arg: Path object (may contain sample_id:path as string).
+
+    Returns:
+        Tuple of (sample_name, bam_path).
+    """
+    bam_str = str(bam_arg)
+    if ":" in bam_str:
+        parts = bam_str.split(":", 1)
+        return parts[0], Path(parts[1])
+    return bam_arg.stem, bam_arg
 
 
 if __name__ == "__main__":

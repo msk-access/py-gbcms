@@ -9,6 +9,7 @@ This module handles:
 """
 
 import logging
+import time
 from pathlib import Path
 
 import pysam
@@ -34,51 +35,60 @@ logger = logging.getLogger(__name__)
 __all__ = ["Pipeline"]
 
 
-
 class Pipeline:
+    """Main pipeline for processing BAM files and counting bases at variant positions."""
+
     def __init__(self, config: GbcmsConfig):
+        """
+        Initialize the pipeline.
+
+        Args:
+            config: Configuration object with input/output paths and filter settings.
+        """
         self.config = config
         self.console = Console()
+        self._stats = {"samples_processed": 0, "total_variants": 0, "total_time": 0.0}
 
-    def run(self):
-        """Execute the pipeline."""
-        self.console.print("[bold blue]Starting gbcms pipeline[/bold blue]")
-        self.console.print(f"Output directory: {self.config.output_dir}")
+    def run(self) -> dict:
+        """
+        Execute the pipeline.
+
+        Returns:
+            Dictionary with processing statistics.
+        """
+        start_time = time.perf_counter()
+        logger.info("Starting gbcms pipeline")
+        logger.info("Output directory: %s", self.config.output_dir)
 
         # 1. Load Variants
-        with self.console.status("[bold green]Loading variants...[/bold green]"):
-            variants = self._load_variants()
-
-        self.console.print(f"Loaded [bold]{len(variants)}[/bold] variants.")
+        logger.debug("Loading variants from %s", self.config.variant_file)
+        variants = self._load_variants()
+        logger.info("Loaded %d variants", len(variants))
 
         if not variants:
-            self.console.print("[bold red]No variants found. Exiting.[/bold red]")
-            return
+            logger.error("No variants found. Exiting.")
+            return self._stats
 
         # 2. Validate Variants against Reference
-        with self.console.status(
-            "[bold green]Validating variants against reference...[/bold green]"
-        ):
-            valid_variants = self._validate_variants(variants)
-
-        self.console.print(f"Valid variants: [bold]{len(valid_variants)}[/bold] / {len(variants)}")
+        logger.debug("Validating variants against reference genome")
+        valid_variants = self._validate_variants(variants)
+        logger.info("Valid variants: %d / %d", len(valid_variants), len(variants))
 
         if not valid_variants:
-            self.console.print(
-                "[bold red]No valid variants remaining after validation. Exiting.[/bold red]"
-            )
-            return
+            logger.error("No valid variants remaining after validation. Exiting.")
+            return self._stats
 
         variants = valid_variants
+        self._stats["total_variants"] = len(variants)
 
         # 3. Prepare Rust Variants
         rs_variants = [
-            gbcms_rs.Variant(v.chrom, v.pos, v.ref, v.alt, v.variant_type.value) for v in variants
+            gbcms_rs.Variant(v.chrom, v.pos, v.ref, v.alt, v.variant_type.value)
+            for v in variants
         ]
 
         # 4. Process Each Sample
         self.config.output_dir.mkdir(parents=True, exist_ok=True)
-
         samples = list(self.config.bam_files.items())
 
         with Progress(
@@ -93,53 +103,86 @@ class Pipeline:
 
             for sample_name, bam_path in samples:
                 progress.update(task, description=f"[cyan]Processing {sample_name}...")
-
-                # Validate BAM Header
-                if not self._validate_bam_header(bam_path, variants):
-                    self.console.print(
-                        f"[yellow]Warning: BAM {sample_name} may not contain variant chromosomes. Proceeding anyway...[/yellow]"
-                    )
-
-                try:
-                    # Run Rust Engine
-                    counts_list = gbcms_rs.count_bam(
-                        str(bam_path),
-                        rs_variants,
-                        min_mapq=self.config.min_mapping_quality,
-                        min_baseq=self.config.min_base_quality,
-                        filter_duplicates=self.config.filter_duplicates,
-                        filter_secondary=self.config.filter_secondary,
-                        filter_supplementary=self.config.filter_supplementary,
-                        filter_qc_failed=self.config.filter_qc_failed,
-                        filter_improper_pair=self.config.filter_improper_pair,
-                        filter_indel=self.config.filter_indel,
-                        threads=self.config.threads,
-                    )
-
-                    # Write Output
-                    self._write_output(sample_name, variants, counts_list)
-
-                except Exception as e:
-                    self.console.print(
-                        f"[bold red]Error processing sample {sample_name}: {e}[/bold red]"
-                    )
-                    # Continue to next sample
-
+                self._process_sample(sample_name, bam_path, variants, rs_variants)
                 progress.advance(task)
 
-        self.console.print("[bold green]Pipeline completed successfully.[/bold green]")
+        # Calculate total time
+        self._stats["total_time"] = time.perf_counter() - start_time
+        logger.info(
+            "Pipeline completed: %d samples, %.2fs",
+            self._stats["samples_processed"],
+            self._stats["total_time"],
+        )
+
+        return self._stats
+
+    def _process_sample(
+        self,
+        sample_name: str,
+        bam_path: Path,
+        variants: list[Variant],
+        rs_variants: list,
+    ) -> None:
+        """
+        Process a single sample.
+
+        Args:
+            sample_name: Name of the sample.
+            bam_path: Path to BAM file.
+            variants: List of normalized variants.
+            rs_variants: List of Rust variant objects.
+        """
+        sample_start = time.perf_counter()
+        logger.debug("Processing sample: %s (%s)", sample_name, bam_path)
+
+        # Validate BAM Header
+        if not self._validate_bam_header(bam_path, variants):
+            logger.warning(
+                "BAM %s may not contain variant chromosomes. Proceeding anyway.",
+                sample_name,
+            )
+
+        try:
+            # Run Rust Engine
+            rust_start = time.perf_counter()
+            counts_list = gbcms_rs.count_bam(
+                str(bam_path),
+                rs_variants,
+                min_mapq=self.config.min_mapping_quality,
+                min_baseq=self.config.min_base_quality,
+                filter_duplicates=self.config.filter_duplicates,
+                filter_secondary=self.config.filter_secondary,
+                filter_supplementary=self.config.filter_supplementary,
+                filter_qc_failed=self.config.filter_qc_failed,
+                filter_improper_pair=self.config.filter_improper_pair,
+                filter_indel=self.config.filter_indel,
+                threads=self.config.threads,
+            )
+            rust_time = time.perf_counter() - rust_start
+            logger.debug("Rust count_bam completed in %.3fs", rust_time)
+
+            # Write Output
+            self._write_output(sample_name, variants, counts_list)
+            self._stats["samples_processed"] += 1
+
+            sample_time = time.perf_counter() - sample_start
+            logger.debug("Sample %s completed in %.3fs", sample_name, sample_time)
+
+        except Exception as e:
+            logger.error("Error processing sample %s: %s", sample_name, e)
 
     def _load_variants(self) -> list[Variant]:
         """Load variants based on file extension."""
         path = self.config.variant_file
         reader: VariantReader
 
-        if path.suffix.lower() in [".vcf", ".gz"]:  # .vcf.gz handled by pysam
+        suffix = path.suffix.lower()
+        if suffix in [".vcf", ".gz"]:
             reader = VcfReader(path)
-        elif path.suffix.lower() == ".maf":
+        elif suffix == ".maf":
             reader = MafReader(path, fasta_path=self.config.reference_fasta)
         else:
-            raise ValueError(f"Unsupported variant file format: {path.suffix}")
+            raise ValueError(f"Unsupported variant file format: {suffix}")
 
         variants = list(reader)
         if hasattr(reader, "close"):
@@ -158,15 +201,17 @@ class Pipeline:
                 valid_variants.append(v)
             else:
                 invalid_count += 1
-                if invalid_count <= 5:  # Log first few failures
-                    self.console.print(
-                        f"[yellow]Invalid variant (REF mismatch): {v.chrom}:{v.pos} {v.ref}>{v.alt}[/yellow]"
+                if invalid_count <= 5:
+                    logger.warning(
+                        "Invalid variant (REF mismatch): %s:%d %s>%s",
+                        v.chrom,
+                        v.pos,
+                        v.ref,
+                        v.alt,
                     )
 
         if invalid_count > 5:
-            self.console.print(
-                f"[yellow]... and {invalid_count - 5} more invalid variants.[/yellow]"
-            )
+            logger.warning("... and %d more invalid variants.", invalid_count - 5)
 
         checker.close()
         return valid_variants
@@ -177,14 +222,10 @@ class Pipeline:
             with pysam.AlignmentFile(str(bam_path), "rb") as bam:
                 bam_chroms = set(bam.references)
 
-            # Check a few variants
-            # We need to handle chr prefix normalization
-            # BAM might have 'chr1', variant '1', or vice versa.
+            norm_bam_chroms = {
+                CoordinateKernel.normalize_chromosome(c) for c in bam_chroms
+            }
 
-            # Normalize BAM chroms
-            norm_bam_chroms = {CoordinateKernel.normalize_chromosome(c) for c in bam_chroms}
-
-            # Check first variant as a heuristic
             if variants:
                 v = variants[0]
                 norm_v_chrom = CoordinateKernel.normalize_chromosome(v.chrom)
@@ -192,25 +233,27 @@ class Pipeline:
                     return False
             return True
         except Exception as e:
-            self.console.print(f"[yellow]Could not validate BAM header: {e}[/yellow]")
-            return True  # Assume ok if we can't check
+            logger.warning("Could not validate BAM header: %s", e)
+            return True
 
     def _write_output(
-        self, sample_name: str, variants: list[Variant], counts_list: list[gbcms_rs.BaseCounts]
-    ):
+        self,
+        sample_name: str,
+        variants: list[Variant],
+        counts_list: list[gbcms_rs.BaseCounts],
+    ) -> None:
         """Write results to output file."""
         ext = "vcf" if self.config.output_format == OutputFormat.VCF else "maf"
         suffix = self.config.output_suffix
         output_path = self.config.output_dir / f"{sample_name}{suffix}.{ext}"
+
         writer: VcfWriter | MafWriter
         if self.config.output_format == OutputFormat.VCF:
             writer = VcfWriter(output_path, sample_name=sample_name)
         else:
             writer = MafWriter(output_path)
 
-        for v, counts in zip(
-            variants, counts_list, strict=True
-        ):  # Changed 'results' to 'counts_list'
+        for v, counts in zip(variants, counts_list, strict=True):
             writer.write(v, counts, sample_name=sample_name)
 
         writer.close()
