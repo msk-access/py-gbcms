@@ -5,8 +5,19 @@ This module defines the data models for variants, configuration, and nested
 config groups (filters, quality thresholds, output settings).
 """
 
-from enum import Enum
+import sys
 from pathlib import Path
+
+if sys.version_info >= (3, 11):
+    from enum import StrEnum
+else:
+    from enum import Enum
+
+    class StrEnum(str, Enum):
+        """Backport of StrEnum for Python 3.10."""
+
+        pass
+
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -22,7 +33,7 @@ __all__ = [
 ]
 
 
-class VariantType(str, Enum):
+class VariantType(StrEnum):
     """Type of genomic variant."""
 
     SNP = "SNP"
@@ -70,7 +81,7 @@ class Variant(BaseModel):
         return GenomicInterval(chrom=self.chrom, start=self.pos, end=self.pos + len(self.ref))
 
 
-class OutputFormat(str, Enum):
+class OutputFormat(StrEnum):
     """Supported output formats for gbcms."""
 
     VCF = "vcf"
