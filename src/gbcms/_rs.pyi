@@ -1,8 +1,6 @@
 # Type stubs for the Rust extension module (gbcms._rs)
 # This file tells mypy about the types in the native extension
 
-from typing import List
-
 class Variant:
     chrom: str
     pos: int
@@ -38,7 +36,7 @@ class BaseCounts:
 
 def count_bam(
     bam_path: str,
-    variants: List[Variant],
+    variants: list[Variant],
     min_mapq: int = 20,
     min_baseq: int = 0,
     filter_duplicates: bool = True,
@@ -48,4 +46,4 @@ def count_bam(
     filter_improper_pair: bool = False,
     filter_indel: bool = False,
     threads: int = 1,
-) -> List[BaseCounts]: ...
+) -> list[BaseCounts]: ...

@@ -2,6 +2,7 @@ import os
 
 import pysam
 import pytest
+
 from gbcms._rs import count_bam
 
 
