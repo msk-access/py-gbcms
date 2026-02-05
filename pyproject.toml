@@ -7,7 +7,7 @@ authors = [
 ]
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "AGPL-3.0"}
+license = {file = "LICENSE"}
 keywords = ["bioinformatics", "genomics", "bam", "vcf", "maf", "base-counts", "gbcms"]
 classifiers = [
     "Development Status :: 4 - Beta",

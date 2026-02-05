@@ -35,6 +35,17 @@ theme:
     - content.code.copy
     - content.tabs.link
 
+extra:
+  generator: false
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/msk-access/py-gbcms
+
+copyright: |
+  Developed by <a href="https://github.com/rhshah">Ronak H Shah</a> @ MSKCC
+  &nbsp;|&nbsp; Built with <a href="https://github.com/google-gemini">Antigravity</a>
+  &nbsp;|&nbsp; <a href="https://github.com/msk-access/py-gbcms/blob/main/LICENSE">AGPL-3.0</a>
+
 plugins:
   - search
   - mermaid2
