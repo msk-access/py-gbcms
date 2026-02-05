@@ -22,14 +22,13 @@ jobs:
       
       - name: Build wheels
         uses: PyO3/maturin-action@v1
-        env:
-          # Use system OpenSSL instead of building from source (avoids Perl module issues)
-          OPENSSL_NO_VENDOR: 1
         with:
           args: --release --out dist
           sccache: 'true'
           manylinux: manylinux_2_28
           before-script-linux: |
+            # Use system OpenSSL instead of building from source (avoids Perl module issues)
+            export OPENSSL_NO_VENDOR=1
             SUDO=""
             if [ "$(id -u)" -ne 0 ] && command -v sudo &> /dev/null; then
               SUDO="sudo"
