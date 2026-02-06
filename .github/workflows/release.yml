@@ -28,6 +28,9 @@ jobs:
           # manylinux_2_34 uses AlmaLinux 9 with OpenSSL 3.0+ (compatible with curl-sys 0.4.85+)
           # RHEL 8 users should install from source in a conda env or use Docker
           manylinux: manylinux_2_34
+          # docker-options ensures env vars are passed directly to the container
+          # (before-script exports don't persist to cargo build phase)
+          docker-options: -e OPENSSL_NO_VENDOR=1
           before-script-linux: |
             SUDO=""
             if [ "$(id -u)" -ne 0 ] && command -v sudo &> /dev/null; then
