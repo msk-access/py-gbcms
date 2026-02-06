@@ -4,7 +4,7 @@ process GBCMS_RUN {
 
     publishDir "${params.outdir}/gbcms", mode: params.publish_dir_mode
 
-    container "ghcr.io/msk-access/py-gbcms:2.2.0"
+    container "ghcr.io/msk-access/py-gbcms:2.3.0"
 
     input:
     tuple val(meta), path(bam), path(bai)
@@ -25,6 +25,7 @@ process GBCMS_RUN {
     
     // Use per-sample suffix from meta, fallback to global params.suffix
     def suffix = meta.suffix ?: params.suffix
+    def suffix_arg = suffix ? "--suffix ${suffix}" : ""
     
     // Construct filter arguments
     def filters = ""
@@ -42,7 +43,7 @@ process GBCMS_RUN {
         --fasta ${fasta} \\
         --output-dir . \\
         --format ${format} \\
-        --suffix ${suffix} \\
+        ${suffix_arg} \\
         --threads ${task.cpus} \\
         --min-mapq ${params.min_mapq} \\
         --min-baseq ${params.min_baseq} \\

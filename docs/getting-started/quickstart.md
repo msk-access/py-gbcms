@@ -2,7 +2,7 @@
 
 Process variants with the standalone CLI.
 
-> **Many samples on HPC?** Use [Nextflow](NEXTFLOW.md) instead.
+> **Many samples on HPC?** Use [Nextflow](../nextflow/index.md) instead.
 
 ---
 
@@ -104,7 +104,7 @@ gbcms run \
 ## Docker
 
 ```bash
-docker run --rm -v $(pwd):/data ghcr.io/msk-access/py-gbcms:2.2.0 \
+docker run --rm -v $(pwd):/data ghcr.io/msk-access/py-gbcms:2.3.0 \
     gbcms run \
     --variants /data/variants.vcf \
     --bam /data/sample.bam \
@@ -135,5 +135,5 @@ gbcms run --help
 
 ## Next Steps
 
-- **[Nextflow](NEXTFLOW.md)** — Process many samples in parallel
-- **[Architecture](ARCHITECTURE.md)** — How it works
+- **[Nextflow](../nextflow/index.md)** — Process many samples in parallel
+- **[Architecture](../reference/architecture.md)** — How it works
