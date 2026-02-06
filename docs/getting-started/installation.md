@@ -10,8 +10,8 @@
 
 === "Docker"
     ```bash
-    docker pull ghcr.io/msk-access/py-gbcms:2.2.0
-    docker run --rm ghcr.io/msk-access/py-gbcms:2.2.0 gbcms --help
+    docker pull ghcr.io/msk-access/py-gbcms:2.3.0
+    docker run --rm ghcr.io/msk-access/py-gbcms:2.3.0 gbcms --help
     ```
 
 === "From Source"
@@ -43,7 +43,7 @@
 ```bash
 # Check installation
 gbcms --version
-# Expected: 2.2.0
+# Expected: 2.3.0
 
 # Test help
 gbcms --help
@@ -56,7 +56,7 @@ gbcms --help
 ```bash
 docker run --rm \
   -v $(pwd):/data \
-  ghcr.io/msk-access/py-gbcms:2.2.0 \
+  ghcr.io/msk-access/py-gbcms:2.3.0 \
   gbcms run \
     --variants /data/variants.vcf \
     --bam /data/sample.bam \
@@ -72,8 +72,8 @@ docker run --rm \
 ## Singularity (HPC)
 
 ```bash
-singularity pull docker://ghcr.io/msk-access/py-gbcms:2.2.0
-singularity exec py-gbcms_2.2.0.sif gbcms --help
+singularity pull docker://ghcr.io/msk-access/py-gbcms:2.3.0
+singularity exec py-gbcms_2.3.0.sif gbcms --help
 ```
 
 ---

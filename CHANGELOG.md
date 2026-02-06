@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-02-06
+
+### ✨ Added
+- **Nextflow BAI Auto-Discovery**: Checks `.bam.bai` and `.bai` extensions automatically
+- **Documentation Modernization**: Hierarchical navigation, glightbox, panzoom, abbreviations
+- **Performance Benchmarks**: cfDNA duplex sample metrics in documentation
+
+### 🔄 Changed
+- **Dockerfile**: Added `procps`, `bash`, OCI labels, `maturin[patchelf]`, selective COPY
+- **Nextflow Config**: `--platform linux/amd64`, shell config, local profile, observability (trace/report/timeline/dag)
+- **MkDocs**: Switched to `navigation.sections`, 20+ abbreviations with hover tooltips
+- **GitHub Actions**: Consolidated deploy-docs workflows, added caching and PR validation
+
+### 🔧 Fixed
+- **Nextflow**: Empty `--suffix` argument no longer causes failures
+- **Admonitions**: Converted GitHub-style alerts to MkDocs syntax
+
 ## [2.2.0] - 2026-02-04
 
 ### ✨ Added
