@@ -4,9 +4,11 @@ CLI Entry Point: Exposes the gbcms functionality via command line.
 
 import logging
 from pathlib import Path
+from typing import Optional
 
 import typer
 
+from . import __version__
 from .models.core import (
     GbcmsConfig,
     OutputConfig,
@@ -24,8 +26,20 @@ logger = logging.getLogger(__name__)
 app = typer.Typer(help="gbcms: Get Base Counts Multi-Sample")
 
 
+def version_callback(value: bool) -> None:
+    """Print version and exit."""
+    if value:
+        typer.echo(f"gbcms {__version__}")
+        raise typer.Exit()
+
+
 @app.callback()
-def main():
+def main(
+    version: Optional[bool] = typer.Option(
+        None, "--version", callback=version_callback, is_eager=True,
+        help="Show version and exit."
+    ),
+) -> None:
     """
     gbcms: Get Base Counts Multi-Sample
     """
