@@ -1,3 +1,0 @@
-[env]
-# Use system OpenSSL instead of vendoring (avoids Perl/IPC::Cmd issues in manylinux containers)
-OPENSSL_NO_VENDOR = "1"
