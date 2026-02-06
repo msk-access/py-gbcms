@@ -11,16 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Nextflow BAI Auto-Discovery**: Checks `.bam.bai` and `.bai` extensions automatically
 - **Documentation Modernization**: Hierarchical navigation, glightbox, panzoom, abbreviations
 - **Performance Benchmarks**: cfDNA duplex sample metrics in documentation
+- **RHEL 8 Installation Guide**: Conda-based source installation for legacy Linux
 
 ### 🔄 Changed
 - **Dockerfile**: Added `procps`, `bash`, OCI labels, `maturin[patchelf]`, selective COPY
 - **Nextflow Config**: `--platform linux/amd64`, shell config, local profile, observability (trace/report/timeline/dag)
 - **MkDocs**: Switched to `navigation.sections`, 20+ abbreviations with hover tooltips
 - **GitHub Actions**: Consolidated deploy-docs workflows, added caching and PR validation
+- **CI Wheels**: Migrated from `manylinux_2_28` to `manylinux_2_34` (AlmaLinux 9 with OpenSSL 3.0+)
 
 ### 🔧 Fixed
 - **Nextflow**: Empty `--suffix` argument no longer causes failures
 - **Admonitions**: Converted GitHub-style alerts to MkDocs syntax
+- **CI Build**: Resolved `curl-sys` OpenSSL version conflict by switching to manylinux_2_34
 
 ## [2.2.0] - 2026-02-04
 
