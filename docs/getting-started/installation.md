@@ -42,20 +42,35 @@
 
 ---
 
-## Legacy Linux (RHEL 8)
+## Legacy Linux (RHEL 8 / HPC)
 
-For RHEL 8, CentOS 8, or other systems with glibc < 2.34:
+For RHEL 8, CentOS 8, or HPC systems with glibc < 2.34:
 
 === "Conda + Source (Recommended)"
     ```bash
-    # Create conda environment with dependencies
-    conda create -n gbcms python=3.11 openssl rust clang cmake -c conda-forge
+    # Create conda environment with build dependencies
+    # Note: clangdev (not clang) provides headers needed by bindgen
+    conda create -n gbcms python=3.11 clangdev rust -c conda-forge
     conda activate gbcms
+    
+    # Set libclang path for the Rust build
+    export LIBCLANG_PATH=$CONDA_PREFIX/lib
     
     # Install from source
     git clone https://github.com/msk-access/py-gbcms.git
     cd py-gbcms
     pip install .
+    ```
+
+=== "Singularity (HPC)"
+    ```bash
+    singularity pull docker://ghcr.io/msk-access/py-gbcms:2.3.0
+    singularity exec py-gbcms_2.3.0.sif gbcms --help
+    
+    # With data binding
+    singularity exec -B /path/to/data:/data py-gbcms_2.3.0.sif gbcms run \
+      --variants /data/variants.vcf --bam /data/sample.bam \
+      --fasta /data/ref.fa --output-dir /data/results/
     ```
 
 === "Docker"
@@ -64,16 +79,10 @@ For RHEL 8, CentOS 8, or other systems with glibc < 2.34:
     docker run --rm -v $(pwd):/data ghcr.io/msk-access/py-gbcms:2.3.0 gbcms --help
     ```
 
-=== "Singularity (HPC)"
-    ```bash
-    singularity pull docker://ghcr.io/msk-access/py-gbcms:2.3.0
-    singularity exec py-gbcms_2.3.0.sif gbcms --help
-    ```
-
 !!! note "Why not pip install?"
-    The PyPI wheels require glibc 2.34+. On RHEL 8 (glibc 2.28), pip would fall back 
-    to source compilation which requires Rust and OpenSSL 3.0 dev libraries. 
-    Using conda provides these dependencies automatically.
+    PyPI wheels require glibc 2.34+. On RHEL 8 (glibc 2.28), pip falls back to 
+    source compilation which requires Rust and clang headers. The conda environment
+    provides these dependencies.
 
 ---
 

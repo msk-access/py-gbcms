@@ -26,20 +26,22 @@ Guide for contributing to py-gbcms.
     gbcms --version
     ```
 
-=== "Legacy Linux (RHEL 8)"
+=== "Legacy Linux (RHEL 8 / HPC)"
     ```bash
     # Clone
     git clone https://github.com/msk-access/py-gbcms.git
     cd py-gbcms
     
     # Create conda environment with build dependencies
-    conda create -n gbcms-dev python=3.11 openssl rust clang cmake pkg-config -c conda-forge
+    # Note: clangdev (not clang) provides headers needed by bindgen
+    conda create -n gbcms-dev python=3.11 clangdev rust -c conda-forge
     conda activate gbcms-dev
     
-    # Install maturin
-    pip install maturin
+    # Set libclang path for the Rust build
+    export LIBCLANG_PATH=$CONDA_PREFIX/lib
     
-    # Build (uses conda's OpenSSL 3.x)
+    # Install maturin and build
+    pip install maturin
     maturin develop --release
     
     # Verify
