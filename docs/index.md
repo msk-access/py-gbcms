@@ -8,7 +8,7 @@
 
 ## What It Does
 
-gbcms extracts **allele counts** and **variant metrics** at specified positions in BAM files:
+GBCMS extracts **allele counts** and **variant metrics** at specified positions in BAM files:
 
 ```mermaid
 flowchart LR
@@ -48,7 +48,7 @@ pip install py-gbcms
 gbcms run --variants variants.vcf --bam sample.bam --fasta ref.fa --output-dir results/
 ```
 
-**→ [Full Installation Guide](INSTALLATION.md)** | **→ [CLI Examples](quick-start.md)**
+**→ [Full Installation Guide](getting-started/installation.md)** | **→ [CLI Examples](getting-started/quickstart.md)**
 
 ---
 
@@ -71,8 +71,8 @@ flowchart TD
 
 | Workflow | Best For | Guide |
 |:---------|:---------|:------|
-| **CLI** | 1-10 samples, local/single server | [Quick Start](quick-start.md) |
-| **Nextflow** | 10+ samples, HPC/SLURM | [Nextflow Guide](NEXTFLOW.md) |
+| **CLI** | 1-10 samples, local/single server | [Quick Start](getting-started/quickstart.md) |
+| **Nextflow** | 10+ samples, HPC/SLURM | [Nextflow Guide](nextflow/index.md) |
 
 ---
 
@@ -99,14 +99,16 @@ flowchart TB
     style Rust fill:#dea584,color:#000
 ```
 
-**→ [Technical Details](ARCHITECTURE.md)**
+**→ [Technical Details](reference/architecture.md)**
 
 ---
 
-## Links
+## Documentation
 
-- **[Installation](INSTALLATION.md)** — PyPI, Docker, source
-- **[CLI Guide](quick-start.md)** — Command examples  
-- **[Nextflow](NEXTFLOW.md)** — HPC pipeline
-- **[Contributing](CONTRIBUTING.md)** — Development guide
-- **[Changelog](CHANGELOG.md)** — Version history
+| Section | Description |
+|:--------|:------------|
+| [Getting Started](getting-started/index.md) | Installation and first run |
+| [CLI Reference](cli/index.md) | Command-line usage |
+| [Nextflow Pipeline](nextflow/index.md) | HPC workflow |
+| [Reference](reference/architecture.md) | Architecture and formats |
+| [Development](development/developer-guide.md) | Contributing guide |

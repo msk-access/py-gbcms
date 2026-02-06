@@ -80,5 +80,12 @@ temp/
 # Rust
 target/
 
+# Nextflow
+.nextflow/
+.nextflow.log*
+work/
+test_results*/
+test_samplesheet*.csv
+
 # Documentation
 site/

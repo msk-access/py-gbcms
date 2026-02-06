@@ -64,7 +64,8 @@ docker run --rm \
     --output-dir /data/results/
 ```
 
-> **Tip:** Use `-v` to mount your data directory.
+!!! tip "Docker Volume"
+    Use `-v` to mount your data directory.
 
 ---
 
@@ -106,5 +107,5 @@ pip install --upgrade py-gbcms
 
 ## Next Steps
 
-- **[CLI Quick Start](quick-start.md)** — Command examples
-- **[Nextflow Guide](NEXTFLOW.md)** — HPC pipeline
+- **[CLI Quick Start](quickstart.md)** — Command examples
+- **[Nextflow Guide](../nextflow/index.md)** — HPC pipeline

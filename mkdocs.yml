@@ -12,43 +12,85 @@ theme:
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: teal
-      accent: teal
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: teal
-      accent: teal
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
   features:
     - navigation.instant
     - navigation.tracking
-    - navigation.tabs
     - navigation.sections
+    - navigation.expand
     - navigation.top
+    - navigation.indexes
+    - navigation.path
+    - toc.follow
+    - content.code.copy
+    - content.code.annotate
     - search.suggest
     - search.highlight
-    - content.code.copy
-    - content.tabs.link
-
-extra:
-  generator: false
-  social:
-    - icon: fontawesome/brands/github
-      link: https://github.com/msk-access/py-gbcms
-
-copyright: |
-  Developed by <a href="https://github.com/rhshah">Ronak H Shah</a> @ MSKCC
-  &nbsp;|&nbsp; Built with <a href="https://github.com/google-gemini">Antigravity</a>
-  &nbsp;|&nbsp; <a href="https://github.com/msk-access/py-gbcms/blob/main/LICENSE">AGPL-3.0</a>
 
 plugins:
-  - search
-  - mermaid2
+  - search:
+      separator: '[\s\-,:!=\[\]()"/]+|(?!\b)(?=[A-Z][a-z])|\,(?!\d)|&[lg]t;'
+  - mermaid2:
+      version: "11.4.0"
+  - glightbox:
+      touchNavigation: true
+      loop: false
+      effect: zoom
+      zoomable: true
+      draggable: true
+  - git-revision-date-localized:
+      enable_creation_date: true
+      enable_git_follow: false
+      type: timeago
+  - panzoom:
+      full_screen: True
+      always_show_hint: false
+      key: "none"
+
+nav:
+  - Home: index.md
+  
+  - Getting Started:
+    - Overview: getting-started/index.md
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quickstart.md
+  
+  - CLI Reference:
+    - Overview: cli/index.md
+    - Run Command: cli/run.md
+  
+  - Nextflow Pipeline:
+    - Overview: nextflow/index.md
+    - Samplesheet: nextflow/samplesheet.md
+    - Parameters: nextflow/parameters.md
+    - Examples: nextflow/examples.md
+  
+  - Reference:
+    - Architecture: reference/architecture.md
+    - Input Formats: reference/input-formats.md
+    - Glossary: reference/glossary.md
+  
+  - Development:
+    - Developer Guide: development/developer-guide.md
+    - Testing Guide: development/testing-guide.md
+    - Release Guide: development/release-guide.md
+    - Changelog: development/changelog.md
+    - Contributing: development/contributing.md
+  
+  - Resources:
+    - Troubleshooting: resources/troubleshooting.md
+    - Citation: resources/citation.md
 
 markdown_extensions:
   - abbr
@@ -57,39 +99,49 @@ markdown_extensions:
   - def_list
   - footnotes
   - md_in_html
+  - tables
   - toc:
       permalink: true
   - pymdownx.details
-  - pymdownx.highlight:
-      anchor_linenums: true
-  - pymdownx.inlinehilite
-  - pymdownx.snippets:
-      base_path: ['.']
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
           class: mermaid
           format: !!python/name:mermaid2.fence_mermaid_custom
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      base_path:
+        - .
+        - docs
+      auto_append:
+        - includes/abbreviations.md
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.tasklist:
       custom_checkbox: true
+  - pymdownx.arithmatex:
+      generic: true
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
-  - tables
 
-nav:
-  - Home: README.md
-  - User Guide:
-      - Installation: INSTALLATION.md
-      - CLI Quick Start: quick-start.md
-      - Nextflow Pipeline: NEXTFLOW.md
-  - Reference:
-      - Architecture: ARCHITECTURE.md
-      - Changelog: CHANGELOG.md
-  - Developer:
-      - Developer Guide: DEVELOPMENT.md
-      - Testing Guide: TESTING.md
-      - Release Guide: RELEASE.md
-      - Contributing: CONTRIBUTING.md
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+
+extra_css:
+  - stylesheets/extra.css
+
+extra:
+  generator: false
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/msk-access/py-gbcms
+
+copyright: |
+  Developed by <a href="https://github.com/rhshah">Ronak H Shah</a> @ 
+  <a href="https://www.mskcc.org">MSKCC</a> | 
+  Built with <a href="https://antigravity.google/">Antigravity</a> | 
+  <a href="https://github.com/msk-access/py-gbcms/blob/main/LICENSE">AGPL-3.0</a>

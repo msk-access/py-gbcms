@@ -32,8 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.1] - 2025-11-25 [YANKED]
 
-> [!WARNING]
-> This release was yanked from PyPI due to a source distribution size limit error. Use 2.1.2 instead.
+!!! warning "Yanked Release"
+    This release was yanked from PyPI due to a source distribution size limit error. Use 2.1.2 instead.
 
 ### 🔧 Fixed
 - **PyPI Distribution**: Added MANIFEST.in (failed to work with Hatchling) to reduce source distribution size

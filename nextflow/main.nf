@@ -43,15 +43,23 @@ workflow {
             
             def bam = file(row.bam, checkIfExists: true)
             
-            // Handle BAI: if provided use it, otherwise auto-discover and validate
+            // Handle BAI: if provided use it, otherwise auto-discover with both naming conventions
             def bai
             if (row.bai) {
                 bai = file(row.bai, checkIfExists: true)
             } else {
-                def bai_path = "${row.bam}.bai"
-                bai = file(bai_path)
-                if (!bai.exists()) {
-                    error "BAI index not found for ${row.bam}. Expected: ${bai_path}"
+                // Try both common BAI naming conventions: .bam.bai and .bai
+                def bai_path1 = "${row.bam}.bai"
+                def bai_path2 = row.bam.replaceAll(/\.bam$/, '.bai')
+                def bai1 = file(bai_path1)
+                def bai2 = file(bai_path2)
+                
+                if (bai1.exists()) {
+                    bai = bai1
+                } else if (bai2.exists()) {
+                    bai = bai2
+                } else {
+                    error "BAI index not found for ${row.bam}. Searched: ${bai_path1}, ${bai_path2}"
                 }
             }
             

@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 # Dockerfile for py-gbcms
 # 
 # Build: docker build -t py-gbcms .
@@ -34,11 +36,13 @@ ENV BINDGEN_EXTRA_CLANG_ARGS="-I/usr/lib/llvm-14/lib/clang/14.0.6/include"
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# Install maturin
-RUN pip install --no-cache-dir maturin
+# Install maturin with patchelf support
+RUN pip install --no-cache-dir "maturin[patchelf]"
 
-# Copy source
-COPY . /app
+# Copy project files (selective copy for better layer caching)
+COPY pyproject.toml README.md LICENSE ./
+COPY rust/ rust/
+COPY src/ src/
 
 # Build unified wheel with maturin (includes both Python and Rust)
 RUN maturin build --release --out /app/dist
@@ -46,15 +50,27 @@ RUN maturin build --release --out /app/dist
 # Stage 2: Runtime (slim image)
 FROM python:3.11-slim-bookworm
 
+# OCI Labels for GitHub Container Registry
+LABEL org.opencontainers.image.title="py-gbcms"
+LABEL org.opencontainers.image.description="Python Get Base Count Multi Sample - high-performance variant counting"
+LABEL org.opencontainers.image.url="https://github.com/msk-access/py-gbcms"
+LABEL org.opencontainers.image.source="https://github.com/msk-access/py-gbcms"
+LABEL org.opencontainers.image.vendor="MSK-ACCESS"
+LABEL org.opencontainers.image.licenses="AGPL-3.0"
+LABEL org.opencontainers.image.authors="Ronak Shah <shahr2@mskcc.org>"
+
 WORKDIR /app
 
 # Install runtime dependencies for htslib
+# procps and bash are required for Nextflow task metrics and shell execution
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libcurl4 \
     libssl3 \
     zlib1g \
     libbz2-1.0 \
     liblzma5 \
+    procps \
+    bash \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy and install the unified wheel

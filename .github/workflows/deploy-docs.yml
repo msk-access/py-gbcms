@@ -1,4 +1,4 @@
-name: Deploy Documentation (Production)
+name: documentation
 
 on:
   push:
@@ -7,30 +7,50 @@ on:
       - 'docs/**'
       - 'mkdocs.yml'
       - '.github/workflows/deploy-docs.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
 
 permissions:
   contents: write
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout main
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          
-      - name: Setup Python
-        uses: actions/setup-python@v5
+
+      - uses: actions/setup-python@v5
         with:
           python-version: 3.x
-          
-      - name: Install MkDocs and Material theme
+
+      - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV 
+
+      - uses: actions/cache@v4
+        with:
+          key: mkdocs-material-${{ env.cache_id }}
+          path: .cache
+          restore-keys: |
+            mkdocs-material-
+
+      - name: Install dependencies
         run: |
-          pip install mkdocs-material mkdocs-mermaid2-plugin
-          
-      - name: Deploy to GitHub Pages
+          pip install mkdocs-material mkdocs-mermaid2-plugin \
+            mkdocs-glightbox mkdocs-git-revision-date-localized-plugin \
+            mkdocs-panzoom-plugin pillow cairosvg
+
+      - name: Build documentation
+        run: mkdocs build --strict
+
+      - name: Configure Git Credentials
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           git config user.name github-actions[bot]
-          git config user.email github-actions[bot]@users.noreply.github.com
-          mkdocs gh-deploy --force
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+
+      - name: Deploy documentation
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: mkdocs gh-deploy --force
