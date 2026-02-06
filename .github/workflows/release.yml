@@ -14,6 +14,8 @@ jobs:
   # Build unified wheels (Python + Rust bundled) for Linux
   linux:
     runs-on: ubuntu-latest
+    env:
+      OPENSSL_NO_VENDOR: 1  # Use system OpenSSL instead of vendoring (avoids version issues)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -27,8 +29,6 @@ jobs:
           sccache: 'true'
           manylinux: manylinux_2_28
           before-script-linux: |
-            # Use system OpenSSL instead of building from source (avoids Perl module issues)
-            export OPENSSL_NO_VENDOR=1
             SUDO=""
             if [ "$(id -u)" -ne 0 ] && command -v sudo &> /dev/null; then
               SUDO="sudo"
