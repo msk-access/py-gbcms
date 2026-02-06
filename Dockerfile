@@ -45,7 +45,7 @@ COPY rust/ rust/
 COPY src/ src/
 
 # Build unified wheel with maturin (includes both Python and Rust)
-RUN maturin build --release --out /app/dist
+RUN maturin build --release --out /app/dist --manifest-path rust/Cargo.toml
 
 # Stage 2: Runtime (slim image)
 FROM python:3.11-slim-bookworm
