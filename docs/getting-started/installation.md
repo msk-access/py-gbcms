@@ -7,6 +7,10 @@
     pip install py-gbcms
     gbcms --version
     ```
+    
+    !!! info "System Requirements"
+        PyPI wheels require **glibc 2.34+** (Ubuntu 22.04+, RHEL 9+, Debian 12+).
+        For older systems, see [Legacy Linux](#legacy-linux-rhel-8).
 
 === "Docker"
     ```bash
@@ -28,13 +32,48 @@
 | Component | Requirement |
 |:----------|:------------|
 | Python | 3.10+ |
-| OS | Linux, macOS, Windows (WSL2) |
+| OS | Linux (glibc 2.34+), macOS, Windows (WSL2) |
 | Memory | 4GB+ (8GB for large BAMs) |
 
 ### For Nextflow Workflow
 
 - Nextflow 21.10.3+
 - Docker or Singularity
+
+---
+
+## Legacy Linux (RHEL 8)
+
+For RHEL 8, CentOS 8, or other systems with glibc < 2.34:
+
+=== "Conda + Source (Recommended)"
+    ```bash
+    # Create conda environment with dependencies
+    conda create -n gbcms python=3.11 openssl rust clang cmake -c conda-forge
+    conda activate gbcms
+    
+    # Install from source
+    git clone https://github.com/msk-access/py-gbcms.git
+    cd py-gbcms
+    pip install .
+    ```
+
+=== "Docker"
+    ```bash
+    docker pull ghcr.io/msk-access/py-gbcms:2.3.0
+    docker run --rm -v $(pwd):/data ghcr.io/msk-access/py-gbcms:2.3.0 gbcms --help
+    ```
+
+=== "Singularity (HPC)"
+    ```bash
+    singularity pull docker://ghcr.io/msk-access/py-gbcms:2.3.0
+    singularity exec py-gbcms_2.3.0.sif gbcms --help
+    ```
+
+!!! note "Why not pip install?"
+    The PyPI wheels require glibc 2.34+. On RHEL 8 (glibc 2.28), pip would fall back 
+    to source compilation which requires Rust and OpenSSL 3.0 dev libraries. 
+    Using conda provides these dependencies automatically.
 
 ---
 
@@ -69,15 +108,6 @@ docker run --rm \
 
 ---
 
-## Singularity (HPC)
-
-```bash
-singularity pull docker://ghcr.io/msk-access/py-gbcms:2.3.0
-singularity exec py-gbcms_2.3.0.sif gbcms --help
-```
-
----
-
 ## Troubleshooting
 
 ### Module Not Found
@@ -94,6 +124,9 @@ samtools index sample.bam
 ```bash
 sudo usermod -aG docker $USER && newgrp docker
 ```
+
+### glibc Version Error
+If you see `GLIBC_2.34 not found`, use the [Legacy Linux](#legacy-linux-rhel-8) instructions.
 
 ---
 

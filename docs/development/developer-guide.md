@@ -6,21 +6,65 @@ Guide for contributing to py-gbcms.
 
 ## Setup
 
-```bash
-# Clone
-git clone https://github.com/msk-access/py-gbcms.git
-cd py-gbcms
+=== "Modern Linux (Ubuntu 22.04+, RHEL 9+)"
+    ```bash
+    # Clone
+    git clone https://github.com/msk-access/py-gbcms.git
+    cd py-gbcms
+    
+    # Virtual environment
+    python -m venv .venv
+    source .venv/bin/activate
+    
+    # Install Rust (if not installed)
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+    
+    # Install (builds Rust extension)
+    maturin develop --release
+    
+    # Verify
+    gbcms --version
+    ```
 
-# Virtual environment
-python -m venv .venv
-source .venv/bin/activate
+=== "Legacy Linux (RHEL 8)"
+    ```bash
+    # Clone
+    git clone https://github.com/msk-access/py-gbcms.git
+    cd py-gbcms
+    
+    # Create conda environment with build dependencies
+    conda create -n gbcms-dev python=3.11 openssl rust clang cmake pkg-config -c conda-forge
+    conda activate gbcms-dev
+    
+    # Install maturin
+    pip install maturin
+    
+    # Build (uses conda's OpenSSL 3.x)
+    maturin develop --release
+    
+    # Verify
+    gbcms --version
+    ```
 
-# Install (builds Rust extension)
-maturin develop --release
-
-# Verify
-gbcms --version
-```
+=== "macOS"
+    ```bash
+    # Clone
+    git clone https://github.com/msk-access/py-gbcms.git
+    cd py-gbcms
+    
+    # Install Rust (if not installed)
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+    
+    # Virtual environment
+    python -m venv .venv
+    source .venv/bin/activate
+    
+    # Install (builds Rust extension)
+    maturin develop --release
+    
+    # Verify
+    gbcms --version
+    ```
 
 ---
 

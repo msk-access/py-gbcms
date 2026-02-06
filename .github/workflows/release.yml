@@ -25,26 +25,21 @@ jobs:
         with:
           command: build
           args: --release --out dist --manifest-path rust/Cargo.toml
-          manylinux: manylinux_2_28
+          # manylinux_2_34 uses AlmaLinux 9 with OpenSSL 3.0+ (compatible with curl-sys 0.4.85+)
+          # RHEL 8 users should install from source in a conda env or use Docker
+          manylinux: manylinux_2_34
           before-script-linux: |
-            # Use system OpenSSL and curl instead of building from source
-            export OPENSSL_NO_VENDOR=1
-            export CURL_NO_VENDOR=1
-            
             SUDO=""
             if [ "$(id -u)" -ne 0 ] && command -v sudo &> /dev/null; then
               SUDO="sudo"
             fi
             
-            if command -v yum &> /dev/null; then
+            if command -v dnf &> /dev/null; then
+              $SUDO dnf install -y zlib-devel bzip2-devel xz-devel libcurl-devel openssl-devel clang llvm-devel
+            elif command -v yum &> /dev/null; then
               $SUDO yum install -y zlib-devel bzip2-devel xz-devel libcurl-devel openssl-devel clang llvm-devel
             elif command -v apt-get &> /dev/null; then
               $SUDO apt-get update && $SUDO apt-get install -y zlib1g-dev libbz2-dev liblzma-dev libcurl4-openssl-dev libssl-dev clang libclang-dev
-            elif command -v apk &> /dev/null; then
-              $SUDO apk add zlib-dev bzip2-dev xz-dev curl-dev openssl-dev clang clang-dev
-            else
-              echo "Unsupported package manager"
-              exit 1
             fi
       
       - name: Upload wheels
