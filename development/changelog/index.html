@@ -565,6 +565,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <li><strong>Nextflow <abbr title="BAM Index - Index file for rapid BAM access">BAI</abbr> Auto-Discovery</strong>: Checks <code>.bam.bai</code> and <code>.bai</code> extensions automatically</li>
 <li><strong>Documentation Modernization</strong>: Hierarchical navigation, glightbox, panzoom, abbreviations</li>
 <li><strong>Performance Benchmarks</strong>: <abbr title="Cell-free DNA - Circulating DNA fragments in blood plasma">cfDNA</abbr> duplex sample metrics in documentation</li>
+<li><strong>RHEL 8 Installation Guide</strong>: Conda-based source installation for legacy Linux</li>
 </ul>
 <h3 id="changed">🔄 Changed<a class="headerlink" href="#changed" title="Permanent link">¶</a></h3>
 <ul>
@@ -572,11 +573,13 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <li><strong>Nextflow Config</strong>: <code>--platform linux/amd64</code>, shell config, local profile, observability (trace/report/timeline/dag)</li>
 <li><strong>MkDocs</strong>: Switched to <code>navigation.sections</code>, 20+ abbreviations with hover tooltips</li>
 <li><strong>GitHub Actions</strong>: Consolidated deploy-docs workflows, added caching and PR validation</li>
+<li><strong><abbr title="Continuous Integration - Automated build and test system">CI</abbr> Wheels</strong>: Migrated from <code>manylinux_2_28</code> to <code>manylinux_2_34</code> (AlmaLinux 9 with OpenSSL 3.0+)</li>
 </ul>
 <h3 id="fixed">🔧 Fixed<a class="headerlink" href="#fixed" title="Permanent link">¶</a></h3>
 <ul>
 <li><strong>Nextflow</strong>: Empty <code>--suffix</code> argument no longer causes failures</li>
 <li><strong>Admonitions</strong>: Converted GitHub-style alerts to MkDocs syntax</li>
+<li><strong><abbr title="Continuous Integration - Automated build and test system">CI</abbr> Build</strong>: Resolved <code>curl-sys</code> OpenSSL version conflict by switching to manylinux_2_34</li>
 </ul>
 <h2 id="220-2026-02-04">[2.2.0] - 2026-02-04<a class="headerlink" href="#220-2026-02-04" title="Permanent link">¶</a></h2>
 <h3 id="added_1">✨ Added<a class="headerlink" href="#added_1" title="Permanent link">¶</a></h3>
