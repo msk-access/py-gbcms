@@ -3,21 +3,22 @@
 <meta content="width=device-width,initial-scale=1" name="viewport">
 <meta content="High-performance variant counting from BAM files" name="description">
 <meta content="MSK-ACCESS" name="author">
-<link href="https://msk-access.github.io/py-gbcms/" rel="canonical">
-<link href="getting-started/" rel="next">
-<link href="assets/images/favicon.png" rel="icon">
+<link href="https://msk-access.github.io/py-gbcms/reference/architecture/" rel="canonical">
+<link href="../../nextflow/examples/" rel="prev">
+<link href="../input-formats/" rel="next">
+<link href="../../assets/images/favicon.png" rel="icon">
 <meta content="mkdocs-1.6.1, mkdocs-material-9.7.1" name="generator">
-<title>py-gbcms</title>
-<link href="assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet">
-<link href="assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet">
+<title>Architecture - py-gbcms</title>
+<link href="../../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet">
+<link href="../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet">
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
 <link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet">
 <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
-<link href="css/timeago.css" rel="stylesheet">
-<link href="stylesheets/extra.css" rel="stylesheet">
-<link href="assets/stylesheets/panzoom.css" rel="stylesheet">
-<script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
-<link href="assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+<link href="../../css/timeago.css" rel="stylesheet">
+<link href="../../stylesheets/extra.css" rel="stylesheet">
+<link href="../../assets/stylesheets/panzoom.css" rel="stylesheet">
+<script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+<link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
             html.glightbox-open { overflow: initial; height: 100%; }
             .gslide-title { margin-top: 0px; user-select: text; }
             .gslide-desc { color: #666; user-select: text; }
@@ -34,7 +35,7 @@
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox">
 <label class="md-overlay" for="__drawer"></label>
 <div data-md-component="skip">
-<a class="md-skip" href="#py-gbcms">
+<a class="md-skip" href="#architecture">
           Skip to content
         </a>
 </div>
@@ -42,7 +43,7 @@
 </div>
 <header class="md-header md-header--shadow" data-md-component="header">
 <nav aria-label="Header" class="md-header__inner md-grid">
-<a aria-label="py-gbcms" class="md-header__button md-logo" data-md-component="logo" href="." title="py-gbcms">
+<a aria-label="py-gbcms" class="md-header__button md-logo" data-md-component="logo" href="../.." title="py-gbcms">
 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
 </a>
 <label class="md-header__button md-icon" for="__drawer">
@@ -58,7 +59,7 @@
 <div class="md-header__topic" data-md-component="header-topic">
 <span class="md-ellipsis">
             
-              Home
+              Architecture
             
           </span>
 </div>
@@ -126,7 +127,7 @@
 <div class="md-sidebar__inner">
 <nav aria-label="Navigation" class="md-nav md-nav--primary" data-md-level="0">
 <label class="md-nav__title" for="__drawer">
-<a aria-label="py-gbcms" class="md-nav__button md-logo" data-md-component="logo" href="." title="py-gbcms">
+<a aria-label="py-gbcms" class="md-nav__button md-logo" data-md-component="logo" href="../.." title="py-gbcms">
 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
 </a>
     py-gbcms
@@ -142,20 +143,8 @@
 </a>
 </div>
 <ul class="md-nav__list" data-md-scrollfix="">
-<li class="md-nav__item md-nav__item--active">
-<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox">
-<label class="md-nav__link md-nav__link--active" for="__toc">
-<span class="md-ellipsis">
-    
-  
-    Home
-  
-
-    
-  </span>
-<span class="md-nav__icon md-icon"></span>
-</label>
-<a class="md-nav__link md-nav__link--active" href=".">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../..">
 <span class="md-ellipsis">
     
   
@@ -165,77 +154,11 @@
     
   </span>
 </a>
-<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
-<label class="md-nav__title" for="__toc">
-<span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
-<li class="md-nav__item">
-<a class="md-nav__link" href="#what-it-does">
-<span class="md-ellipsis">
-      
-        What It Does
-      
-    </span>
-</a>
-<nav aria-label="What It Does" class="md-nav">
-<ul class="md-nav__list">
-<li class="md-nav__item">
-<a class="md-nav__link" href="#key-metrics">
-<span class="md-ellipsis">
-      
-        Key Metrics
-      
-    </span>
-</a>
-</li>
-</ul>
-</nav>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#quick-start">
-<span class="md-ellipsis">
-      
-        Quick Start
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#choose-your-workflow">
-<span class="md-ellipsis">
-      
-        Choose Your Workflow
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#architecture">
-<span class="md-ellipsis">
-      
-        Architecture
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#documentation">
-<span class="md-ellipsis">
-      
-        Documentation
-      
-    </span>
-</a>
-</li>
-</ul>
-</nav>
 </li>
 <li class="md-nav__item md-nav__item--section md-nav__item--nested">
 <input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_2" type="checkbox">
 <div class="md-nav__link md-nav__container">
-<a class="md-nav__link" href="getting-started/">
+<a class="md-nav__link" href="../../getting-started/">
 <span class="md-ellipsis">
     
   
@@ -260,7 +183,7 @@
           </label>
 <ul class="md-nav__list" data-md-scrollfix="">
 <li class="md-nav__item">
-<a class="md-nav__link" href="getting-started/installation/">
+<a class="md-nav__link" href="../../getting-started/installation/">
 <span class="md-ellipsis">
     
   
@@ -272,7 +195,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="getting-started/quickstart/">
+<a class="md-nav__link" href="../../getting-started/quickstart/">
 <span class="md-ellipsis">
     
   
@@ -289,7 +212,7 @@
 <li class="md-nav__item md-nav__item--section md-nav__item--nested">
 <input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox">
 <div class="md-nav__link md-nav__container">
-<a class="md-nav__link" href="cli/">
+<a class="md-nav__link" href="../../cli/">
 <span class="md-ellipsis">
     
   
@@ -314,7 +237,7 @@
           </label>
 <ul class="md-nav__list" data-md-scrollfix="">
 <li class="md-nav__item">
-<a class="md-nav__link" href="cli/run/">
+<a class="md-nav__link" href="../../cli/run/">
 <span class="md-ellipsis">
     
   
@@ -331,7 +254,7 @@
 <li class="md-nav__item md-nav__item--section md-nav__item--nested">
 <input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox">
 <div class="md-nav__link md-nav__container">
-<a class="md-nav__link" href="nextflow/">
+<a class="md-nav__link" href="../../nextflow/">
 <span class="md-ellipsis">
     
   
@@ -356,7 +279,7 @@
           </label>
 <ul class="md-nav__list" data-md-scrollfix="">
 <li class="md-nav__item">
-<a class="md-nav__link" href="nextflow/samplesheet/">
+<a class="md-nav__link" href="../../nextflow/samplesheet/">
 <span class="md-ellipsis">
     
   
@@ -368,7 +291,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="nextflow/parameters/">
+<a class="md-nav__link" href="../../nextflow/parameters/">
 <span class="md-ellipsis">
     
   
@@ -380,7 +303,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="nextflow/examples/">
+<a class="md-nav__link" href="../../nextflow/examples/">
 <span class="md-ellipsis">
     
   
@@ -394,8 +317,8 @@
 </ul>
 </nav>
 </li>
-<li class="md-nav__item md-nav__item--section md-nav__item--nested">
-<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_5" type="checkbox">
+<li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_5" type="checkbox">
 <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
 <span class="md-ellipsis">
     
@@ -407,7 +330,7 @@
   </span>
 <span class="md-nav__icon md-icon"></span>
 </label>
-<nav aria-expanded="false" aria-labelledby="__nav_5_label" class="md-nav" data-md-level="1">
+<nav aria-expanded="true" aria-labelledby="__nav_5_label" class="md-nav" data-md-level="1">
 <label class="md-nav__title" for="__nav_5">
 <span class="md-nav__icon md-icon"></span>
             
@@ -417,8 +340,20 @@
 
           </label>
 <ul class="md-nav__list" data-md-scrollfix="">
-<li class="md-nav__item">
-<a class="md-nav__link" href="reference/architecture/">
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox">
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
 <span class="md-ellipsis">
     
   
@@ -428,9 +363,93 @@
     
   </span>
 </a>
+<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#system-overview">
+<span class="md-ellipsis">
+      
+        System Overview
+      
+    </span>
+</a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="reference/input-formats/">
+<a class="md-nav__link" href="#data-flow">
+<span class="md-ellipsis">
+      
+        Data Flow
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#coordinate-system">
+<span class="md-ellipsis">
+      
+        Coordinate System
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#formulas">
+<span class="md-ellipsis">
+      
+        Formulas
+      
+    </span>
+</a>
+<nav aria-label="Formulas" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#variant-allele-frequency-vaf">
+<span class="md-ellipsis">
+      
+        Variant Allele Frequency (VAF)
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#strand-bias-fishers-exact-test">
+<span class="md-ellipsis">
+      
+        Strand Bias (Fisher's Exact Test)
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#module-structure">
+<span class="md-ellipsis">
+      
+        Module Structure
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#configuration">
+<span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../input-formats/">
 <span class="md-ellipsis">
     
   
@@ -442,7 +461,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="reference/glossary/">
+<a class="md-nav__link" href="../glossary/">
 <span class="md-ellipsis">
     
   
@@ -480,7 +499,7 @@
           </label>
 <ul class="md-nav__list" data-md-scrollfix="">
 <li class="md-nav__item">
-<a class="md-nav__link" href="development/developer-guide/">
+<a class="md-nav__link" href="../../development/developer-guide/">
 <span class="md-ellipsis">
     
   
@@ -492,7 +511,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="development/testing-guide/">
+<a class="md-nav__link" href="../../development/testing-guide/">
 <span class="md-ellipsis">
     
   
@@ -504,7 +523,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="development/release-guide/">
+<a class="md-nav__link" href="../../development/release-guide/">
 <span class="md-ellipsis">
     
   
@@ -516,7 +535,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="development/changelog/">
+<a class="md-nav__link" href="../../development/changelog/">
 <span class="md-ellipsis">
     
   
@@ -528,7 +547,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="development/contributing/">
+<a class="md-nav__link" href="../../development/contributing/">
 <span class="md-ellipsis">
     
   
@@ -566,7 +585,7 @@
           </label>
 <ul class="md-nav__list" data-md-scrollfix="">
 <li class="md-nav__item">
-<a class="md-nav__link" href="resources/troubleshooting/">
+<a class="md-nav__link" href="../../resources/troubleshooting/">
 <span class="md-ellipsis">
     
   
@@ -578,7 +597,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="resources/citation/">
+<a class="md-nav__link" href="../../resources/citation/">
 <span class="md-ellipsis">
     
   
@@ -607,20 +626,56 @@
     </label>
 <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#what-it-does">
+<a class="md-nav__link" href="#system-overview">
 <span class="md-ellipsis">
       
-        What It Does
+        System Overview
       
     </span>
 </a>
-<nav aria-label="What It Does" class="md-nav">
-<ul class="md-nav__list">
+</li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#key-metrics">
+<a class="md-nav__link" href="#data-flow">
 <span class="md-ellipsis">
       
-        Key Metrics
+        Data Flow
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#coordinate-system">
+<span class="md-ellipsis">
+      
+        Coordinate System
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#formulas">
+<span class="md-ellipsis">
+      
+        Formulas
+      
+    </span>
+</a>
+<nav aria-label="Formulas" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#variant-allele-frequency-vaf">
+<span class="md-ellipsis">
+      
+        Variant Allele Frequency (VAF)
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#strand-bias-fishers-exact-test">
+<span class="md-ellipsis">
+      
+        Strand Bias (Fisher's Exact Test)
       
     </span>
 </a>
@@ -629,37 +684,19 @@
 </nav>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#quick-start">
+<a class="md-nav__link" href="#module-structure">
 <span class="md-ellipsis">
       
-        Quick Start
+        Module Structure
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#choose-your-workflow">
+<a class="md-nav__link" href="#configuration">
 <span class="md-ellipsis">
       
-        Choose Your Workflow
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#architecture">
-<span class="md-ellipsis">
-      
-        Architecture
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#documentation">
-<span class="md-ellipsis">
-      
-        Documentation
+        Configuration
       
     </span>
 </a>
@@ -670,16 +707,72 @@
 </div>
 </div>
 <div class="md-content" data-md-component="content">
+<nav aria-label="Navigation" class="md-path">
+<ol class="md-path__list">
+<li class="md-path__item">
+<a class="md-path__link" href="../..">
+<span class="md-ellipsis">
+    Home
+  </span>
+</a>
+</li>
+<li class="md-path__item">
+<a class="md-path__link" href="./">
+<span class="md-ellipsis">
+    Reference
+  </span>
+</a>
+</li>
+</ol>
+</nav>
 <article class="md-content__inner md-typeset">
-<h1 id="py-gbcms">py-gbcms<a class="headerlink" href="#py-gbcms" title="Permanent link">¶</a></h1>
-<blockquote>
-<p><strong>Get Base Counts Multi-Sample</strong> — High-performance variant counting from <abbr title="Binary Alignment Map - Compressed sequence alignment file format">BAM</abbr> files</p>
-</blockquote>
-<p><a href="https://pypi.org/project/py-gbcms/"><img alt="Version" src="https://img.shields.io/pypi/v/py-gbcms"></a>
-<a href="https://pypi.org/project/py-gbcms/"><img alt="Python" src="https://img.shields.io/pypi/pyversions/py-gbcms"></a>
-<a href="https://github.com/msk-access/py-gbcms/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/msk-access/py-gbcms"></a></p>
-<h2 id="what-it-does">What It Does<a class="headerlink" href="#what-it-does" title="Permanent link">¶</a></h2>
-<p><abbr title="Get Base Count Multi Sample - Multi-BAM variant counting tool">GBCMS</abbr> extracts <strong>allele counts</strong> and <strong>variant metrics</strong> at specified positions in <abbr title="Binary Alignment Map - Compressed sequence alignment file format">BAM</abbr> files:</p>
+<h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">¶</a></h1>
+<p>py-gbcms uses a hybrid Python/Rust architecture for maximum performance.</p>
+<h2 id="system-overview">System Overview<a class="headerlink" href="#system-overview" title="Permanent link">¶</a></h2>
+<div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
+<nav class="panzoom-nav">
+<button class="panzoom-info panzoom-button">
+<svg class="panzoom-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<path d="M464 256A208 208 0 1 0 48 256a208 208 0 1 0 416 0zM0 256a256 256 0 1 1 512 0A256 256 0 1 1 0 256zm169.8-90.7c7.9-22.3 29.1-37.3 52.8-37.3l58.3 0c34.9 0 63.1 28.3 63.1 63.1c0 22.6-12.1 43.5-31.7 54.8L280 264.4c-.2 13-10.9 23.6-24 23.6c-13.3 0-24-10.7-24-24l0-13.5c0-8.6 4.6-16.5 12.1-20.8l44.3-25.4c4.7-2.7 7.6-7.7 7.6-13.1c0-8.4-6.8-15.1-15.1-15.1l-58.3 0c-3.4 0-6.4 2.1-7.5 5.3l-.4 1.2c-4.4 12.5-18.2 19-30.6 14.6s-19-18.2-14.6-30.6l.4-1.2zM224 352a32 32 0 1 1 64 0 32 32 0 1 1 -64 0z"></path>
+</svg>
+</button><button class="panzoom-reset panzoom-button">
+<svg class="panzoom-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<path d="M125.7 160l50.3 0c17.7 0 32 14.3 32 32s-14.3 32-32 32L48 224c-17.7 0-32-14.3-32-32L16 64c0-17.7 14.3-32 32-32s32 14.3 32 32l0 51.2L97.6 97.6c87.5-87.5 229.3-87.5 316.8 0s87.5 229.3 0 316.8s-229.3 87.5-316.8 0c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0c62.5 62.5 163.8 62.5 226.3 0s62.5-163.8 0-226.3s-163.8-62.5-226.3 0L125.7 160z"></path>
+</svg>
+</button><button class="panzoom-max panzoom-button">
+<svg class="panzoom-icon" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg">
+<path d="M32 32C14.3 32 0 46.3 0 64l0 96c0 17.7 14.3 32 32 32s32-14.3 32-32l0-64 64 0c17.7 0 32-14.3 32-32s-14.3-32-32-32L32 32zM64 352c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-64 0 0-64zM320 32c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0 0 64c0 17.7 14.3 32 32 32s32-14.3 32-32l0-96c0-17.7-14.3-32-32-32l-96 0zM448 352c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 64-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l96 0c17.7 0 32-14.3 32-32l0-96z"></path>
+</svg>
+</button><button class="panzoom-min panzoom-button panzoom-hidden">
+<svg class="panzoom-icon" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg">
+<path d="M160 64c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 64-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l96 0c17.7 0 32-14.3 32-32l0-96zM32 320c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0 0 64c0 17.7 14.3 32 32 32s32-14.3 32-32l0-96c0-17.7-14.3-32-32-32l-96 0zM352 64c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-64 0 0-64zM320 320c-17.7 0-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32s32-14.3 32-32l0-64 64 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-96 0z"></path>
+</svg>
+</button>
+</nav>
+<pre class="mermaid"><code>flowchart TB
+    subgraph Python["🐍 Python Layer"]
+        CLI[CLI<br>cli.py] --&gt; Pipeline[Orchestration<br>pipeline.py]
+        Pipeline --&gt; Reader[Input Adapters<br>VcfReader, MafReader]
+        Pipeline --&gt; Writer[Output Writers<br>VcfWriter, MafWriter]
+    end
+
+    subgraph Rust["🦀 Rust Layer (gbcms._rs)"]
+        Counter[count_bam<br>counting.rs] --&gt; CIGAR[CIGAR Parser]
+        Counter --&gt; Stats[Strand Bias<br>stats.rs]
+    end
+
+    Pipeline --&gt;|"PyO3"| Counter
+    Counter --&gt;|"BaseCounts"| Pipeline
+
+    style Python fill:#3776ab,color:#fff
+    style Rust fill:#dea584,color:#000
+</code></pre>
+<div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
+Use mouse to pan and zoom
+</div>
+</div>
+<hr>
+<h2 id="data-flow">Data Flow<a class="headerlink" href="#data-flow" title="Permanent link">¶</a></h2>
 <div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
 <nav class="panzoom-nav">
 <button class="panzoom-info panzoom-button">
@@ -704,60 +797,32 @@
     subgraph Input
         VCF[VCF/MAF]
         BAM[BAM Files]
+        FASTA[Reference]
+    end
+
+    subgraph Process
+        Load[Load Variants]
+        Validate[Validate vs Ref]
+        Count[Count Reads]
     end
 
     subgraph Output
-        Counts[Allele Counts]
-        Metrics[VAF, Strand Bias]
+        Result[VCF/MAF + Counts]
     end
 
-    VCF --&gt; Engine[gbcms]
-    BAM --&gt; Engine
-    Engine --&gt; Counts
-    Engine --&gt; Metrics
+    VCF --&gt; Load --&gt; Validate
+    FASTA --&gt; Validate
+    Validate --&gt; Count
+    BAM --&gt; Count
+    Count --&gt; Result
 </code></pre>
 <div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
 Use mouse to pan and zoom
 </div>
 </div>
-<h3 id="key-metrics">Key Metrics<a class="headerlink" href="#key-metrics" title="Permanent link">¶</a></h3>
-<table>
-<thead>
-<tr>
-<th style="text-align: left;">Metric</th>
-<th style="text-align: left;">Formula</th>
-<th style="text-align: left;">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align: left;"><strong><abbr title="Variant Allele Frequency - Fraction of reads supporting the variant allele">VAF</abbr></strong></td>
-<td style="text-align: left;"><code>AD / (RD + AD)</code></td>
-<td style="text-align: left;">Variant Allele Frequency</td>
-</tr>
-<tr>
-<td style="text-align: left;"><strong>Strand Bias</strong></td>
-<td style="text-align: left;">Fisher's exact test</td>
-<td style="text-align: left;">Detect sequencing artifacts</td>
-</tr>
-<tr>
-<td style="text-align: left;"><strong>Fragment Counts</strong></td>
-<td style="text-align: left;">Deduplicated pairs</td>
-<td style="text-align: left;">PCR-aware counting</td>
-</tr>
-</tbody>
-</table>
 <hr>
-<h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">¶</a></h2>
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-0-1" id="__codelineno-0-1" name="__codelineno-0-1"></a><span class="c1"># Install</span>
-<a href="#__codelineno-0-2" id="__codelineno-0-2" name="__codelineno-0-2"></a>pip<span class="w"> </span>install<span class="w"> </span>py-gbcms
-<a href="#__codelineno-0-3" id="__codelineno-0-3" name="__codelineno-0-3"></a>
-<a href="#__codelineno-0-4" id="__codelineno-0-4" name="__codelineno-0-4"></a><span class="c1"># Run</span>
-<a href="#__codelineno-0-5" id="__codelineno-0-5" name="__codelineno-0-5"></a>gbcms<span class="w"> </span>run<span class="w"> </span>--variants<span class="w"> </span>variants.vcf<span class="w"> </span>--bam<span class="w"> </span>sample.bam<span class="w"> </span>--fasta<span class="w"> </span>ref.fa<span class="w"> </span>--output-dir<span class="w"> </span>results/
-</code></pre></div>
-<p><strong>→ <a href="getting-started/installation/">Full Installation Guide</a></strong> | <strong>→ <a href="getting-started/quickstart/"><abbr title="Command Line Interface - Terminal-based program interface">CLI</abbr> Examples</a></strong></p>
-<hr>
-<h2 id="choose-your-workflow">Choose Your Workflow<a class="headerlink" href="#choose-your-workflow" title="Permanent link">¶</a></h2>
+<h2 id="coordinate-system">Coordinate System<a class="headerlink" href="#coordinate-system" title="Permanent link">¶</a></h2>
+<p>All coordinates normalized to <strong>0-based, half-open</strong> internally:</p>
 <div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
 <nav class="panzoom-nav">
 <button class="panzoom-info panzoom-button">
@@ -778,18 +843,11 @@ Use mouse to pan and zoom
 </svg>
 </button>
 </nav>
-<pre class="mermaid"><code>flowchart TD
-    Start[How many samples?] --&gt; Few{1-10 samples}
-    Start --&gt; Many{10+ samples}
-
-    Few --&gt; CLI[Use CLI<br>gbcms run ...]
-    Many --&gt; HPC{HPC cluster?}
-
-    HPC --&gt; |Yes| Nextflow[Use Nextflow<br>nextflow run ...]
-    HPC --&gt; |No| CLI
-
-    style CLI fill:#4caf50,color:white
-    style Nextflow fill:#2196f3,color:white
+<pre class="mermaid"><code>flowchart LR
+    VCF["VCF (1-based)"] --&gt;|"-1"| Internal["Internal (0-based)"]
+    MAF["MAF (1-based)"] --&gt;|"-1"| Internal
+    Internal --&gt;|"to Rust"| Rust["gbcms._rs"]
+    Rust --&gt;|"+1"| Output["Output (1-based)"]
 </code></pre>
 <div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
 Use mouse to pan and zoom
@@ -798,27 +856,71 @@ Use mouse to pan and zoom
 <table>
 <thead>
 <tr>
-<th style="text-align: left;">Workflow</th>
-<th style="text-align: left;">Best For</th>
-<th style="text-align: left;">Guide</th>
+<th style="text-align: left;">Format</th>
+<th style="text-align: left;">System</th>
+<th style="text-align: left;">Example</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td style="text-align: left;"><strong><abbr title="Command Line Interface - Terminal-based program interface">CLI</abbr></strong></td>
-<td style="text-align: left;">1-10 samples, local/single server</td>
-<td style="text-align: left;"><a href="getting-started/quickstart/">Quick Start</a></td>
+<td style="text-align: left;"><abbr title="Variant Call Format - Standard variant call file format">VCF</abbr> input</td>
+<td style="text-align: left;">1-based</td>
+<td style="text-align: left;">chr1:100</td>
 </tr>
 <tr>
-<td style="text-align: left;"><strong>Nextflow</strong></td>
-<td style="text-align: left;">10+ samples, <abbr title="High-Performance Computing - Cluster computing environment">HPC</abbr>/SLURM</td>
-<td style="text-align: left;"><a href="nextflow/">Nextflow Guide</a></td>
+<td style="text-align: left;">Internal</td>
+<td style="text-align: left;">0-based</td>
+<td style="text-align: left;">chr1:99</td>
+</tr>
+<tr>
+<td style="text-align: left;">Output</td>
+<td style="text-align: left;">1-based</td>
+<td style="text-align: left;">chr1:100</td>
 </tr>
 </tbody>
 </table>
 <hr>
-<h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">¶</a></h2>
-<p>Python/Rust hybrid for maximum performance:</p>
+<h2 id="formulas">Formulas<a class="headerlink" href="#formulas" title="Permanent link">¶</a></h2>
+<h3 id="variant-allele-frequency-vaf">Variant Allele Frequency (<abbr title="Variant Allele Frequency - Fraction of reads supporting the variant allele">VAF</abbr>)<a class="headerlink" href="#variant-allele-frequency-vaf" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-0-1" id="__codelineno-0-1" name="__codelineno-0-1"></a>VAF = AD / (RD + AD)
+</code></pre></div>
+<p>Where:
+- <strong>AD</strong> = Alternate allele read count
+- <strong>RD</strong> = Reference allele read count</p>
+<h3 id="strand-bias-fishers-exact-test">Strand Bias (Fisher's Exact Test)<a class="headerlink" href="#strand-bias-fishers-exact-test" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-1-1" id="__codelineno-1-1" name="__codelineno-1-1"></a>         |  Forward  Reverse  |
+<a href="#__codelineno-1-2" id="__codelineno-1-2" name="__codelineno-1-2"></a>    -----+--------------------+
+<a href="#__codelineno-1-3" id="__codelineno-1-3" name="__codelineno-1-3"></a>    Ref  |    a        b      |
+<a href="#__codelineno-1-4" id="__codelineno-1-4" name="__codelineno-1-4"></a>    Alt  |    c        d      |
+<a href="#__codelineno-1-5" id="__codelineno-1-5" name="__codelineno-1-5"></a>    -----+--------------------+
+<a href="#__codelineno-1-6" id="__codelineno-1-6" name="__codelineno-1-6"></a>
+<a href="#__codelineno-1-7" id="__codelineno-1-7" name="__codelineno-1-7"></a>    p-value = Fisher's exact test on 2×2 contingency table
+</code></pre></div>
+<p>Low p-value (&lt; 0.05) indicates potential strand bias artifact.</p>
+<hr>
+<h2 id="module-structure">Module Structure<a class="headerlink" href="#module-structure" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-2-1" id="__codelineno-2-1" name="__codelineno-2-1"></a>src/gbcms/
+<a href="#__codelineno-2-2" id="__codelineno-2-2" name="__codelineno-2-2"></a>├── cli.py           # Typer CLI
+<a href="#__codelineno-2-3" id="__codelineno-2-3" name="__codelineno-2-3"></a>├── pipeline.py      # Orchestration
+<a href="#__codelineno-2-4" id="__codelineno-2-4" name="__codelineno-2-4"></a>├── core/
+<a href="#__codelineno-2-5" id="__codelineno-2-5" name="__codelineno-2-5"></a>│   └── kernel.py    # Coordinate normalization
+<a href="#__codelineno-2-6" id="__codelineno-2-6" name="__codelineno-2-6"></a>├── io/
+<a href="#__codelineno-2-7" id="__codelineno-2-7" name="__codelineno-2-7"></a>│   ├── input.py     # VcfReader, MafReader
+<a href="#__codelineno-2-8" id="__codelineno-2-8" name="__codelineno-2-8"></a>│   └── output.py    # VcfWriter, MafWriter
+<a href="#__codelineno-2-9" id="__codelineno-2-9" name="__codelineno-2-9"></a>├── models/
+<a href="#__codelineno-2-10" id="__codelineno-2-10" name="__codelineno-2-10"></a>│   └── core.py      # Pydantic config
+<a href="#__codelineno-2-11" id="__codelineno-2-11" name="__codelineno-2-11"></a>└── utils/
+<a href="#__codelineno-2-12" id="__codelineno-2-12" name="__codelineno-2-12"></a>    └── logging.py   # Structured logging
+<a href="#__codelineno-2-13" id="__codelineno-2-13" name="__codelineno-2-13"></a>
+<a href="#__codelineno-2-14" id="__codelineno-2-14" name="__codelineno-2-14"></a>rust/src/
+<a href="#__codelineno-2-15" id="__codelineno-2-15" name="__codelineno-2-15"></a>├── lib.rs           # PyO3 module (_rs)
+<a href="#__codelineno-2-16" id="__codelineno-2-16" name="__codelineno-2-16"></a>├── counting.rs      # BAM processing
+<a href="#__codelineno-2-17" id="__codelineno-2-17" name="__codelineno-2-17"></a>├── stats.rs         # Fisher's exact test
+<a href="#__codelineno-2-18" id="__codelineno-2-18" name="__codelineno-2-18"></a>└── types.rs         # Variant, BaseCounts
+</code></pre></div>
+<hr>
+<h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">¶</a></h2>
+<p>All settings via <code>GbcmsConfig</code> (Pydantic model):</p>
 <div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
 <nav class="panzoom-nav">
 <button class="panzoom-info panzoom-button">
@@ -840,59 +942,19 @@ Use mouse to pan and zoom
 </button>
 </nav>
 <pre class="mermaid"><code>flowchart TB
-    subgraph Python["🐍 Python"]
-        CLI[CLI] --&gt; Pipeline[Orchestration]
-        Pipeline --&gt; IO[VCF/MAF I/O]
-    end
+    GbcmsConfig --&gt; OutputConfig[Output Settings]
+    GbcmsConfig --&gt; ReadFilters[Read Filters]
+    GbcmsConfig --&gt; QualityThresholds[Quality Thresholds]
 
-    subgraph Rust["🦀 Rust"]
-        Counter[BAM Counting]
-        Stats[Fisher's Test]
-    end
-
-    Pipeline --&gt; Counter
-    Counter --&gt; Stats
-
-    style Python fill:#3776ab,color:#fff
-    style Rust fill:#dea584,color:#000
+    OutputConfig --&gt; D1[output_dir, format, suffix]
+    ReadFilters --&gt; D2[exclude_secondary, exclude_duplicates]
+    QualityThresholds --&gt; D3[min_mapq, min_baseq]
 </code></pre>
 <div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
 Use mouse to pan and zoom
 </div>
 </div>
-<p><strong>→ <a href="reference/architecture/">Technical Details</a></strong></p>
-<hr>
-<h2 id="documentation">Documentation<a class="headerlink" href="#documentation" title="Permanent link">¶</a></h2>
-<table>
-<thead>
-<tr>
-<th style="text-align: left;">Section</th>
-<th style="text-align: left;">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align: left;"><a href="getting-started/">Getting Started</a></td>
-<td style="text-align: left;">Installation and first run</td>
-</tr>
-<tr>
-<td style="text-align: left;"><a href="cli/"><abbr title="Command Line Interface - Terminal-based program interface">CLI</abbr> Reference</a></td>
-<td style="text-align: left;">Command-line usage</td>
-</tr>
-<tr>
-<td style="text-align: left;"><a href="nextflow/">Nextflow Pipeline</a></td>
-<td style="text-align: left;"><abbr title="High-Performance Computing - Cluster computing environment">HPC</abbr> workflow</td>
-</tr>
-<tr>
-<td style="text-align: left;"><a href="reference/architecture/">Reference</a></td>
-<td style="text-align: left;">Architecture and formats</td>
-</tr>
-<tr>
-<td style="text-align: left;"><a href="development/developer-guide/">Development</a></td>
-<td style="text-align: left;">Contributing guide</td>
-</tr>
-</tbody>
-</table>
+<p>See <a href="file:///src/gbcms/models/core.py">models/core.py</a> for definitions.</p>
 <!-- Abbreviation definitions for py-gbcms documentation -->
 <!-- These provide hover tooltips for technical acronyms -->
 <aside class="md-source-file">
@@ -941,14 +1003,14 @@ Built with <a href="https://antigravity.google/">Antigravity</a> |
 <div class="md-dialog" data-md-component="dialog">
 <div class="md-dialog__inner md-typeset"></div>
 </div>
-<script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "navigation.path", "toc.follow", "content.code.copy", "content.code.annotate", "search.suggest", "search.highlight"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
-<script src="assets/javascripts/bundle.79ae519e.min.js"></script>
-<script src="js/timeago.min.js"></script>
-<script src="js/timeago_mkdocs_material.js"></script>
-<script src="javascripts/mathjax.js"></script>
+<script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "navigation.path", "toc.follow", "content.code.copy", "content.code.annotate", "search.suggest", "search.highlight"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+<script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+<script src="../../js/timeago.min.js"></script>
+<script src="../../js/timeago_mkdocs_material.js"></script>
+<script src="../../javascripts/mathjax.js"></script>
 <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
-<script src="assets/javascripts/panzoom.min.js"></script>
-<script src="assets/javascripts/zoompan.js"></script>
+<script src="../../assets/javascripts/panzoom.min.js"></script>
+<script src="../../assets/javascripts/zoompan.js"></script>
 <script type="module">import mermaid from "https://unpkg.com/mermaid@11.4.0/dist/mermaid.esm.min.mjs";
 window.mermaidConfig = {default: {
     startOnLoad: false

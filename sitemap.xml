@@ -2,46 +2,94 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://msk-access.github.io/py-gbcms/</loc>
-         <lastmod>2026-02-05</lastmod>
-    </url>
-    <url>
-         <loc>https://msk-access.github.io/py-gbcms/ARCHITECTURE/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-06</lastmod>
     </url>
     <url>
          <loc>https://msk-access.github.io/py-gbcms/CHANGELOG/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-06</lastmod>
     </url>
     <url>
          <loc>https://msk-access.github.io/py-gbcms/CONTRIBUTING/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-06</lastmod>
     </url>
     <url>
-         <loc>https://msk-access.github.io/py-gbcms/DEVELOPMENT/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <loc>https://msk-access.github.io/py-gbcms/cli/</loc>
+         <lastmod>2026-02-06</lastmod>
     </url>
     <url>
-         <loc>https://msk-access.github.io/py-gbcms/INSTALLATION/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <loc>https://msk-access.github.io/py-gbcms/cli/run/</loc>
+         <lastmod>2026-02-06</lastmod>
     </url>
     <url>
-         <loc>https://msk-access.github.io/py-gbcms/NEXTFLOW/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <loc>https://msk-access.github.io/py-gbcms/development/changelog/</loc>
+         <lastmod>2026-02-06</lastmod>
     </url>
     <url>
-         <loc>https://msk-access.github.io/py-gbcms/RELEASE/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <loc>https://msk-access.github.io/py-gbcms/development/contributing/</loc>
+         <lastmod>2026-02-06</lastmod>
     </url>
     <url>
-         <loc>https://msk-access.github.io/py-gbcms/SUMMARY/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <loc>https://msk-access.github.io/py-gbcms/development/developer-guide/</loc>
+         <lastmod>2026-02-06</lastmod>
     </url>
     <url>
-         <loc>https://msk-access.github.io/py-gbcms/TESTING/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <loc>https://msk-access.github.io/py-gbcms/development/release-guide/</loc>
+         <lastmod>2026-02-06</lastmod>
     </url>
     <url>
-         <loc>https://msk-access.github.io/py-gbcms/quick-start/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <loc>https://msk-access.github.io/py-gbcms/development/testing-guide/</loc>
+         <lastmod>2026-02-06</lastmod>
+    </url>
+    <url>
+         <loc>https://msk-access.github.io/py-gbcms/getting-started/</loc>
+         <lastmod>2026-02-06</lastmod>
+    </url>
+    <url>
+         <loc>https://msk-access.github.io/py-gbcms/getting-started/installation/</loc>
+         <lastmod>2026-02-06</lastmod>
+    </url>
+    <url>
+         <loc>https://msk-access.github.io/py-gbcms/getting-started/quickstart/</loc>
+         <lastmod>2026-02-06</lastmod>
+    </url>
+    <url>
+         <loc>https://msk-access.github.io/py-gbcms/includes/abbreviations/</loc>
+         <lastmod>2026-02-06</lastmod>
+    </url>
+    <url>
+         <loc>https://msk-access.github.io/py-gbcms/nextflow/</loc>
+         <lastmod>2026-02-06</lastmod>
+    </url>
+    <url>
+         <loc>https://msk-access.github.io/py-gbcms/nextflow/examples/</loc>
+         <lastmod>2026-02-06</lastmod>
+    </url>
+    <url>
+         <loc>https://msk-access.github.io/py-gbcms/nextflow/parameters/</loc>
+         <lastmod>2026-02-06</lastmod>
+    </url>
+    <url>
+         <loc>https://msk-access.github.io/py-gbcms/nextflow/samplesheet/</loc>
+         <lastmod>2026-02-06</lastmod>
+    </url>
+    <url>
+         <loc>https://msk-access.github.io/py-gbcms/reference/architecture/</loc>
+         <lastmod>2026-02-06</lastmod>
+    </url>
+    <url>
+         <loc>https://msk-access.github.io/py-gbcms/reference/glossary/</loc>
+         <lastmod>2026-02-06</lastmod>
+    </url>
+    <url>
+         <loc>https://msk-access.github.io/py-gbcms/reference/input-formats/</loc>
+         <lastmod>2026-02-06</lastmod>
+    </url>
+    <url>
+         <loc>https://msk-access.github.io/py-gbcms/resources/citation/</loc>
+         <lastmod>2026-02-06</lastmod>
+    </url>
+    <url>
+         <loc>https://msk-access.github.io/py-gbcms/resources/troubleshooting/</loc>
+         <lastmod>2026-02-06</lastmod>
     </url>
 </urlset>
