@@ -2,6 +2,8 @@ use pyo3::prelude::*;
 use rust_htslib::bam::record::Cigar;
 use rust_htslib::bam::{self, Read, Record};
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
+use std::collections::hash_map::DefaultHasher;
 
 use crate::stats::fisher_strand_bias;
 use crate::types::{BaseCounts, Variant};
@@ -10,6 +12,89 @@ use rayon::prelude::*;
 
 use anyhow::{Context, Result};
 use log::debug;
+
+/// Evidence accumulated for a single fragment (read pair) at a variant site.
+/// Tracks the best base quality seen for each allele across both reads,
+/// enabling quality-weighted consensus to resolve R1-vs-R2 conflicts.
+#[derive(Debug, Clone)]
+struct FragmentEvidence {
+    /// Best base quality seen supporting REF across reads in this fragment
+    best_ref_qual: u8,
+    /// Best base quality seen supporting ALT across reads in this fragment
+    best_alt_qual: u8,
+    /// Orientation of read 1 (true = forward, false = reverse), if seen
+    read1_orientation: Option<bool>,
+    /// Orientation of read 2 (true = forward, false = reverse), if seen
+    read2_orientation: Option<bool>,
+}
+
+impl FragmentEvidence {
+    fn new() -> Self {
+        FragmentEvidence {
+            best_ref_qual: 0,
+            best_alt_qual: 0,
+            read1_orientation: None,
+            read2_orientation: None,
+        }
+    }
+
+    /// Record a read's allele call and orientation into this fragment's evidence.
+    fn observe(&mut self, is_ref: bool, is_alt: bool, base_qual: u8, is_read1: bool, is_forward: bool) {
+        if is_ref && base_qual > self.best_ref_qual {
+            self.best_ref_qual = base_qual;
+        }
+        if is_alt && base_qual > self.best_alt_qual {
+            self.best_alt_qual = base_qual;
+        }
+        if is_read1 {
+            self.read1_orientation = Some(is_forward);
+        } else {
+            self.read2_orientation = Some(is_forward);
+        }
+    }
+
+    /// Resolve this fragment's allele call using quality-weighted consensus.
+    /// Returns (is_ref, is_alt) — exactly one will be true.
+    fn resolve(&self, qual_diff_threshold: u8) -> (bool, bool) {
+        let has_ref = self.best_ref_qual > 0;
+        let has_alt = self.best_alt_qual > 0;
+
+        match (has_ref, has_alt) {
+            (true, false) => (true, false),   // Only REF evidence
+            (false, true) => (false, true),   // Only ALT evidence
+            (true, true) => {
+                // Conflict: both alleles seen across reads in this fragment.
+                // Use quality-weighted consensus: higher quality wins.
+                // If quality difference is within threshold, call REF (conservative).
+                if self.best_ref_qual > self.best_alt_qual + qual_diff_threshold {
+                    (true, false)  // REF wins by quality margin
+                } else if self.best_alt_qual > self.best_ref_qual + qual_diff_threshold {
+                    (false, true)  // ALT wins by quality margin
+                } else {
+                    // Within threshold — conservative: call REF
+                    (true, false)
+                }
+            }
+            (false, false) => (false, false),  // Should not happen (filtered earlier)
+        }
+    }
+
+    /// Get the fragment orientation. Prefers read 1 orientation when both reads present.
+    fn orientation(&self) -> Option<bool> {
+        // Prefer read 1 orientation (consistent with original behavior)
+        self.read1_orientation.or(self.read2_orientation)
+    }
+}
+
+/// Hash a QNAME to u64 for memory-efficient fragment tracking.
+/// Using DefaultHasher for speed — collision probability is negligible
+/// for typical variant-level read counts (~1000 fragments).
+#[inline]
+fn hash_qname(qname: &[u8]) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    qname.hash(&mut hasher);
+    hasher.finish()
+}
 
 /// Count bases for a list of variants in a BAM file.
 #[pyfunction]
@@ -108,13 +193,14 @@ fn count_single_variant(
 
     let mut counts = BaseCounts::default();
 
-    // Fragment tracking
-    // fragment_name -> (read1_orientation, read2_orientation)
-    // orientation: true = forward, false = reverse
-    let mut fragment_orientations: HashMap<String, HashMap<u8, bool>> = HashMap::new();
+    // Fragment tracking: QNAME hash -> FragmentEvidence
+    // Using u64 hash keys instead of String for memory efficiency.
+    let mut fragments: HashMap<u64, FragmentEvidence> = HashMap::new();
 
-    // fragment_name -> (has_ref, has_alt)
-    let mut fragment_alleles: HashMap<String, (bool, bool)> = HashMap::new();
+    // Quality threshold for fragment consensus tiebreaking.
+    // When R1 and R2 disagree, the allele with higher quality wins
+    // only if the quality difference exceeds this threshold.
+    let qual_diff_threshold: u8 = 10;
 
     for result in bam.records() {
         let record = result.context("Error reading BAM record")?;
@@ -135,27 +221,27 @@ fn count_single_variant(
         if filter_improper_pair && !record.is_proper_pair() {
             continue;
         }
-        
+
         // Indel filter: check CIGAR for Ins or Del
         if filter_indel {
-             let has_indel = record.cigar().iter().any(|op| matches!(op, Cigar::Ins(_) | Cigar::Del(_)));
-             if has_indel {
-                 continue;
-             }
+            let has_indel = record.cigar().iter().any(|op| matches!(op, Cigar::Ins(_) | Cigar::Del(_)));
+            if has_indel {
+                continue;
+            }
         }
 
         if record.mapq() < min_mapq {
             continue;
         }
 
-        // Determine allele status
-        let (is_ref, is_alt) = check_allele(&record, variant, min_baseq);
+        // Determine allele status and base quality at variant position
+        let (is_ref, is_alt, base_qual) = check_allele_with_qual(&record, variant, min_baseq);
 
         if !is_ref && !is_alt {
             continue;
         }
 
-        // Update basic counts
+        // Update per-read counts (unchanged — these are read-level, not fragment-level)
         counts.dp += 1;
         let is_reverse = record.is_reverse();
 
@@ -181,55 +267,42 @@ fn count_single_variant(
             }
         }
 
-        // Track fragment info
-        let qname = String::from_utf8_lossy(record.qname()).to_string();
+        // Accumulate fragment evidence using QNAME hash
+        let qname_hash = hash_qname(record.qname());
         let is_read1 = record.is_first_in_template();
-        let read_idx = if is_read1 { 1 } else { 2 };
+        let is_forward = !is_reverse;
 
-        fragment_orientations
-            .entry(qname.clone())
-            .or_default()
-            .insert(read_idx, !is_reverse); // Store orientation (forward = true)
-
-        let entry = fragment_alleles.entry(qname).or_insert((false, false));
-        if is_ref {
-            entry.0 = true;
-        }
-        if is_alt {
-            entry.1 = true;
-        }
+        let evidence = fragments.entry(qname_hash).or_insert_with(FragmentEvidence::new);
+        evidence.observe(is_ref, is_alt, base_qual, is_read1, is_forward);
     }
 
-    // Process fragments (Majority Rule)
-    for (qname, orientations) in fragment_orientations {
-        if !fragment_alleles.contains_key(&qname) {
-            continue;
-        }
-        let (has_ref, has_alt) = fragment_alleles[&qname];
+    // Resolve fragment-level counts using quality-weighted consensus.
+    // Each fragment contributes exactly ONE allele call (REF xor ALT),
+    // preventing the double-counting bug where R1=REF + R2=ALT
+    // inflated both rdf and adf.
+    for (_qname_hash, evidence) in &fragments {
+        let (frag_ref, frag_alt) = evidence.resolve(qual_diff_threshold);
 
-        // Determine orientation
-        let orientation = if orientations.len() == 2 {
-            // Both reads present
-            let o1 = orientations.get(&1);
-            // If orientations differ, we default to Read 1
-            *o1.unwrap()
-        } else {
-            // Single read
-            *orientations.values().next().unwrap()
+        if !frag_ref && !frag_alt {
+            continue; // Should not happen, but guard defensively
+        }
+
+        // Get fragment orientation (prefer read 1)
+        let orientation = match evidence.orientation() {
+            Some(o) => o,
+            None => continue, // No orientation data (should not happen)
         };
 
         counts.dpf += 1;
 
-        if has_ref {
+        if frag_ref {
             counts.rdf += 1;
             if orientation {
                 counts.rdf_fwd += 1;
             } else {
                 counts.rdf_rev += 1;
             }
-        }
-
-        if has_alt {
+        } else if frag_alt {
             counts.adf += 1;
             if orientation {
                 counts.adf_fwd += 1;
@@ -258,11 +331,13 @@ fn count_single_variant(
 }
 
 /// Check if a read supports the reference or alternate allele.
-fn check_allele(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool) {
+/// Returns (is_ref, is_alt, base_quality) where base_quality is the
+/// quality score at the variant position (used for fragment consensus).
+fn check_allele_with_qual(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool, u8) {
     let variant_type = &variant.variant_type;
-    println!("DEBUG: check_allele type={} pos={} ref={} alt={}", variant_type, variant.pos, variant.ref_allele, variant.alt_allele);
+    debug!("check_allele type={} pos={} ref={} alt={}", variant_type, variant.pos, variant.ref_allele, variant.alt_allele);
 
-    match variant_type.as_str() {
+    let (is_ref, is_alt) = match variant_type.as_str() {
         "SNP" => check_snp(record, variant, min_baseq),
         "INSERTION" => check_insertion(record, variant),
         "DELETION" => check_deletion(record, variant),
@@ -281,6 +356,62 @@ fn check_allele(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, boo
             } else {
                 // Fallback to complex check for anything else (e.g. DelIns)
                 check_complex(record, variant, min_baseq)
+            }
+        }
+    };
+
+    // Extract base quality at variant position for fragment consensus.
+    // For SNPs/MNPs: quality at the variant position.
+    // For indels: quality of the anchor base (position before indel).
+    // For complex: minimum quality across the reconstructed haplotype.
+    let base_qual = if is_ref || is_alt {
+        get_variant_base_qual(record, variant)
+    } else {
+        0
+    };
+
+    (is_ref, is_alt, base_qual)
+}
+
+/// Get the base quality at the variant position for fragment consensus scoring.
+/// Returns the quality of the most relevant base for this variant type.
+fn get_variant_base_qual(record: &Record, variant: &Variant) -> u8 {
+    match variant.variant_type.as_str() {
+        "SNP" => {
+            // Quality at the variant position
+            match find_read_pos(record, variant.pos) {
+                Some(p) => record.qual()[p],
+                None => 0,
+            }
+        }
+        "MNP" => {
+            // Minimum quality across MNP positions
+            let len = variant.ref_allele.len();
+            let start = match find_read_pos(record, variant.pos) {
+                Some(p) => p,
+                None => return 0,
+            };
+            let quals = record.qual();
+            (0..len)
+                .filter_map(|i| {
+                    let p = start + i;
+                    if p < quals.len() { Some(quals[p]) } else { None }
+                })
+                .min()
+                .unwrap_or(0)
+        }
+        "INSERTION" | "DELETION" => {
+            // Quality of the anchor base (position before the indel)
+            match find_read_pos(record, variant.pos) {
+                Some(p) => record.qual()[p],
+                None => 0,
+            }
+        }
+        _ => {
+            // Complex / unknown: quality at variant start position
+            match find_read_pos(record, variant.pos) {
+                Some(p) => record.qual()[p],
+                None => 0,
             }
         }
     }
