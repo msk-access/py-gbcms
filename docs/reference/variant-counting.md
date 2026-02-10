@@ -8,22 +8,22 @@ For every variant, py-gbcms fetches reads overlapping the variant position from 
 
 ```mermaid
 flowchart LR
-    Fetch["📥 Fetch reads\nat variant locus"] --> Filter["🔍 Apply\nread filters"]
-    Filter --> Dispatch{"Variant\ntype?"}
-    Dispatch -->|SNP| SNP["check_snp"]
-    Dispatch -->|Insertion| INS["check_insertion"]
-    Dispatch -->|Deletion| DEL["check_deletion"]
-    Dispatch -->|MNP| MNP["check_mnp"]
-    Dispatch -->|Complex| CPX["check_complex"]
-    SNP --> Count["📊 Update\ncounts"]
+    Fetch([📥 Fetch Reads]):::fetch --> Filter([🔍 Apply Filters]):::filter
+    Filter --> Dispatch{Variant Type?}
+    Dispatch -->|SNP| SNP[check_snp]
+    Dispatch -->|Insertion| INS[check_insertion]
+    Dispatch -->|Deletion| DEL[check_deletion]
+    Dispatch -->|MNP| MNP[check_mnp]
+    Dispatch -->|Complex| CPX[check_complex]
+    SNP --> Count([📊 Update Counts]):::count
     INS --> Count
     DEL --> Count
     MNP --> Count
     CPX --> Count
 
-    style Fetch fill:#4a90d9,color:#fff
-    style Filter fill:#e67e22,color:#fff
-    style Count fill:#27ae60,color:#fff
+    classDef fetch fill:#4a90d9,color:#fff,stroke:#2c6fad,stroke-width:2px;
+    classDef filter fill:#e67e22,color:#fff,stroke:#bf6516,stroke-width:2px;
+    classDef count fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
 ```
 
 ---
@@ -34,25 +34,49 @@ Before any allele checking begins, every read passes through a **filter cascade*
 
 ```mermaid
 flowchart TD
-    Read["📖 Read from BAM"] --> F1{"🔴 Duplicate?\n--filter-duplicates"}
-    F1 -->|"Yes (default: ON)"| Drop["❌ Discard read"]
-    F1 -->|No| F2{"Secondary?\n--filter-secondary"}
-    F2 -->|"Yes & filter ON"| Drop
-    F2 -->|No or filter OFF| F3{"Supplementary?\n--filter-supplementary"}
-    F3 -->|"Yes & filter ON"| Drop
-    F3 -->|No or filter OFF| F4{"QC Failed?\n--filter-qc-failed"}
-    F4 -->|"Yes & filter ON"| Drop
-    F4 -->|No or filter OFF| F5{"Improper pair?\n--filter-improper-pair"}
-    F5 -->|"Yes & filter ON"| Drop
-    F5 -->|No or filter OFF| F6{"Contains indel?\n--filter-indel"}
-    F6 -->|"Yes & filter ON"| Drop
-    F6 -->|No or filter OFF| F7{"MAPQ ≥ 20?\n--min-mapq"}
-    F7 -->|"No (below threshold)"| Drop
-    F7 -->|"Yes"| Pass["✅ Pass to\nallele checker"]
+    Start([📖 Read from BAM]):::process
 
-    style Read fill:#3498db,color:#fff
-    style Drop fill:#e74c3c,color:#fff
-    style Pass fill:#27ae60,color:#fff
+    subgraph Filters [Quality & Alignment Filters]
+        direction TB
+        F1{Duplicate?}:::decision
+        F2{Secondary?}:::decision
+        F3{Supplementary?}:::decision
+        F4{QC Failed?}:::decision
+        F5{Improper pair?}:::decision
+        F6{Contains indel?}:::decision
+        F7{MAPQ ≥ 20?}:::decision
+    end
+
+    Drop{{❌ Discard Read}}:::discard
+    Pass([✅ Pass to Allele Checker]):::success
+
+    Start --> F1
+
+    F1 -- "Yes" --> Drop
+    F1 -- "No" --> F2
+
+    F2 -- "Yes" --> Drop
+    F2 -- "No" --> F3
+
+    F3 -- "Yes" --> Drop
+    F3 -- "No" --> F4
+
+    F4 -- "Yes" --> Drop
+    F4 -- "No" --> F5
+
+    F5 -- "Yes" --> Drop
+    F5 -- "No" --> F6
+
+    F6 -- "Yes" --> Drop
+    F6 -- "No" --> F7
+
+    F7 -- "Below 20" --> Drop
+    F7 -- "Pass" --> Pass
+
+    classDef process fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
+    classDef decision fill:#f39c12,color:#fff,stroke:#d68910,stroke-width:2px;
+    classDef discard fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
+    classDef success fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
 ```
 
 | Filter | CLI Flag | Default | SAM Flag |
@@ -87,24 +111,22 @@ A single base substitution — the simplest and most common variant type.
 
 ```mermaid
 flowchart TD
-    Start["🧬 SNP Check\npos, REF, ALT"] --> Walk["Walk CIGAR to find\nread position at\nvariant.pos"]
-    Walk --> Found{"Position\nfound?"}
-    Found -->|No| Neither["Neither\n(read doesn't cover)"]
-    Found -->|Yes| BQ{"Base quality\n≥ min_baseq?"}
-    BQ -->|No| Neither2["Neither\n(low quality)"]
-    BQ -->|Yes| Compare["Compare base to\nREF and ALT\n(case-insensitive)"]
-    Compare --> IsRef{"base == REF?"}
-    IsRef -->|Yes| Ref["✅ REF"]
-    IsRef -->|No| IsAlt{"base == ALT?"}
-    IsAlt -->|Yes| Alt["🔴 ALT"]
-    IsAlt -->|No| Neither3["Neither\n(third allele)"]
+    Start([🧬 SNP Check]):::start --> Walk[Walk CIGAR to variant pos]
+    Walk --> Found{Position found?}
+    Found -->|No| Neither1([Neither]):::neither
+    Found -->|Yes| BQ{Base quality ≥ min_baseq?}
+    BQ -->|No| Neither2([Neither]):::neither
+    BQ -->|Yes| Compare[Compare base to REF and ALT]
+    Compare --> IsRef{base == REF?}
+    IsRef -->|Yes| Ref([✅ REF]):::ref
+    IsRef -->|No| IsAlt{base == ALT?}
+    IsAlt -->|Yes| Alt([🔴 ALT]):::alt
+    IsAlt -->|No| Neither3([Neither]):::neither
 
-    style Start fill:#9b59b6,color:#fff
-    style Ref fill:#27ae60,color:#fff
-    style Alt fill:#e74c3c,color:#fff
-    style Neither fill:#95a5a6,color:#fff
-    style Neither2 fill:#95a5a6,color:#fff
-    style Neither3 fill:#95a5a6,color:#fff
+    classDef start fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
+    classDef ref fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
+    classDef alt fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
+    classDef neither fill:#95a5a6,color:#fff,stroke:#7f8c8d,stroke-width:2px;
 ```
 
 #### Visual Example
@@ -146,26 +168,23 @@ Bases inserted after an **anchor** position. The anchor is the last reference ba
 
 ```mermaid
 flowchart TD
-    Start["🧬 Insertion Check\nanchor_pos, REF=A, ALT=ATG"] --> Walk["Walk CIGAR ops\nto find match block\ncontaining anchor"]
-    Walk --> Found{"Anchor\nfound in\nmatch block?"}
-    Found -->|No| Neither["Neither"]
-    Found -->|Yes| AtEnd{"Anchor is\nlast base of\nmatch block?"}
-    AtEnd -->|No| Ref["✅ REF\n(anchor in middle\nof match = no insertion)"]
-    AtEnd -->|Yes| NextOp{"Next CIGAR\nop is Ins?"}
-    NextOp -->|No| Ref2["✅ REF\n(no insertion follows)"]
-    NextOp -->|Yes| LenCheck{"Insertion length\n== len(ALT) - 1?"}
-    LenCheck -->|No| Neither2["Neither\n(wrong length)"]
-    LenCheck -->|Yes| SeqCheck{"Inserted sequence\n== ALT[1..]?"}
-    SeqCheck -->|No| Neither3["Neither\n(wrong sequence)"]
-    SeqCheck -->|Yes| Alt["🔴 ALT"]
+    Start([🧬 Insertion Check]):::start --> Walk[Walk CIGAR to anchor pos]
+    Walk --> Found{Anchor found in match block?}
+    Found -->|No| Neither1([Neither]):::neither
+    Found -->|Yes| AtEnd{Anchor at end of match block?}
+    AtEnd -->|No| Ref1([✅ REF]):::ref
+    AtEnd -->|Yes| NextOp{Next CIGAR op is Ins?}
+    NextOp -->|No| Ref2([✅ REF]):::ref
+    NextOp -->|Yes| LenCheck{Insertion length == expected?}
+    LenCheck -->|No| Neither2([Neither]):::neither
+    LenCheck -->|Yes| SeqCheck{Inserted seq matches ALT?}
+    SeqCheck -->|No| Neither3([Neither]):::neither
+    SeqCheck -->|Yes| Alt([🔴 ALT]):::alt
 
-    style Start fill:#9b59b6,color:#fff
-    style Ref fill:#27ae60,color:#fff
-    style Ref2 fill:#27ae60,color:#fff
-    style Alt fill:#e74c3c,color:#fff
-    style Neither fill:#95a5a6,color:#fff
-    style Neither2 fill:#95a5a6,color:#fff
-    style Neither3 fill:#95a5a6,color:#fff
+    classDef start fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
+    classDef ref fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
+    classDef alt fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
+    classDef neither fill:#95a5a6,color:#fff,stroke:#7f8c8d,stroke-width:2px;
 ```
 
 #### Visual Example
@@ -213,23 +232,21 @@ Bases deleted after an **anchor** position. The logic mirrors insertion but look
 
 ```mermaid
 flowchart TD
-    Start["🧬 Deletion Check\nanchor_pos, REF=ACG, ALT=A"] --> Walk["Walk CIGAR ops\nto find match block\ncontaining anchor"]
-    Walk --> Found{"Anchor\nfound in\nmatch block?"}
-    Found -->|No| Neither["Neither"]
-    Found -->|Yes| AtEnd{"Anchor is\nlast base of\nmatch block?"}
-    AtEnd -->|No| Ref["✅ REF\n(anchor in middle\nof match = no deletion)"]
-    AtEnd -->|Yes| NextOp{"Next CIGAR\nop is Del?"}
-    NextOp -->|No| Ref2["✅ REF\n(no deletion follows)"]
-    NextOp -->|Yes| LenCheck{"Deletion length\n== len(REF) - 1?"}
-    LenCheck -->|No| Neither2["Neither\n(wrong length)"]
-    LenCheck -->|Yes| Alt["🔴 ALT"]
+    Start([🧬 Deletion Check]):::start --> Walk[Walk CIGAR to anchor pos]
+    Walk --> Found{Anchor found in match block?}
+    Found -->|No| Neither1([Neither]):::neither
+    Found -->|Yes| AtEnd{Anchor at end of match block?}
+    AtEnd -->|No| Ref1([✅ REF]):::ref
+    AtEnd -->|Yes| NextOp{Next CIGAR op is Del?}
+    NextOp -->|No| Ref2([✅ REF]):::ref
+    NextOp -->|Yes| LenCheck{Deletion length == expected?}
+    LenCheck -->|No| Neither2([Neither]):::neither
+    LenCheck -->|Yes| Alt([🔴 ALT]):::alt
 
-    style Start fill:#9b59b6,color:#fff
-    style Ref fill:#27ae60,color:#fff
-    style Ref2 fill:#27ae60,color:#fff
-    style Alt fill:#e74c3c,color:#fff
-    style Neither fill:#95a5a6,color:#fff
-    style Neither2 fill:#95a5a6,color:#fff
+    classDef start fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
+    classDef ref fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
+    classDef alt fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
+    classDef neither fill:#95a5a6,color:#fff,stroke:#7f8c8d,stroke-width:2px;
 ```
 
 #### Visual Example
@@ -274,32 +291,37 @@ Multiple adjacent bases substituted simultaneously. Think of it as multiple SNPs
 
 ```mermaid
 flowchart TD
-    Start["🧬 MNP Check\npos, REF=AT, ALT=CG"] --> Find["Find read position\nof first base"]
-    Find --> Found{"Position\nfound?"}
-    Found -->|No| Neither["Neither"]
-    Found -->|Yes| Cover{"Read covers\nentire MNP\nregion?"}
-    Cover -->|No| Neither2["Neither"]
-    Cover -->|Yes| Loop["For each position\nin MNP region:"]
-    Loop --> BQ{"Base quality\n≥ min_baseq?"}
-    BQ -->|No| Neither3["Neither\n(any low-quality base\nfails entire MNP)"]
-    BQ -->|Yes| Track["Compare to REF[i]\nand ALT[i]"]
-    Track --> More{"More\npositions?"}
-    More -->|Yes| Loop
-    More -->|No| Contig{"Contiguity check:\nno indels within\nMNP region?"}
-    Contig -->|"Indel found"| Neither4["Neither"]
-    Contig -->|"Contiguous"| Final{"All bases\nmatch?"}
-    Final -->|"All match ALT"| Alt["🔴 ALT"]
-    Final -->|"All match REF"| Ref["✅ REF"]
-    Final -->|"Mixed"| Neither5["Neither\n(partial match)"]
+    Start([🧬 MNP Check]):::start --> Find[Find read position of first base]
+    Find --> Found{Position found?}
+    Found -->|No| Neither1([Neither]):::neither
+    Found -->|Yes| Cover{Read covers entire MNP region?}
+    Cover -->|No| Neither2([Neither]):::neither
+    Cover -->|Yes| Loop[For each position in MNP region]
 
-    style Start fill:#9b59b6,color:#fff
-    style Ref fill:#27ae60,color:#fff
-    style Alt fill:#e74c3c,color:#fff
-    style Neither fill:#95a5a6,color:#fff
-    style Neither2 fill:#95a5a6,color:#fff
-    style Neither3 fill:#95a5a6,color:#fff
-    style Neither4 fill:#95a5a6,color:#fff
-    style Neither5 fill:#95a5a6,color:#fff
+    subgraph PerBase [Per-Base Validation]
+        direction TB
+        BQ{Base quality ≥ min_baseq?}
+        Track[Compare base to REF and ALT]
+        More{More positions?}
+    end
+
+    Loop --> BQ
+    BQ -->|No| Neither3([Neither]):::neither
+    BQ -->|Yes| Track
+    Track --> More
+    More -->|Yes| BQ
+    More -->|No| Contig{No indels within MNP region?}
+
+    Contig -->|Indel found| Neither4([Neither]):::neither
+    Contig -->|Contiguous| Final{All bases match?}
+    Final -->|All match ALT| Alt([🔴 ALT]):::alt
+    Final -->|All match REF| Ref([✅ REF]):::ref
+    Final -->|Mixed| Neither5([Neither]):::neither
+
+    classDef start fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
+    classDef ref fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
+    classDef alt fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
+    classDef neither fill:#95a5a6,color:#fff,stroke:#7f8c8d,stroke-width:2px;
 ```
 
 #### Visual Example
@@ -349,51 +371,51 @@ Variants where REF and ALT differ in both sequence **and** length. This is the c
 
 ```mermaid
 flowchart TD
-    Start["🧬 Complex Check\npos=10, REF=ACG, ALT=TT"] --> Region["Define genomic region\n[pos, pos + len(REF))\n= [10, 13)"]
-    Region --> Init["Initialize:\n• reconstructed_seq = []\n• min_qual = 255"]
-    Init --> Walk["Walk each CIGAR op"]
-    Walk --> OpType{"CIGAR op\ntype?"}
+    Start([🧬 Complex Check]):::start --> Region[Define genomic region]:::info
+    Region --> Init[Init reconstructed seq + min qual]
 
-    OpType -->|"M / = / X\n(Match)"| Match["Does op overlap\nwith [10, 13)?"]
-    Match -->|Yes| AppendM["Append overlapping\nbases from read.\nTrack min quality."]
-    Match -->|No| Next["Next CIGAR op"]
-    AppendM --> Next
+    subgraph CIGARWalk [CIGAR Walk]
+        direction TB
+        Walk[Walk each CIGAR op]
+        OpType{CIGAR op type?}
+        Walk --> OpType
+        OpType -->|"M / = / X"| Match[Append overlapping bases]
+        OpType -->|"I"| InsCheck[Append inserted bases]
+        OpType -->|"D / N"| AdvRef[Advance ref_pos only]
+        OpType -->|"S"| AdvRead[Advance read_pos only]
+        OpType -->|"H / P"| Skip[No action]
+        Match --> Next[Next op]
+        InsCheck --> Next
+        AdvRef --> Next
+        AdvRead --> Next
+        Skip --> Next
+        Next --> More{More CIGAR ops?}
+        More -->|Yes| Walk
+    end
 
-    OpType -->|"I (Insertion)"| InsCheck["Is ref_pos within\n[10, 13]?"]
-    InsCheck -->|Yes| AppendI["Append inserted\nbases from read"]
-    InsCheck -->|No| Next
-    AppendI --> Next
+    Init --> Walk
+    More -->|No| Compare
 
-    OpType -->|"D / N\n(Del/Skip)"| AdvRef["Advance ref_pos\nonly (no bases\nappended)"]
-    AdvRef --> Next
+    subgraph Classify [Allele Classification]
+        direction TB
+        Compare[Compare reconstructed seq]
+        Compare --> CmpAlt{Matches ALT?}
+        CmpAlt -->|Yes| QualA{Quality ≥ min_baseq?}
+        CmpAlt -->|No| CmpRef{Matches REF?}
+        CmpRef -->|Yes| QualR{Quality ≥ min_baseq?}
+        CmpRef -->|No| Neither3([Neither]):::neither
+    end
 
-    OpType -->|"S (Soft clip)"| AdvRead["Advance read_pos\nonly"]
-    AdvRead --> Next
+    QualA -->|Yes| Alt([🔴 ALT]):::alt
+    QualA -->|No| Neither1([Neither]):::neither
+    QualR -->|Yes| Ref([✅ REF]):::ref
+    QualR -->|No| Neither2([Neither]):::neither
 
-    OpType -->|"H / P\n(Hard/Pad)"| Next
-
-    Next --> More{"More\nCIGAR ops?"}
-    More -->|Yes| Walk
-    More -->|No| Compare["Compare\nreconstructed\nsequence"]
-
-    Compare --> CmpAlt{"reconstructed\n== ALT?"}
-    CmpAlt -->|Yes| QualA{"min_qual\n≥ min_baseq?"}
-    QualA -->|Yes| Alt["🔴 ALT"]
-    QualA -->|No| Neither["Neither\n(low quality)"]
-
-    CmpAlt -->|No| CmpRef{"reconstructed\n== REF?"}
-    CmpRef -->|Yes| QualR{"min_qual\n≥ min_baseq?"}
-    QualR -->|Yes| Ref["✅ REF"]
-    QualR -->|No| Neither2["Neither\n(low quality)"]
-    CmpRef -->|No| Neither3["Neither\n(no match)"]
-
-    style Start fill:#9b59b6,color:#fff
-    style Region fill:#3498db,color:#fff
-    style Ref fill:#27ae60,color:#fff
-    style Alt fill:#e74c3c,color:#fff
-    style Neither fill:#95a5a6,color:#fff
-    style Neither2 fill:#95a5a6,color:#fff
-    style Neither3 fill:#95a5a6,color:#fff
+    classDef start fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
+    classDef info fill:#3498db,color:#fff,stroke:#2471a3,stroke-width:2px;
+    classDef ref fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
+    classDef alt fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
+    classDef neither fill:#95a5a6,color:#fff,stroke:#7f8c8d,stroke-width:2px;
 ```
 
 #### Worked Example: Step-by-Step Reconstruction
@@ -466,21 +488,21 @@ After allele classification, py-gbcms tracks counts at **two levels**: individua
 
 ```mermaid
 flowchart TD
-    subgraph ReadLevel["📖 Read-Level Counting"]
-        R1["Read 1 (fwd) → ALT"]
-        R2["Read 2 (rev) → ALT"]
-        R3["Read 3 (fwd) → REF"]
-        R4["Read 4 (rev) → REF"]
-        R5["Read 5 (fwd) → ALT"]
-        R6["Read 6 (rev) → REF"]
+    subgraph ReadLevel [📖 Read-Level Counting]
+        R1[Read 1 fwd → ALT]:::altread
+        R2[Read 2 rev → ALT]:::altread
+        R3[Read 3 fwd → REF]:::refread
+        R4[Read 4 rev → REF]:::refread
+        R5[Read 5 fwd → ALT]:::altread
+        R6[Read 6 rev → REF]:::refread
     end
 
-    subgraph FragLevel["🧬 Fragment-Level Counting"]
+    subgraph FragLevel [🧬 Fragment-Level Counting]
         direction TB
-        F1["Fragment A\nR1+R2 → ALT\norientation: fwd (R1)"]
-        F2["Fragment B\nR3+R4 → REF\norientation: fwd (R3)"]
-        F3["Fragment C\nR5 only → ALT\norientation: fwd"]
-        F4["Fragment D\nR6 only → REF\norientation: rev"]
+        F1[Fragment A: R1+R2 → ALT]:::altfrag
+        F2[Fragment B: R3+R4 → REF]:::reffrag
+        F3[Fragment C: R5 only → ALT]:::altfrag
+        F4[Fragment D: R6 only → REF]:::reffrag
     end
 
     R1 --> F1
@@ -490,9 +512,9 @@ flowchart TD
     R5 --> F3
     R6 --> F4
 
-    subgraph Results["📊 Final Counts"]
-        ReadCounts["Read Level:\nDP=6, RD=3, AD=3\nDP_fwd=3, DP_rev=3"]
-        FragCounts["Fragment Level:\nDPF=4, RDF=2, ADF=2\nRDF_fwd=1, RDF_rev=1"]
+    subgraph Results [📊 Final Counts]
+        ReadCounts[Reads: DP=6  RD=3  AD=3]
+        FragCounts[Fragments: DPF=4  RDF=2  ADF=2]
     end
 
     F1 --> FragCounts
@@ -500,9 +522,10 @@ flowchart TD
     F3 --> FragCounts
     F4 --> FragCounts
 
-    style ReadLevel fill:#3498db15,stroke:#3498db
-    style FragLevel fill:#9b59b615,stroke:#9b59b6
-    style Results fill:#27ae6015,stroke:#27ae60
+    classDef altread fill:#e74c3c15,stroke:#e74c3c;
+    classDef refread fill:#27ae6015,stroke:#27ae60;
+    classDef altfrag fill:#9b59b615,stroke:#9b59b6;
+    classDef reffrag fill:#27ae6015,stroke:#27ae60;
 ```
 
 ### Read-Level Metrics
@@ -523,18 +546,18 @@ Fragment counting collapses read pairs into a single observation per fragment.
 
 ```mermaid
 flowchart TD
-    Start["For each read passing filters:"] --> Track["Track by fragment name (QNAME):\n• Which allele(s) each read supports\n• Orientation of each read"]
-    Track --> Done["After all reads processed:"]
-    Done --> ForEach["For each unique fragment:"]
-    ForEach --> HasBoth{"Both reads\npresent?"}
-    HasBoth -->|Yes| Orient1["Orientation = Read 1's direction\n(forward or reverse)"]
-    HasBoth -->|No| Orient2["Orientation = single read's direction"]
+    Start([For each read passing filters]):::start
+    Start --> Track[Track by QNAME]
+    Track --> Done[After all reads processed]
+    Done --> ForEach[For each unique fragment]
+    ForEach --> HasBoth{Both reads present?}
+    HasBoth -->|Yes| Orient1[Orientation = Read 1 direction]
+    HasBoth -->|No| Orient2[Orientation = single read direction]
     Orient1 --> Allele
     Orient2 --> Allele
-    Allele["Check alleles:\n• has_ref? → increment RDF\n• has_alt? → increment ADF\n• Always increment DPF"]
-    Allele --> Strand["Update strand-specific\ncounts based on\nfragment orientation"]
+    Allele[Update RDF / ADF / DPF counts] --> Strand[Update strand-specific counts]
 
-    style Start fill:#3498db,color:#fff
+    classDef start fill:#3498db,color:#fff,stroke:#2471a3,stroke-width:2px;
 ```
 
 | Metric | Description |
@@ -555,23 +578,24 @@ Strand bias detects when an allele is disproportionately supported by reads on o
 
 ```mermaid
 flowchart LR
-    subgraph Table["2×2 Contingency Table"]
+    subgraph Table [2×2 Contingency Table]
         direction TB
-        Header["| · | Forward | Reverse |"]
-        RefRow["| REF | a (RD_fwd) | b (RD_rev) |"]
-        AltRow["| ALT | c (AD_fwd) | d (AD_rev) |"]
+        Header["| · | Fwd | Rev |"]
+        RefRow["| REF | a | b |"]
+        AltRow["| ALT | c | d |"]
     end
 
-    Table --> Fisher["Fisher's Exact\nTest"]
-    Fisher --> Pval["SB_pval\n(p-value)"]
-    Fisher --> OR["SB_OR\n(odds ratio)"]
+    Table --> Fisher([Fisher Exact Test]):::test
+    Fisher --> Pval[SB_pval]
+    Fisher --> OR[SB_OR]
 
-    Pval --> Interpret{"p < 0.05?"}
-    Interpret -->|Yes| Bias["⚠️ Possible\nstrand bias"]
-    Interpret -->|No| NoBias["✅ No evidence\nof strand bias"]
+    Pval --> Interpret{p < 0.05?}
+    Interpret -->|Yes| Bias{{⚠️ Possible Strand Bias}}:::warn
+    Interpret -->|No| NoBias([✅ No Strand Bias]):::pass
 
-    style Bias fill:#e74c3c,color:#fff
-    style NoBias fill:#27ae60,color:#fff
+    classDef test fill:#3498db,color:#fff,stroke:#2471a3,stroke-width:2px;
+    classDef warn fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
+    classDef pass fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
 ```
 
 Computed at **both** levels:
@@ -586,61 +610,9 @@ Computed at **both** levels:
 
 ---
 
-## Full Pipeline: End-to-End Example
-
-Here's how a single variant is processed through the complete pipeline:
-
-```mermaid
-sequenceDiagram
-    participant CLI as CLI (Python)
-    participant Pipeline as Pipeline
-    participant Reader as VCF/MAF Reader
-    participant Kernel as Coordinate Kernel
-    participant Rust as Rust Engine
-    participant BAM as BAM File
-
-    CLI->>Pipeline: run(config)
-    Pipeline->>Reader: load variants
-    Reader->>Kernel: normalize coordinates
-    Kernel-->>Reader: 0-based Variant objects
-    Reader-->>Pipeline: List[Variant]
-
-    loop For each BAM sample
-        Pipeline->>Rust: count_bam(bam, variants, filters)
-        loop For each variant (parallel via Rayon)
-            Rust->>BAM: fetch(chrom, pos, pos+1)
-            BAM-->>Rust: Iterator of reads
-            loop For each read
-                Note over Rust: Apply filter cascade
-                Note over Rust: Dispatch to type checker
-                Note over Rust: Update read + fragment counts
-            end
-            Note over Rust: Compute Fisher strand bias
-        end
-        Rust-->>Pipeline: Vec[BaseCounts]
-    end
-
-    Pipeline->>Pipeline: Write output (VCF/MAF)
-```
-
----
-
-## Comparison with Original GBCMS
-
-| Feature | Original GBCMS | py-gbcms |
-|:--------|:---------------|:---------|
-| Counting algorithm | Region-based chunking, position matching | Per-variant CIGAR traversal |
-| Complex variants | Optional via `--generic_counting` | Always uses haplotype reconstruction |
-| MNP handling | Not explicit | Dedicated `check_mnp` with contiguity check |
-| Fragment counting | Optional (`--fragment_count`) | Always computed |
-| Positive strand counts | Optional (`--positive_count`) | Always computed |
-| Strand bias | Not computed | Fisher's exact test (read + fragment level) |
-| Fractional depth | `--fragment_fractional_weight` | Not implemented |
-| Parallelism | OpenMP block-based | Rayon per-variant |
-
 ## Related
 
-- [Architecture](architecture.md) — System design overview
+- [Architecture](architecture.md) — System design, full pipeline diagram, and comparison with original GBCMS
 - [Input Formats](input-formats.md) — VCF and MAF specifications
 - [Glossary](glossary.md) — Term definitions
 - [CLI Run Command](../cli/run.md) — All parameter options

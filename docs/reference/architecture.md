@@ -6,22 +6,24 @@ py-gbcms uses a hybrid Python/Rust architecture for maximum performance.
 
 ```mermaid
 flowchart TB
-    subgraph Python["🐍 Python Layer"]
-        CLI[CLI<br/>cli.py] --> Pipeline[Orchestration<br/>pipeline.py]
-        Pipeline --> Reader[Input Adapters<br/>VcfReader, MafReader]
-        Pipeline --> Writer[Output Writers<br/>VcfWriter, MafWriter]
+    subgraph Python [🐍 Python Layer]
+        CLI[CLI - cli.py] --> Pipeline[Orchestration - pipeline.py]
+        Pipeline --> Reader[Input Adapters]
+        Pipeline --> Writer[Output Writers]
     end
     
-    subgraph Rust["🦀 Rust Layer (gbcms._rs)"]
-        Counter[count_bam<br/>counting.rs] --> CIGAR[CIGAR Parser]
-        Counter --> Stats[Strand Bias<br/>stats.rs]
+    subgraph Rust [🦀 Rust Layer]
+        Counter[count_bam - counting.rs] --> CIGAR[CIGAR Parser]
+        Counter --> Stats[Strand Bias - stats.rs]
     end
     
-    Pipeline -->|"PyO3"| Counter
-    Counter -->|"BaseCounts"| Pipeline
+    Pipeline -->|PyO3| Counter
+    Counter -->|BaseCounts| Pipeline
     
-    style Python fill:#3776ab,color:#fff
-    style Rust fill:#dea584,color:#000
+    classDef pythonStyle fill:#3776ab,color:#fff,stroke:#2c5f8a,stroke-width:2px;
+    classDef rustStyle fill:#dea584,color:#000,stroke:#c48a6a,stroke-width:2px;
+    class Python pythonStyle;
+    class Rust rustStyle;
 ```
 
 ---
@@ -144,6 +146,62 @@ flowchart TB
 ```
 
 See [models/core.py](file:///src/gbcms/models/core.py) for definitions.
+
+---
+
+## Full Pipeline: End-to-End Example
+
+Here's how a single variant is processed through the complete pipeline:
+
+```mermaid
+sequenceDiagram
+    participant CLI as CLI (Python)
+    participant Pipeline as Pipeline
+    participant Reader as VCF/MAF Reader
+    participant Kernel as Coordinate Kernel
+    participant Rust as Rust Engine
+    participant BAM as BAM File
+
+    CLI->>Pipeline: run(config)
+    Pipeline->>Reader: load variants
+    Reader->>Kernel: normalize coordinates
+    Kernel-->>Reader: 0-based Variant objects
+    Reader-->>Pipeline: List[Variant]
+
+    loop For each BAM sample
+        Pipeline->>Rust: count_bam(bam, variants, filters)
+        loop For each variant (parallel via Rayon)
+            Rust->>BAM: fetch(chrom, pos, pos+1)
+            BAM-->>Rust: Iterator of reads
+            loop For each read
+                Note over Rust: Apply filter cascade
+                Note over Rust: Dispatch to type checker
+                Note over Rust: Update read + fragment counts
+            end
+            Note over Rust: Compute Fisher strand bias
+        end
+        Rust-->>Pipeline: Vec[BaseCounts]
+    end
+
+    Pipeline->>Pipeline: Write output (VCF/MAF)
+```
+
+---
+
+## Comparison with Original GBCMS
+
+| Feature | Original GBCMS | py-gbcms |
+|:--------|:---------------|:---------|
+| Counting algorithm | Region-based chunking, position matching | Per-variant CIGAR traversal |
+| Complex variants | Optional via `--generic_counting` | Always uses haplotype reconstruction |
+| MNP handling | Not explicit | Dedicated `check_mnp` with contiguity check |
+| Fragment counting | Optional (`--fragment_count`) | Always computed |
+| Positive strand counts | Optional (`--positive_count`) | Always computed |
+| Strand bias | Not computed | Fisher's exact test (read + fragment level) |
+| Fractional depth | `--fragment_fractional_weight` | Not implemented |
+| Parallelism | OpenMP block-based | Rayon per-variant |
+
+---
 
 ## Related
 

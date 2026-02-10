@@ -59,14 +59,14 @@ flowchart TD
     Start[How many samples?] --> Few{1-10 samples}
     Start --> Many{10+ samples}
     
-    Few --> CLI[Use CLI<br/>gbcms run ...]
+    Few --> CLI([Use CLI]):::cli
     Many --> HPC{HPC cluster?}
     
-    HPC --> |Yes| Nextflow[Use Nextflow<br/>nextflow run ...]
+    HPC --> |Yes| Nextflow([Use Nextflow]):::nf
     HPC --> |No| CLI
     
-    style CLI fill:#4caf50,color:white
-    style Nextflow fill:#2196f3,color:white
+    classDef cli fill:#4caf50,color:white,stroke:#388e3c,stroke-width:2px;
+    classDef nf fill:#2196f3,color:white,stroke:#1565c0,stroke-width:2px;
 ```
 
 | Workflow | Best For | Guide |
@@ -82,21 +82,23 @@ Python/Rust hybrid for maximum performance:
 
 ```mermaid
 flowchart TB
-    subgraph Python["🐍 Python"]
+    subgraph Python [🐍 Python]
         CLI[CLI] --> Pipeline[Orchestration]
         Pipeline --> IO[VCF/MAF I/O]
     end
     
-    subgraph Rust["🦀 Rust"]
+    subgraph Rust [🦀 Rust]
         Counter[BAM Counting]
-        Stats[Fisher's Test]
+        Stats[Fisher Test]
     end
     
     Pipeline --> Counter
     Counter --> Stats
     
-    style Python fill:#3776ab,color:#fff
-    style Rust fill:#dea584,color:#000
+    classDef pythonStyle fill:#3776ab,color:#fff,stroke:#2c5f8a,stroke-width:2px;
+    classDef rustStyle fill:#dea584,color:#000,stroke:#c48a6a,stroke-width:2px;
+    class Python pythonStyle;
+    class Rust rustStyle;
 ```
 
 **→ [Technical Details](reference/architecture.md)** | **→ [Variant Counting](reference/variant-counting.md)**
