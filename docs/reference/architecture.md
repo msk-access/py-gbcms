@@ -144,3 +144,9 @@ flowchart TB
 ```
 
 See [models/core.py](file:///src/gbcms/models/core.py) for definitions.
+
+## Related
+
+- [Variant Counting](variant-counting.md) — How each variant type is counted
+- [Input Formats](input-formats.md) — VCF and MAF specifications
+- [Glossary](glossary.md) — Term definitions

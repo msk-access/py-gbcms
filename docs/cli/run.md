@@ -23,7 +23,7 @@ gbcms run [OPTIONS] --variants <FILE> --bam <NAME:PATH>... --fasta <FILE>
 | `--output-dir` | `.` | Output directory |
 | `--format` | `vcf` | Output format (`vcf` or `maf`) |
 | `--suffix` | `''` | Suffix for output filenames |
-| `--threads` | `4` | Number of threads |
+| `--threads` | `1` | Number of threads |
 
 ## Filtering Options
 
@@ -31,7 +31,7 @@ gbcms run [OPTIONS] --variants <FILE> --bam <NAME:PATH>... --fasta <FILE>
 |:-------|:--------|:------------|
 | `--min-mapq` | `20` | Minimum MAPQ |
 | `--min-baseq` | `0` | Minimum BASEQ |
-| `--filter-duplicates` | `false` | Filter duplicate reads |
+| `--filter-duplicates` | `true` | Filter duplicate reads |
 | `--filter-secondary` | `false` | Filter secondary alignments |
 | `--filter-supplementary` | `false` | Filter supplementary alignments |
 | `--filter-qc-failed` | `false` | Filter QC failed reads |
@@ -86,3 +86,4 @@ The command produces a VCF or MAF file with:
 - [Quick Start](../getting-started/quickstart.md) — Common patterns
 - [Nextflow Pipeline](../nextflow/index.md) — For many samples
 - [Input Formats](../reference/input-formats.md) — VCF/MAF specs
+- [Variant Counting](../reference/variant-counting.md) — How each variant type is counted

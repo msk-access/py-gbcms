@@ -99,7 +99,7 @@ flowchart TB
     style Rust fill:#dea584,color:#000
 ```
 
-**→ [Technical Details](reference/architecture.md)**
+**→ [Technical Details](reference/architecture.md)** | **→ [Variant Counting](reference/variant-counting.md)**
 
 ---
 
@@ -111,4 +111,5 @@ flowchart TB
 | [CLI Reference](cli/index.md) | Command-line usage |
 | [Nextflow Pipeline](nextflow/index.md) | HPC workflow |
 | [Reference](reference/architecture.md) | Architecture and formats |
+| [Variant Counting](reference/variant-counting.md) | How each variant type is counted |
 | [Development](development/developer-guide.md) | Contributing guide |

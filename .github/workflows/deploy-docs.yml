@@ -2,7 +2,7 @@ name: documentation
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
@@ -40,17 +40,29 @@ jobs:
         run: |
           pip install mkdocs-material mkdocs-mermaid2-plugin \
             mkdocs-glightbox mkdocs-git-revision-date-localized-plugin \
-            mkdocs-panzoom-plugin pillow cairosvg
+            mkdocs-panzoom-plugin pillow cairosvg mike
 
-      - name: Build documentation
+      - name: Build documentation (PR check only)
+        if: github.event_name == 'pull_request'
         run: mkdocs build --strict
 
       - name: Configure Git Credentials
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push'
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
 
-      - name: Deploy documentation
+      # Deploy 'develop' branch as "dev" version
+      - name: Deploy development docs
+        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        run: |
+          mike deploy --push --update-aliases dev develop
+
+      # Deploy 'main' branch as the stable version (e.g. "2.3.0")
+      # and set it as the default landing page
+      - name: Deploy stable docs
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: mkdocs gh-deploy --force
+        run: |
+          VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          mike deploy --push --update-aliases "$VERSION" stable
+          mike set-default --push stable

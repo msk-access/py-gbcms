@@ -125,7 +125,7 @@ The tag triggers `.github/workflows/release.yml`:
 1. **Build wheels** (Linux x86_64, aarch64; macOS x86_64, arm64; Windows)
 2. **Publish to PyPI** (via maturin)
 3. **Build Docker image** → push to `ghcr.io/msk-access/py-gbcms:X.Y.Z`
-4. **Deploy docs** → GitHub Pages
+4. **Deploy docs** → GitHub Pages (versioned via `mike` as `X.Y.Z` / `stable`)
 
 ### 9. Merge main back to develop
 
@@ -200,8 +200,7 @@ Interactive helper for git-flow operations:
 |:---------|:--------|:--------|
 | `test.yml` | Push to develop/main, PR | Run tests |
 | `release.yml` | Tag push `X.Y.Z` | Build wheels, publish PyPI, Docker |
-| `deploy-docs.yml` | Push to main (docs/) | Deploy docs to gh-pages |
-| `deploy-docs-staging.yml` | Push to develop (docs/) | Build docs (staging) |
+| `deploy-docs.yml` | Push to main or develop (docs/) | Deploy versioned docs via `mike` (`stable` from main, `dev` from develop) |
 
 ---
 

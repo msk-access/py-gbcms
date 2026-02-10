@@ -78,6 +78,7 @@ nav:
   
   - Reference:
     - Architecture: reference/architecture.md
+    - Variant Counting: reference/variant-counting.md
     - Input Formats: reference/input-formats.md
     - Glossary: reference/glossary.md
   
@@ -136,6 +137,9 @@ extra_css:
 
 extra:
   generator: false
+  version:
+    provider: mike
+    default: stable
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/msk-access/py-gbcms
