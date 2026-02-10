@@ -69,7 +69,7 @@ def run(
     ),
     # Quality thresholds
     min_mapq: int = typer.Option(20, "--min-mapq", help="Minimum mapping quality"),
-    min_baseq: int = typer.Option(0, "--min-baseq", help="Minimum base quality"),
+    min_baseq: int = typer.Option(20, "--min-baseq", help="Minimum base quality"),
     fragment_qual_threshold: int = typer.Option(
         10,
         "--fragment-qual-threshold",
