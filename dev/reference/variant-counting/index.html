@@ -29,7 +29,7 @@
             body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
             body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
         </style><meta name="panzoom-theme" content="material">
-<meta name="panzoom-data" content='{"selectors": [".d2", ".mermaid"], "initial_zoom_level": 1.0}'> </head>
+<meta name="panzoom-data" content='{"selectors": [".mermaid", ".d2"], "initial_zoom_level": 1.0}'> </head>
 <body data-md-color-accent="custom" data-md-color-primary="custom" data-md-color-scheme="default" dir="ltr">
 <input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox">
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox">
@@ -546,10 +546,10 @@
 <nav aria-label="Complex (Indel + Substitution)" class="md-nav">
 <ul class="md-nav__list">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#algorithm-flow-haplotype-reconstruction">
+<a class="md-nav__link" href="#algorithm-flow-haplotype-reconstruction-masked-comparison">
 <span class="md-ellipsis">
       
-        Algorithm Flow — Haplotype Reconstruction
+        Algorithm Flow — Haplotype Reconstruction + Masked Comparison
       
     </span>
 </a>
@@ -983,10 +983,10 @@
 <nav aria-label="Complex (Indel + Substitution)" class="md-nav">
 <ul class="md-nav__list">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#algorithm-flow-haplotype-reconstruction">
+<a class="md-nav__link" href="#algorithm-flow-haplotype-reconstruction-masked-comparison">
 <span class="md-ellipsis">
       
-        Algorithm Flow — Haplotype Reconstruction
+        Algorithm Flow — Haplotype Reconstruction + Masked Comparison
       
     </span>
 </a>
@@ -1780,7 +1780,7 @@ Use mouse to pan and zoom
 </div>
 <hr>
 <h3 id="complex-indel-substitution">Complex (Indel + Substitution)<a class="headerlink" href="#complex-indel-substitution" title="Permanent link">¶</a></h3>
-<p>Variants where REF and ALT differ in both sequence <strong>and</strong> length. This is the catch-all category that uses a sophisticated <strong>haplotype reconstruction</strong> algorithm.</p>
+<p>Variants where REF and ALT differ in both sequence <strong>and</strong> length. This is the catch-all category that uses a sophisticated <strong>haplotype reconstruction</strong> algorithm with <strong>quality-aware masked comparison</strong>.</p>
 <table>
 <thead>
 <tr>
@@ -1799,11 +1799,11 @@ Use mouse to pan and zoom
 </tr>
 <tr>
 <td style="text-align: left;">Quality check</td>
-<td style="text-align: left;">Minimum base quality across all reconstructed bases must meet <code>--min-baseq</code></td>
+<td style="text-align: left;"><strong>Masked comparison</strong> — bases below <code>--min-baseq</code> are masked out and cannot vote for either allele</td>
 </tr>
 </tbody>
 </table>
-<h4 id="algorithm-flow-haplotype-reconstruction">Algorithm Flow — Haplotype Reconstruction<a class="headerlink" href="#algorithm-flow-haplotype-reconstruction" title="Permanent link">¶</a></h4>
+<h4 id="algorithm-flow-haplotype-reconstruction-masked-comparison">Algorithm Flow — Haplotype Reconstruction + Masked Comparison<a class="headerlink" href="#algorithm-flow-haplotype-reconstruction-masked-comparison" title="Permanent link">¶</a></h4>
 <div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
 <nav class="panzoom-nav">
 <button class="panzoom-info panzoom-button">
@@ -1825,16 +1825,16 @@ Use mouse to pan and zoom
 </button>
 </nav>
 <pre class="mermaid"><code>flowchart TD
-    Start([🧬 Complex Check]):::start --&gt; Region[Define genomic region]:::info
-    Region --&gt; Init[Init reconstructed seq + min qual]
+    Start([🧬 Complex Check]):::start --&gt; Region["Define region: pos .. pos+len REF"]:::info
+    Region --&gt; Init["Init reconstructed_seq + quals_per_base"]
 
-    subgraph CIGARWalk [CIGAR Walk]
+    subgraph CIGARWalk [Phase 1: CIGAR Walk — Haplotype Reconstruction]
         direction TB
         Walk[Walk each CIGAR op]
         OpType{CIGAR op type?}
         Walk --&gt; OpType
-        OpType --&gt;|"M / = / X"| Match[Append overlapping bases]
-        OpType --&gt;|"I"| InsCheck[Append inserted bases]
+        OpType --&gt;|"M / = / X"| Match["Append bases + quals"]
+        OpType --&gt;|"I"| InsCheck["Append inserted bases + quals"]
         OpType --&gt;|"D / N"| AdvRef[Advance ref_pos only]
         OpType --&gt;|"S"| AdvRead[Advance read_pos only]
         OpType --&gt;|"H / P"| Skip[No action]
@@ -1848,22 +1848,37 @@ Use mouse to pan and zoom
     end
 
     Init --&gt; Walk
-    More --&gt;|No| Compare
+    More --&gt;|No| LenCheck
 
-    subgraph Classify [Allele Classification]
+    subgraph MaskedCompare ["Phase 2: Masked Comparison (Reliable Intersection)"]
         direction TB
-        Compare[Compare reconstructed seq]
-        Compare --&gt; CmpAlt{Matches ALT?}
-        CmpAlt --&gt;|Yes| QualA{Quality ≥ min_baseq?}
-        CmpAlt --&gt;|No| CmpRef{Matches REF?}
-        CmpRef --&gt;|Yes| QualR{Quality ≥ min_baseq?}
-        CmpRef --&gt;|No| Neither3([Neither]):::neither
-    end
+        LenCheck{Check recon length}
+        LenCheck --&gt;|"== ALT == REF"| CaseA["Case A: Dual masked compare"]
+        LenCheck --&gt;|"== ALT only"| CaseB["Case B: ALT-only masked compare"]
+        LenCheck --&gt;|"== REF only"| CaseC["Case C: REF-only masked compare"]
+        LenCheck --&gt;|Neither| Neither4([Neither]):::neither
 
-    QualA --&gt;|Yes| Alt([🔴 ALT]):::alt
-    QualA --&gt;|No| Neither1([Neither]):::neither
-    QualR --&gt;|Yes| Ref([✅ REF]):::ref
-    QualR --&gt;|No| Neither2([Neither]):::neither
+        CaseA --&gt; Mask1["Mask bases with qual &lt; min_baseq"]
+        Mask1 --&gt; Reliable1{reliable_count &gt; 0?}
+        Reliable1 --&gt;|No| Neither5([Neither]):::neither
+        Reliable1 --&gt;|Yes| Ambig{Matches BOTH on reliable?}
+        Ambig --&gt;|Yes| Neither6(["Neither (ambiguous)"]):::neither
+        Ambig --&gt;|No| AltOnly{Matches ALT only?}
+        AltOnly --&gt;|Yes| Alt1([🔴 ALT]):::alt
+        AltOnly --&gt;|No| RefOnly{Matches REF only?}
+        RefOnly --&gt;|Yes| Ref1([✅ REF]):::ref
+        RefOnly --&gt;|No| Neither7([Neither]):::neither
+
+        CaseB --&gt; Mask2["Mask low-qual bases"]
+        Mask2 --&gt; ReliableB{reliable &gt; 0 AND 0 mismatches?}
+        ReliableB --&gt;|Yes| Alt2([🔴 ALT]):::alt
+        ReliableB --&gt;|No| Neither8([Neither]):::neither
+
+        CaseC --&gt; Mask3["Mask low-qual bases"]
+        Mask3 --&gt; ReliableC{reliable &gt; 0 AND 0 mismatches?}
+        ReliableC --&gt;|Yes| Ref2([✅ REF]):::ref
+        ReliableC --&gt;|No| Neither9([Neither]):::neither
+    end
 
     classDef start fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
     classDef info fill:#3498db,color:#fff,stroke:#2471a3,stroke-width:2px;
@@ -1874,6 +1889,13 @@ Use mouse to pan and zoom
 <div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
 Use mouse to pan and zoom
 </div>
+</div>
+<div class="admonition info">
+<p class="admonition-title">Masked Comparison — Why Not Exact Match?</p>
+<p>A single sequencing error at a low-quality base would discard the entire read
+under exact matching. The masked approach ignores unreliable bases, allowing the
+remaining high-quality bases to determine allele support. When masking causes both
+alleles to match (ambiguity), the read is safely discarded rather than guessed.</p>
 </div>
 <h4 id="worked-example-step-by-step-reconstruction">Worked Example: Step-by-Step Reconstruction<a class="headerlink" href="#worked-example-step-by-step-reconstruction" title="Permanent link">¶</a></h4>
 <p>Here's a concrete example showing how the engine reconstructs a read's sequence for a complex variant.</p>
@@ -2231,7 +2253,7 @@ Use mouse to pan and zoom
 <span class="md-icon" title="Last update">
 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
 </span>
-<span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 10, 2026 16:51:01 UTC"><span class="timeago" datetime="2026-02-10T16:51:01+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 10, 2026 16:51:01 UTC">2026-02-10</span>
+<span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 10, 2026 17:23:41 UTC"><span class="timeago" datetime="2026-02-10T17:23:41+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 10, 2026 17:23:41 UTC">2026-02-10</span>
 </span>
 <span class="md-source-file__fact">
 <span class="md-icon" title="Created">

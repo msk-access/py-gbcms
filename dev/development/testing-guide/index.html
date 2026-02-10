@@ -75,7 +75,7 @@
             body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
             body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
         </style><meta name="panzoom-theme" content="material">
-<meta name="panzoom-data" content='{"selectors": [".d2", ".mermaid"], "initial_zoom_level": 1.0}'> </head>
+<meta name="panzoom-data" content='{"selectors": [".mermaid", ".d2"], "initial_zoom_level": 1.0}'> </head>
   
   
     
@@ -1755,6 +1755,16 @@
 <td style="text-align: left;">SNP, indel, complex variant counting</td>
 </tr>
 <tr>
+<td style="text-align: left;">Shifted Indels</td>
+<td style="text-align: left;"><code>test_shifted_indels.py</code></td>
+<td style="text-align: left;">Windowed indel detection (±5bp), 3-layer safeguards</td>
+</tr>
+<tr>
+<td style="text-align: left;">Complex Masking</td>
+<td style="text-align: left;"><code>test_fuzzy_complex.py</code></td>
+<td style="text-align: left;">Quality-aware masked comparison, ambiguity detection</td>
+</tr>
+<tr>
 <td style="text-align: left;"><abbr title="Command Line Interface - Terminal-based program interface">CLI</abbr></td>
 <td style="text-align: left;"><code>test_cli_sample_id.py</code></td>
 <td style="text-align: left;">Command-line parsing</td>
@@ -1784,13 +1794,15 @@
 <hr>
 <h2 id="test-structure">Test Structure<a class="headerlink" href="#test-structure" title="Permanent link">¶</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>tests/
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>├── test_accuracy.py        # Variant type accuracy
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>├── test_cli_sample_id.py   # CLI argument parsing
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>├── test_filters.py         # Read filtering
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>├── test_maf_preservation.py
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>├── test_maf_reader.py
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>├── test_pipeline_v2.py
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>└── test_strand_counts.py
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>├── test_accuracy.py           # Variant type accuracy
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>├── test_cli_sample_id.py      # CLI argument parsing
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>├── test_filters.py            # Read filtering
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>├── test_fuzzy_complex.py      # Quality-aware masked complex matching
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>├── test_maf_preservation.py
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>├── test_maf_reader.py
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>├── test_pipeline_v2.py
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>├── test_shifted_indels.py     # Windowed indel detection (±5bp)
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>└── test_strand_counts.py
 </code></pre></div>
 <hr>
 <h2 id="writing-tests">Writing Tests<a class="headerlink" href="#writing-tests" title="Permanent link">¶</a></h2>
@@ -1876,6 +1888,16 @@
 <td style="text-align: left;"><code>test_mnp_accuracy</code></td>
 <td style="text-align: center;">✅</td>
 </tr>
+<tr>
+<td style="text-align: left;">Shifted Indels</td>
+<td style="text-align: left;"><code>test_shifted_indels.py</code> (15 cases)</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;">Complex Masking</td>
+<td style="text-align: left;"><code>test_fuzzy_complex.py</code> (14 cases)</td>
+<td style="text-align: center;">✅</td>
+</tr>
 </tbody>
 </table>
 <h3 id="real-world-validation">Real-World Validation<a class="headerlink" href="#real-world-validation" title="Permanent link">¶</a></h3>
@@ -1955,7 +1977,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 6, 2026 16:48:48 UTC"><span class="timeago" datetime="2026-02-06T16:48:48+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 6, 2026 16:48:48 UTC">2026-02-06</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 10, 2026 17:32:05 UTC"><span class="timeago" datetime="2026-02-10T17:32:05+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 10, 2026 17:32:05 UTC">2026-02-10</span>
   </span>
 
     
