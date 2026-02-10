@@ -75,7 +75,7 @@ nextflow run nextflow/main.nf \
 | `--format` | Output format (`vcf` or `maf`) | `vcf` |
 | `--suffix` | Suffix to append to output filenames | `''` (empty) |
 | `--min_mapq` | Minimum mapping quality | `20` |
-| `--min_baseq` | Minimum base quality | `0` |
+| `--min_baseq` | Minimum base quality | `20` |
 | `--filter_duplicates` | Filter duplicate reads | `true` |
 | `--filter_secondary` | Filter secondary alignments | `false` |
 | `--filter_supplementary` | Filter supplementary alignments | `false` |

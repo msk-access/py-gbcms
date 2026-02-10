@@ -7,6 +7,7 @@ from pathlib import Path
 
 import typer
 
+from . import __version__
 from .models.core import (
     GbcmsConfig,
     OutputConfig,
@@ -24,8 +25,19 @@ logger = logging.getLogger(__name__)
 app = typer.Typer(help="gbcms: Get Base Counts Multi-Sample")
 
 
+def version_callback(value: bool) -> None:
+    """Print version and exit."""
+    if value:
+        typer.echo(f"gbcms {__version__}")
+        raise typer.Exit()
+
+
 @app.callback()
-def main():
+def main(
+    version: bool | None = typer.Option(
+        None, "--version", callback=version_callback, is_eager=True, help="Show version and exit."
+    ),
+) -> None:
     """
     gbcms: Get Base Counts Multi-Sample
     """
@@ -57,7 +69,16 @@ def run(
     ),
     # Quality thresholds
     min_mapq: int = typer.Option(20, "--min-mapq", help="Minimum mapping quality"),
-    min_baseq: int = typer.Option(0, "--min-baseq", help="Minimum base quality"),
+    min_baseq: int = typer.Option(20, "--min-baseq", help="Minimum base quality"),
+    fragment_qual_threshold: int = typer.Option(
+        10,
+        "--fragment-qual-threshold",
+        help=(
+            "Quality difference threshold for fragment consensus. "
+            "When R1 and R2 disagree, the higher-quality allele wins only if "
+            "the difference exceeds this threshold; otherwise the fragment is discarded."
+        ),
+    ),
     # Read filters
     filter_duplicates: bool = typer.Option(True, help="Filter duplicate reads"),
     filter_secondary: bool = typer.Option(False, help="Filter secondary alignments"),
@@ -97,6 +118,7 @@ def run(
         quality_config = QualityThresholds(
             min_mapping_quality=min_mapq,
             min_base_quality=min_baseq,
+            fragment_qual_threshold=fragment_qual_threshold,
         )
 
         filter_config = ReadFilters(

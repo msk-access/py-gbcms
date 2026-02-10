@@ -33,6 +33,7 @@ py-gbcms is a Python/Rust hybrid tool for counting bases at variant positions in
 │                   Rust Engine (gbcms._rs)                    │
 │  counting.rs - BAM processing, strand bias, Fisher's test   │
 │  types.rs    - Variant, BaseCounts (PyO3 bindings)          │
+│  stats.rs    - Fisher's exact test                          │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -54,7 +55,7 @@ py-gbcms is a Python/Rust hybrid tool for counting bases at variant positions in
 | `core/kernel.py` | ~130 | Coordinate transforms |
 | `models/core.py` | ~130 | Data models |
 | `utils/logging.py` | ~110 | Logging utilities |
-| `rust/` | ~500 | Rust extension (bundled as gbcms._rs) |
+| `rust/` | ~1270 | Rust extension (bundled as gbcms._rs) |
 
 ## Data Flow
 
@@ -66,17 +67,31 @@ BAM + Variant[] → gbcms._rs.count_bam() → BaseCounts[]
 BaseCounts[] + Variant[] → VcfWriter/MafWriter → Output File
 ```
 
+## Key Algorithmic Features
+
+| Feature | Module | Description |
+|:--------|:-------|:------------|
+| Windowed Indel Detection | `counting.rs` | ±5bp scan with 3-layer safeguards (sequence identity, closest match, reference context) |
+| Masked Complex Comparison | `counting.rs` | Quality-aware masking with ambiguity detection; 3-case comparison (equal-length, ALT-only, REF-only) |
+| Fragment Consensus | `counting.rs` | `FragmentEvidence` struct with u64 QNAME hashing, quality-weighted consensus, discard on ambiguity |
+| Strand Bias | `stats.rs` | Fisher's exact test at both read and fragment level |
+
 ## Configuration
 
 All settings flow through `GbcmsConfig` (Pydantic model):
 - Input paths (variants, BAMs, reference)
 - Output settings (dir, format, suffix)
-- Filters (mapq, baseq, duplicates, etc.)
+- Filters (mapq, baseq=20 default, duplicates, etc.)
 - Performance (threads)
 
 ## Testing
 
-Tests in `tests/`:
-- `test_accuracy.py` - Synthetic BAM accuracy tests
+47 tests across `tests/`:
+- `test_accuracy.py` - Synthetic BAM accuracy (SNP, indel, complex, MNP)
+- `test_shifted_indels.py` - Windowed indel detection (15 cases)
+- `test_fuzzy_complex.py` - Quality-aware masked comparison (14 cases)
 - `test_filters.py` - Read filter flag tests
+- `test_strand_counts.py` - Strand-specific counting
+- `test_cli_sample_id.py` - CLI argument parsing
+- `test_maf_reader.py` / `test_maf_preservation.py` - MAF I/O
 - `test_pipeline_v2.py` - Integration tests

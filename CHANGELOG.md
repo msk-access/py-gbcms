@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-02-10
+
+### ✨ Added
+- **Fragment Consensus Engine**: `FragmentEvidence` struct with u64 QNAME hashing and quality-weighted R1/R2 consensus; ambiguous fragments are discarded (not assigned to REF)
+- **`--fragment-qual-threshold`**: New CLI option (default 10) controlling consensus quality difference for fragment conflict resolution
+- **Windowed Indel Detection**: ±5bp positional scan with 3-layer safeguards (sequence identity, closest match, reference context validation)
+- **Quality-Aware Complex Matching**: Masked comparison that ignores bases below `--min-baseq`; 3-case comparison (equal-length, ALT-only, REF-only) with ambiguity detection
+- **Variant Counting Guide**: New `docs/reference/variant-counting.md` with algorithm diagrams for all variant types (~700 lines)
+- **MAF Normalization Docs**: Added indel normalization and coordinate handling to `docs/reference/input-formats.md`
+- **47 Tests**: Up from 16 — added `test_shifted_indels.py` (15), `test_fuzzy_complex.py` (14), `test_fragment_consensus.py` (4)
+
+### 🔄 Changed
+- **`--min-baseq` default**: `0` → `20` (Phred Q20) — activates quality masking by default for improved accuracy on low-coverage samples ⚠️
+- **`--version` flag**: Added to CLI (`gbcms --version`)
+- **Deploy-Docs Workflow**: Replaced `mkdocs gh-deploy` with `mike` for multi-version documentation; deploys `stable` (tagged version) from main and `dev` from develop branch; added `extra.version.provider: mike` to `mkdocs.yml` with version switcher widget
+
+### 🔧 Fixed
+- **Fragment double-counting bug**: R1+R2 pairs previously counted as two independent observations; now collapsed via quality-weighted consensus
+- **MAF Input Hardening**: Graceful handling of missing/malformed fields with warnings instead of crashes
+- **CI Release Pipeline**: Stabilized manylinux builds — migrated from manylinux_2_28 to manylinux_2_34, resolved OpenSSL/CURL vendor conflicts via `docker-options` pattern
+- **Type stubs**: `_rs.pyi` and `gbcms_rs.pyi` synced with Rust bindings (added `ref_context`, `ref_context_start`, `fragment_qual_threshold`)
+- **Linting**: All files pass black, ruff, and mypy
+
+### 📚 Documentation
+- Architecture comparison table updated with windowed indels and masked comparison
+- Nextflow config and docs updated with new `min_baseq` default
+- Testing guide expanded with Phase 2a/2b test files
+- HPC/RHEL 8 installation instructions updated with `clangdev` header management
+- Release guide updated with docs version locations
+- `.antigravity` project files updated with current Rust LOC (~1270) and test counts (47)
+
 ## [2.3.0] - 2026-02-06
 
 ### ✨ Added

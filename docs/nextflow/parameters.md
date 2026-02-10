@@ -23,7 +23,7 @@ Complete reference for all pipeline parameters.
 | Parameter | Default | Description |
 |:----------|:--------|:------------|
 | `--min_mapq` | `20` | Minimum MAPQ |
-| `--min_baseq` | `0` | Minimum BASEQ |
+| `--min_baseq` | `20` | Minimum BASEQ |
 | `--filter_duplicates` | `true` | Filter duplicate reads |
 | `--filter_secondary` | `false` | Filter secondary alignments |
 | `--filter_supplementary` | `false` | Filter supplementary alignments |

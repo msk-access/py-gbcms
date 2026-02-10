@@ -7,6 +7,8 @@ class Variant:
     ref_allele: str
     alt_allele: str
     variant_type: str
+    ref_context: str | None
+    ref_context_start: int
 
     def __init__(
         self,
@@ -15,6 +17,8 @@ class Variant:
         ref_allele: str,
         alt_allele: str,
         variant_type: str,
+        ref_context: str | None = None,
+        ref_context_start: int = 0,
     ) -> None: ...
 
 class BaseCounts:
@@ -38,7 +42,7 @@ def count_bam(
     bam_path: str,
     variants: list[Variant],
     min_mapq: int = 20,
-    min_baseq: int = 0,
+    min_baseq: int = 20,
     filter_duplicates: bool = True,
     filter_secondary: bool = False,
     filter_supplementary: bool = False,
@@ -46,4 +50,5 @@ def count_bam(
     filter_improper_pair: bool = False,
     filter_indel: bool = False,
     threads: int = 1,
+    fragment_qual_threshold: int = 10,
 ) -> list[BaseCounts]: ...

@@ -104,7 +104,7 @@ gbcms run \
 ## Docker
 
 ```bash
-docker run --rm -v $(pwd):/data ghcr.io/msk-access/py-gbcms:2.3.0 \
+docker run --rm -v $(pwd):/data ghcr.io/msk-access/py-gbcms:2.4.0 \
     gbcms run \
     --variants /data/variants.vcf \
     --bam /data/sample.bam \
@@ -128,7 +128,7 @@ gbcms run --help
 | `--output-dir` | Required | Output directory |
 | `--format` | vcf | Output format (vcf/maf) |
 | `--min-mapq` | 20 | Minimum mapping quality |
-| `--min-baseq` | 0 | Minimum base quality |
+| `--min-baseq` | 20 | Minimum base quality |
 | `--threads` | 1 | Number of threads |
 
 ---
@@ -137,3 +137,4 @@ gbcms run --help
 
 - **[Nextflow](../nextflow/index.md)** — Process many samples in parallel
 - **[Architecture](../reference/architecture.md)** — How it works
+- **[Variant Counting](../reference/variant-counting.md)** — How each variant type is counted

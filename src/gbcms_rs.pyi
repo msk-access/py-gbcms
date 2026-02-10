@@ -4,6 +4,8 @@ class Variant:
     ref_allele: str
     alt_allele: str
     variant_type: str
+    ref_context: str | None
+    ref_context_start: int
     def __init__(
         self,
         chrom: str,
@@ -11,6 +13,8 @@ class Variant:
         ref_allele: str,
         alt_allele: str,
         variant_type: str,
+        ref_context: str | None = None,
+        ref_context_start: int = 0,
     ) -> None: ...
 
 class BaseCounts:
@@ -47,4 +51,5 @@ def count_bam(
     filter_improper_pair: bool,
     filter_indel: bool,
     threads: int,
+    fragment_qual_threshold: int = 10,
 ) -> list[BaseCounts]: ...

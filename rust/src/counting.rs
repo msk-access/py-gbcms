@@ -2,6 +2,8 @@ use pyo3::prelude::*;
 use rust_htslib::bam::record::Cigar;
 use rust_htslib::bam::{self, Read, Record};
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
+use std::collections::hash_map::DefaultHasher;
 
 use crate::stats::fisher_strand_bias;
 use crate::types::{BaseCounts, Variant};
@@ -11,8 +13,94 @@ use rayon::prelude::*;
 use anyhow::{Context, Result};
 use log::debug;
 
+/// Evidence accumulated for a single fragment (read pair) at a variant site.
+/// Tracks the best base quality seen for each allele across both reads,
+/// enabling quality-weighted consensus to resolve R1-vs-R2 conflicts.
+#[derive(Debug, Clone)]
+struct FragmentEvidence {
+    /// Best base quality seen supporting REF across reads in this fragment
+    best_ref_qual: u8,
+    /// Best base quality seen supporting ALT across reads in this fragment
+    best_alt_qual: u8,
+    /// Orientation of read 1 (true = forward, false = reverse), if seen
+    read1_orientation: Option<bool>,
+    /// Orientation of read 2 (true = forward, false = reverse), if seen
+    read2_orientation: Option<bool>,
+}
+
+impl FragmentEvidence {
+    fn new() -> Self {
+        FragmentEvidence {
+            best_ref_qual: 0,
+            best_alt_qual: 0,
+            read1_orientation: None,
+            read2_orientation: None,
+        }
+    }
+
+    /// Record a read's allele call and orientation into this fragment's evidence.
+    fn observe(&mut self, is_ref: bool, is_alt: bool, base_qual: u8, is_read1: bool, is_forward: bool) {
+        if is_ref && base_qual > self.best_ref_qual {
+            self.best_ref_qual = base_qual;
+        }
+        if is_alt && base_qual > self.best_alt_qual {
+            self.best_alt_qual = base_qual;
+        }
+        if is_read1 {
+            self.read1_orientation = Some(is_forward);
+        } else {
+            self.read2_orientation = Some(is_forward);
+        }
+    }
+
+    /// Resolve this fragment's allele call using quality-weighted consensus.
+    /// Returns (is_ref, is_alt) — exactly one will be true.
+    fn resolve(&self, qual_diff_threshold: u8) -> (bool, bool) {
+        let has_ref = self.best_ref_qual > 0;
+        let has_alt = self.best_alt_qual > 0;
+
+        match (has_ref, has_alt) {
+            (true, false) => (true, false),   // Only REF evidence
+            (false, true) => (false, true),   // Only ALT evidence
+            (true, true) => {
+                // Conflict: both alleles seen across reads in this fragment.
+                // Use quality-weighted consensus: higher quality wins.
+                // If quality difference is within threshold, discard the fragment
+                // to avoid biasing VAF in either direction — critical for low-VAF
+                // cfDNA detection where every fragment matters.
+                if self.best_ref_qual > self.best_alt_qual + qual_diff_threshold {
+                    (true, false)  // REF wins by quality margin
+                } else if self.best_alt_qual > self.best_ref_qual + qual_diff_threshold {
+                    (false, true)  // ALT wins by quality margin
+                } else {
+                    // Within threshold — ambiguous, discard to preserve VAF accuracy
+                    (false, false)
+                }
+            }
+            (false, false) => (false, false),  // Should not happen (filtered earlier)
+        }
+    }
+
+    /// Get the fragment orientation. Prefers read 1 orientation when both reads present.
+    fn orientation(&self) -> Option<bool> {
+        // Prefer read 1 orientation (consistent with original behavior)
+        self.read1_orientation.or(self.read2_orientation)
+    }
+}
+
+/// Hash a QNAME to u64 for memory-efficient fragment tracking.
+/// Using DefaultHasher for speed — collision probability is negligible
+/// for typical variant-level read counts (~1000 fragments).
+#[inline]
+fn hash_qname(qname: &[u8]) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    qname.hash(&mut hasher);
+    hasher.finish()
+}
+
 /// Count bases for a list of variants in a BAM file.
 #[pyfunction]
+#[pyo3(signature = (bam_path, variants, min_mapq, min_baseq, filter_duplicates, filter_secondary, filter_supplementary, filter_qc_failed, filter_improper_pair, filter_indel, threads, fragment_qual_threshold=10))]
 pub fn count_bam(
     py: Python<'_>,
     bam_path: String,
@@ -26,6 +114,7 @@ pub fn count_bam(
     filter_improper_pair: bool,
     filter_indel: bool,
     threads: usize,
+    fragment_qual_threshold: u8,
 ) -> PyResult<Vec<BaseCounts>> {
     // We cannot share a single IndexedReader across threads because it's not Sync.
     // Instead, we use rayon's map_init to initialize a reader for each thread.
@@ -69,6 +158,7 @@ pub fn count_bam(
                             filter_qc_failed,
                             filter_improper_pair,
                             filter_indel,
+                            fragment_qual_threshold,
                         )
                     },
                 )
@@ -94,27 +184,31 @@ fn count_single_variant(
     filter_qc_failed: bool,
     filter_improper_pair: bool,
     filter_indel: bool,
+    fragment_qual_threshold: u8,
 ) -> Result<BaseCounts> {
     let tid = bam.header().tid(variant.chrom.as_bytes()).ok_or_else(|| {
         anyhow::anyhow!("Chromosome not found in BAM: {}", variant.chrom)
     })?;
 
-    // Fetch region. Add buffer for indels.
-    // Variant pos is 0-based.
-    let start = variant.pos;
-    let end = variant.pos + 1; // Fetch at least one base (anchor)
+    // Fetch region around the variant. For windowed indel detection (±5bp),
+    // we expand the window so that reads with shifted indels are also retrieved.
+    let window_pad: i64 = 5;
+    let start = (variant.pos - window_pad).max(0);
+    let end = variant.pos + (variant.ref_allele.len() as i64) + window_pad;
 
     bam.fetch((tid, start, end)).context("Failed to fetch region")?;
 
     let mut counts = BaseCounts::default();
 
-    // Fragment tracking
-    // fragment_name -> (read1_orientation, read2_orientation)
-    // orientation: true = forward, false = reverse
-    let mut fragment_orientations: HashMap<String, HashMap<u8, bool>> = HashMap::new();
+    // Fragment tracking: QNAME hash -> FragmentEvidence
+    // Using u64 hash keys instead of String for memory efficiency.
+    let mut fragments: HashMap<u64, FragmentEvidence> = HashMap::new();
 
-    // fragment_name -> (has_ref, has_alt)
-    let mut fragment_alleles: HashMap<String, (bool, bool)> = HashMap::new();
+    // Quality threshold for fragment consensus tiebreaking.
+    // When R1 and R2 disagree, the allele with higher quality wins
+    // only if the quality difference exceeds this threshold.
+    // Configurable via --fragment-qual-threshold (default: 10).
+    let qual_diff_threshold: u8 = fragment_qual_threshold;
 
     for result in bam.records() {
         let record = result.context("Error reading BAM record")?;
@@ -135,27 +229,27 @@ fn count_single_variant(
         if filter_improper_pair && !record.is_proper_pair() {
             continue;
         }
-        
+
         // Indel filter: check CIGAR for Ins or Del
         if filter_indel {
-             let has_indel = record.cigar().iter().any(|op| matches!(op, Cigar::Ins(_) | Cigar::Del(_)));
-             if has_indel {
-                 continue;
-             }
+            let has_indel = record.cigar().iter().any(|op| matches!(op, Cigar::Ins(_) | Cigar::Del(_)));
+            if has_indel {
+                continue;
+            }
         }
 
         if record.mapq() < min_mapq {
             continue;
         }
 
-        // Determine allele status
-        let (is_ref, is_alt) = check_allele(&record, variant, min_baseq);
+        // Determine allele status and base quality at variant position
+        let (is_ref, is_alt, base_qual) = check_allele_with_qual(&record, variant, min_baseq);
 
         if !is_ref && !is_alt {
             continue;
         }
 
-        // Update basic counts
+        // Update per-read counts (unchanged — these are read-level, not fragment-level)
         counts.dp += 1;
         let is_reverse = record.is_reverse();
 
@@ -181,55 +275,42 @@ fn count_single_variant(
             }
         }
 
-        // Track fragment info
-        let qname = String::from_utf8_lossy(record.qname()).to_string();
+        // Accumulate fragment evidence using QNAME hash
+        let qname_hash = hash_qname(record.qname());
         let is_read1 = record.is_first_in_template();
-        let read_idx = if is_read1 { 1 } else { 2 };
+        let is_forward = !is_reverse;
 
-        fragment_orientations
-            .entry(qname.clone())
-            .or_default()
-            .insert(read_idx, !is_reverse); // Store orientation (forward = true)
-
-        let entry = fragment_alleles.entry(qname).or_insert((false, false));
-        if is_ref {
-            entry.0 = true;
-        }
-        if is_alt {
-            entry.1 = true;
-        }
+        let evidence = fragments.entry(qname_hash).or_insert_with(FragmentEvidence::new);
+        evidence.observe(is_ref, is_alt, base_qual, is_read1, is_forward);
     }
 
-    // Process fragments (Majority Rule)
-    for (qname, orientations) in fragment_orientations {
-        if !fragment_alleles.contains_key(&qname) {
-            continue;
-        }
-        let (has_ref, has_alt) = fragment_alleles[&qname];
+    // Resolve fragment-level counts using quality-weighted consensus.
+    // Each fragment contributes exactly ONE allele call (REF xor ALT),
+    // preventing the double-counting bug where R1=REF + R2=ALT
+    // inflated both rdf and adf.
+    for (_qname_hash, evidence) in &fragments {
+        let (frag_ref, frag_alt) = evidence.resolve(qual_diff_threshold);
 
-        // Determine orientation
-        let orientation = if orientations.len() == 2 {
-            // Both reads present
-            let o1 = orientations.get(&1);
-            // If orientations differ, we default to Read 1
-            *o1.unwrap()
-        } else {
-            // Single read
-            *orientations.values().next().unwrap()
+        // Get fragment orientation (prefer read 1)
+        let orientation = match evidence.orientation() {
+            Some(o) => o,
+            None => continue, // No orientation data (should not happen)
         };
 
+        // Count every fragment in dpf regardless of consensus outcome.
+        // Discarded fragments (ambiguous R1-vs-R2 within quality threshold)
+        // are still real molecules — tracking them in dpf makes the gap
+        // dpf - (rdf + adf) a useful quality metric for the locus.
         counts.dpf += 1;
 
-        if has_ref {
+        if frag_ref {
             counts.rdf += 1;
             if orientation {
                 counts.rdf_fwd += 1;
             } else {
                 counts.rdf_rev += 1;
             }
-        }
-
-        if has_alt {
+        } else if frag_alt {
             counts.adf += 1;
             if orientation {
                 counts.adf_fwd += 1;
@@ -258,11 +339,13 @@ fn count_single_variant(
 }
 
 /// Check if a read supports the reference or alternate allele.
-fn check_allele(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool) {
+/// Returns (is_ref, is_alt, base_quality) where base_quality is the
+/// quality score at the variant position (used for fragment consensus).
+fn check_allele_with_qual(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool, u8) {
     let variant_type = &variant.variant_type;
-    println!("DEBUG: check_allele type={} pos={} ref={} alt={}", variant_type, variant.pos, variant.ref_allele, variant.alt_allele);
+    debug!("check_allele type={} pos={} ref={} alt={}", variant_type, variant.pos, variant.ref_allele, variant.alt_allele);
 
-    match variant_type.as_str() {
+    let (is_ref, is_alt) = match variant_type.as_str() {
         "SNP" => check_snp(record, variant, min_baseq),
         "INSERTION" => check_insertion(record, variant),
         "DELETION" => check_deletion(record, variant),
@@ -283,32 +366,104 @@ fn check_allele(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, boo
                 check_complex(record, variant, min_baseq)
             }
         }
+    };
+
+    // Extract base quality at variant position for fragment consensus.
+    // For SNPs/MNPs: quality at the variant position.
+    // For indels: quality of the anchor base (position before indel).
+    // For complex: minimum quality across the reconstructed haplotype.
+    let base_qual = if is_ref || is_alt {
+        get_variant_base_qual(record, variant)
+    } else {
+        0
+    };
+
+    (is_ref, is_alt, base_qual)
+}
+
+/// Get the base quality at the variant position for fragment consensus scoring.
+/// Returns the quality of the most relevant base for this variant type.
+fn get_variant_base_qual(record: &Record, variant: &Variant) -> u8 {
+    match variant.variant_type.as_str() {
+        "SNP" => {
+            // Quality at the variant position
+            match find_read_pos(record, variant.pos) {
+                Some(p) => record.qual()[p],
+                None => 0,
+            }
+        }
+        "MNP" => {
+            // Minimum quality across MNP positions
+            let len = variant.ref_allele.len();
+            let start = match find_read_pos(record, variant.pos) {
+                Some(p) => p,
+                None => return 0,
+            };
+            let quals = record.qual();
+            (0..len)
+                .filter_map(|i| {
+                    let p = start + i;
+                    if p < quals.len() { Some(quals[p]) } else { None }
+                })
+                .min()
+                .unwrap_or(0)
+        }
+        "INSERTION" | "DELETION" => {
+            // Quality of the anchor base (position before the indel)
+            match find_read_pos(record, variant.pos) {
+                Some(p) => record.qual()[p],
+                None => 0,
+            }
+        }
+        _ => {
+            // Complex / unknown: quality at variant start position
+            match find_read_pos(record, variant.pos) {
+                Some(p) => record.qual()[p],
+                None => 0,
+            }
+        }
     }
 }
 
+/// Check if a read supports a complex variant (indel + substitution).
+///
+/// Uses **haplotype reconstruction**: walks the CIGAR to rebuild what the read
+/// shows for the genomic region covered by REF, then compares the reconstructed
+/// sequence to both REF and ALT using **quality-aware masked comparison**.
+///
+/// ## Masked Comparison ("Reliable Intersection")
+///
+/// Instead of requiring exact byte-for-byte match, bases with quality below
+/// `min_baseq` are **masked out** — they cannot vote for either allele. Only
+/// "reliable" (high-quality) bases participate in the comparison.
+///
+/// Three cases based on reconstructed sequence length:
+/// - **Case A** (`recon == alt == ref` length): simultaneous REF/ALT check with
+///   ambiguity detection. If reliable bases match *both*, read is discarded.
+/// - **Case B** (`recon == alt` length only): masked comparison against ALT only.
+/// - **Case C** (`recon == ref` length only): masked comparison against REF only.
 fn check_complex(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool) {
-    // Haplotype Reconstruction Strategy
-    // 1. Identify genomic region of REF allele: [start, end)
-    // 2. Traverse CIGAR to reconstruct the sequence the read has for this region.
-    //    - Match/Mismatch: Append base.
-    //    - Insertion: Append inserted bases (if occurring within/at start of region).
-    //    - Deletion: Skip (do not append).
-    // 3. Compare reconstructed sequence to ALT allele.
-
     let start_pos = variant.pos;
-    let end_pos = variant.pos + variant.ref_allele.len() as i64; // Exclusive end
+    let end_pos = variant.pos + variant.ref_allele.len() as i64; // exclusive
 
     let cigar = record.cigar();
     let mut ref_pos = record.pos();
-    let mut read_pos = 0;
+    let mut read_pos: usize = 0;
     let seq = record.seq();
     let quals = record.qual();
 
-    let mut reconstructed_seq = Vec::new();
-    let mut min_qual_observed = 255u8;
+    // Pre-allocate reconstruction buffers for performance
+    let capacity = seq.len();
+    let mut reconstructed_seq: Vec<u8> = Vec::with_capacity(capacity);
+    let mut quals_per_base: Vec<u8> = Vec::with_capacity(capacity);
 
-    debug!("check_complex start: pos={} ref={} alt={}", start_pos, variant.ref_allele, variant.alt_allele);
+    debug!(
+        "check_complex start: pos={} ref={} alt={}",
+        start_pos, variant.ref_allele, variant.alt_allele
+    );
 
+    // --- Phase 1: Haplotype Reconstruction ---
+    // Walk the CIGAR to reconstruct what the read shows for [start_pos, end_pos).
     for op in cigar.iter() {
         match op {
             Cigar::Match(len) | Cigar::Equal(len) | Cigar::Diff(len) => {
@@ -319,25 +474,18 @@ fn check_complex(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bo
                 let overlap_start = std::cmp::max(ref_pos, start_pos);
                 let overlap_end = std::cmp::min(ref_pos + len_i64, end_pos);
 
-                debug!("Match op len={} ref_pos={} overlap=[{}, {})", len, ref_pos, overlap_start, overlap_end);
-
                 if overlap_start < overlap_end {
-                    // We have overlap
                     let offset_in_op = (overlap_start - ref_pos) as usize;
                     let overlap_len = (overlap_end - overlap_start) as usize;
-
                     let current_read_pos = read_pos + offset_in_op;
-                    
+
                     for i in 0..overlap_len {
                         let p = current_read_pos + i;
-                        if p >= seq.len() { break; } // Should not happen if BAM is valid
-                        
-                        let base = seq[p];
-                        let qual = quals[p];
-                        reconstructed_seq.push(base);
-                        if qual < min_qual_observed {
-                            min_qual_observed = qual;
+                        if p >= seq.len() {
+                            break;
                         }
+                        reconstructed_seq.push(seq[p]);
+                        quals_per_base.push(quals[p]);
                     }
                 }
                 ref_pos += len_i64;
@@ -345,25 +493,19 @@ fn check_complex(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bo
             }
             Cigar::Ins(len) => {
                 let len_usize = *len as usize;
-                debug!("Ins op len={} ref_pos={}", len, ref_pos);
-                
                 if ref_pos >= start_pos && ref_pos <= end_pos {
-                     for i in 0..len_usize {
+                    for i in 0..len_usize {
                         let p = read_pos + i;
-                        if p >= seq.len() { break; }
-                        let base = seq[p];
-                        let qual = quals[p];
-                         reconstructed_seq.push(base);
-                         if qual < min_qual_observed {
-                            min_qual_observed = qual;
+                        if p >= seq.len() {
+                            break;
                         }
-                     }
+                        reconstructed_seq.push(seq[p]);
+                        quals_per_base.push(quals[p]);
+                    }
                 }
-                
                 read_pos += len_usize;
             }
             Cigar::Del(len) | Cigar::RefSkip(len) => {
-                debug!("Del op len={} ref_pos={}", len, ref_pos);
                 ref_pos += *len as i64;
             }
             Cigar::SoftClip(len) => {
@@ -374,61 +516,154 @@ fn check_complex(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bo
     }
 
     let reconstructed_str = String::from_utf8_lossy(&reconstructed_seq);
-    debug!("Reconstructed: '{}' (len={})", reconstructed_str, reconstructed_seq.len());
+    debug!(
+        "Reconstructed: '{}' (len={})",
+        reconstructed_str,
+        reconstructed_seq.len()
+    );
 
-    // Compare reconstructed sequence to ALT
+    // --- Phase 2: Quality-Aware Masked Comparison ---
+    // Mask out low-quality bases. Only reliable bases (qual >= min_baseq) vote.
     let alt_bytes = variant.alt_allele.as_bytes();
-    
-    // Convert reconstructed to bytes for comparison (it's already Vec<u8>)
-    // But we need to handle case sensitivity
-    if reconstructed_seq.len() != alt_bytes.len() {
-        debug!("Len mismatch ALT: {} != {}", reconstructed_seq.len(), alt_bytes.len());
-    } else {
-        let mut matches_alt = true;
-        for (i, &b) in reconstructed_seq.iter().enumerate() {
-            if b.to_ascii_uppercase() != alt_bytes[i].to_ascii_uppercase() {
-                matches_alt = false;
-                break;
-            }
-        }
-        
-        if matches_alt {
-            if min_qual_observed < min_baseq {
-                debug!("Matches ALT but low qual: {} < {}", min_qual_observed, min_baseq);
-                return (false, false);
-            }
-            debug!("Matches ALT");
-            return (false, true); // Matches ALT
-        }
-    }
-    
-    // Check REF?
     let ref_bytes = variant.ref_allele.as_bytes();
-    debug!("Checking REF. ReconLen={} RefLen={}", reconstructed_seq.len(), ref_bytes.len());
-    
-    if reconstructed_seq.len() == ref_bytes.len() {
-        let mut matches_ref = true;
-        for (i, &b) in reconstructed_seq.iter().enumerate() {
-            let rb = ref_bytes[i].to_ascii_uppercase();
-            let bb = b.to_ascii_uppercase();
-            if bb != rb {
-                debug!("Mismatch at {}: {} != {}", i, bb as char, rb as char);
-                matches_ref = false;
-                break;
-            }
+    let recon_len = reconstructed_seq.len();
+    let matches_alt_len = recon_len == alt_bytes.len();
+    let matches_ref_len = recon_len == ref_bytes.len();
+
+    if matches_alt_len && matches_ref_len {
+        // Case A: Equal-length REF and ALT — need simultaneous check + ambiguity detection
+        let (mismatches_alt, mismatches_ref, reliable_count) =
+            masked_dual_compare(&reconstructed_seq, &quals_per_base, alt_bytes, ref_bytes, min_baseq);
+
+        debug!(
+            "Case A: reliable={} mm_alt={} mm_ref={}",
+            reliable_count, mismatches_alt, mismatches_ref
+        );
+
+        // Step 1: No reliable data → discard (MUST come first)
+        if reliable_count == 0 {
+            debug!("No reliable bases — discarding");
+            return (false, false);
         }
-        if matches_ref {
-             if min_qual_observed < min_baseq {
-                debug!("Matches REF but low qual: {} < {}", min_qual_observed, min_baseq);
-                return (false, false);
-            }
-            debug!("Matches REF");
+
+        // Step 2: Ambiguity — reliable bases match both alleles → discard
+        if mismatches_alt == 0 && mismatches_ref == 0 {
+            debug!("Ambiguous: reliable bases match both REF and ALT — discarding");
+            return (false, false);
+        }
+
+        // Step 3: Unambiguous match
+        if mismatches_alt == 0 {
+            debug!("Matches ALT on {} reliable bases", reliable_count);
+            return (false, true);
+        }
+        if mismatches_ref == 0 {
+            debug!("Matches REF on {} reliable bases", reliable_count);
             return (true, false);
         }
+
+        // Step 4: Neither matches on reliable bases
+        debug!("No match: mm_alt={} mm_ref={}", mismatches_alt, mismatches_ref);
+    } else if matches_alt_len {
+        // Case B: Only ALT length matches (e.g., DelIns) — no ambiguity possible
+        let (mismatches, reliable_count) =
+            masked_single_compare(&reconstructed_seq, &quals_per_base, alt_bytes, min_baseq);
+
+        debug!(
+            "Case B (ALT-only): reliable={} mismatches={}",
+            reliable_count, mismatches
+        );
+
+        if reliable_count > 0 && mismatches == 0 {
+            debug!("Matches ALT on {} reliable bases", reliable_count);
+            return (false, true);
+        }
+    } else if matches_ref_len {
+        // Case C: Only REF length matches — no ambiguity possible
+        let (mismatches, reliable_count) =
+            masked_single_compare(&reconstructed_seq, &quals_per_base, ref_bytes, min_baseq);
+
+        debug!(
+            "Case C (REF-only): reliable={} mismatches={}",
+            reliable_count, mismatches
+        );
+
+        if reliable_count > 0 && mismatches == 0 {
+            debug!("Matches REF on {} reliable bases", reliable_count);
+            return (true, false);
+        }
+    } else {
+        debug!(
+            "Length mismatch: recon={} alt={} ref={}",
+            recon_len,
+            alt_bytes.len(),
+            ref_bytes.len()
+        );
     }
 
-    debug!("No match");
     (false, false)
+}
+
+/// Masked comparison against two alleles simultaneously.
+///
+/// Masks out bases with quality below `min_baseq` and counts mismatches against
+/// both `allele_a` and `allele_b` on the remaining reliable bases only.
+///
+/// Returns `(mismatches_a, mismatches_b, reliable_count)`.
+fn masked_dual_compare(
+    recon: &[u8],
+    quals: &[u8],
+    allele_a: &[u8],
+    allele_b: &[u8],
+    min_baseq: u8,
+) -> (usize, usize, usize) {
+    let mut mm_a = 0;
+    let mut mm_b = 0;
+    let mut reliable = 0;
+
+    for (i, &base) in recon.iter().enumerate() {
+        if quals[i] < min_baseq {
+            continue; // mask out low-quality base entirely
+        }
+        reliable += 1;
+        let b = base.to_ascii_uppercase();
+        if b != allele_a[i].to_ascii_uppercase() {
+            mm_a += 1;
+        }
+        if b != allele_b[i].to_ascii_uppercase() {
+            mm_b += 1;
+        }
+    }
+
+    (mm_a, mm_b, reliable)
+}
+
+/// Masked comparison against a single allele.
+///
+/// Masks out bases below `min_baseq` and counts mismatches on reliable bases.
+/// Any mismatch on a reliable base means no match.
+///
+/// Returns `(mismatches, reliable_count)`.
+fn masked_single_compare(
+    recon: &[u8],
+    quals: &[u8],
+    allele: &[u8],
+    min_baseq: u8,
+) -> (usize, usize) {
+    let mut mismatches = 0;
+    let mut reliable = 0;
+
+    for (i, &base) in recon.iter().enumerate() {
+        if quals[i] < min_baseq {
+            continue;
+        }
+        reliable += 1;
+        if base.to_ascii_uppercase() != allele[i].to_ascii_uppercase() {
+            mismatches += 1;
+        }
+    }
+
+    (mismatches, reliable)
 }
 
 fn check_snp(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool) {
@@ -460,56 +695,128 @@ fn check_snp(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool) 
     (base_upper == ref_char, base_upper == alt_char)
 }
 
+/// Check if a read supports an insertion variant.
+///
+/// Uses a single CIGAR walk with two detection strategies:
+/// 1. **Strict match (fast path):** Insertion immediately after the anchor base.
+///    Returns ALT immediately if length + sequence match.
+/// 2. **Windowed scan (fallback):** Any insertion within ±5bp of the anchor,
+///    validated by three safeguards:
+///    - S1: Inserted sequence matches expected ALT bases exactly
+///    - S2: Closest match wins (minimum |shift_pos - anchor_pos|)
+///    - S3: Reference base at shifted anchor matches original anchor base
+///          (via variant.ref_context)
 fn check_insertion(record: &Record, variant: &Variant) -> (bool, bool) {
-    // For insertion, variant.pos is the anchor base.
-    // We check if there is an insertion AFTER this base.
-    // VCF: REF=A, ALT=AT. Insertion of T.
-
-    // Re-implement with index access for lookahead
     let cigar_view = record.cigar();
     let mut ref_pos = record.pos();
-    let mut read_pos = 0;
+    let mut read_pos: usize = 0;
+
+    let anchor_pos = variant.pos;
+    let expected_ins_len = variant.alt_allele.len() - 1; // VCF ALT includes anchor
+    let expected_ins_seq = &variant.alt_allele.as_bytes()[1..]; // ALT without anchor
+    let original_anchor_base = variant.ref_allele.as_bytes()[0].to_ascii_uppercase();
+
+    // Windowed scan parameters
+    let window: i64 = 5;
+    let window_start = (anchor_pos - window).max(0);
+    let window_end = anchor_pos + window;
+
+    // State tracked across the CIGAR walk
+    let mut found_ref_coverage = false;
+    let mut best_windowed_match: Option<u64> = None; // distance of best windowed match
 
     for (i, op) in cigar_view.iter().enumerate() {
         match op {
             Cigar::Match(len) | Cigar::Equal(len) | Cigar::Diff(len) => {
                 let len_i64 = *len as i64;
+                let block_end = ref_pos + len_i64;
 
-                // Check if this block contains the anchor
-                if variant.pos >= ref_pos && variant.pos < ref_pos + len_i64 {
-                    // Found anchor block.
-                    // Is anchor the last base?
-                    if variant.pos == ref_pos + len_i64 - 1 {
-                        // Anchor is at end of match. Check next op.
+                // --- Strict fast path: anchor at end of this block ---
+                if anchor_pos >= ref_pos && anchor_pos < block_end {
+                    if anchor_pos == block_end - 1 {
+                        // Anchor is the last base of this match block.
+                        // Check if next op is an insertion with matching length + sequence.
                         if let Some(Cigar::Ins(ins_len)) = cigar_view.get(i + 1) {
-                            // Found insertion!
-                            // Check length and sequence
                             let ins_len_usize = *ins_len as usize;
-                            let expected_ins_len = variant.alt_allele.len() - 1; // VCF ALT includes anchor
-
                             if ins_len_usize == expected_ins_len {
-                                // Check sequence
-                                // Read pos at start of Ins is current read_pos + len of match
                                 let ins_start = read_pos + *len as usize;
-                                let ins_seq = &record.seq().as_bytes()
-                                    [ins_start..ins_start + ins_len_usize];
-
-                                // Expected: ALT without anchor
-                                let expected_seq = &variant.alt_allele.as_bytes()[1..];
-
-                                if ins_seq == expected_seq {
-                                    return (false, true); // ALT
+                                if ins_start + ins_len_usize <= record.seq().len() {
+                                    let ins_seq = &record.seq().as_bytes()
+                                        [ins_start..ins_start + ins_len_usize];
+                                    if ins_seq == expected_ins_seq {
+                                        debug!(
+                                            "check_insertion: strict match at pos {}",
+                                            anchor_pos
+                                        );
+                                        return (false, true); // ALT — strict match
+                                    }
                                 }
                             }
                         }
-                        // If no insertion follows, it's REF
-                        return (true, false);
+                        // Anchor at end but no matching insertion → REF coverage
+                        found_ref_coverage = true;
                     } else {
-                        // Anchor is in middle of match -> REF
-                        return (true, false);
+                        // Anchor in middle of match block → read covers anchor without insertion
+                        found_ref_coverage = true;
                     }
                 }
-                ref_pos += len_i64;
+
+                // --- Windowed scan: check if any Ins after this block is within window ---
+                if let Some(Cigar::Ins(ins_len)) = cigar_view.get(i + 1) {
+                    let ins_ref_pos = block_end; // genomic position where insertion occurs
+                    if ins_ref_pos >= window_start && ins_ref_pos <= window_end
+                        && ins_ref_pos != anchor_pos + 1 // skip strict position (already handled)
+                    {
+                        let ins_len_usize = *ins_len as usize;
+                        // Safeguard 1: sequence identity — length and bases must match
+                        if ins_len_usize == expected_ins_len {
+                            let ins_start = read_pos + *len as usize;
+                            if ins_start + ins_len_usize <= record.seq().len() {
+                                let ins_seq = &record.seq().as_bytes()
+                                    [ins_start..ins_start + ins_len_usize];
+                                if ins_seq == expected_ins_seq {
+                                    // Safeguard 3: verify anchor base at shifted position
+                                    // The base before the insertion (ins_ref_pos - 1) should
+                                    // match the original anchor base
+                                    let shifted_anchor_pos = ins_ref_pos - 1;
+                                    let anchor_ok = match &variant.ref_context {
+                                        Some(ctx) => {
+                                            let ctx_offset = (shifted_anchor_pos
+                                                - variant.ref_context_start)
+                                                as usize;
+                                            if ctx_offset < ctx.len() {
+                                                ctx.as_bytes()[ctx_offset].to_ascii_uppercase()
+                                                    == original_anchor_base
+                                            } else {
+                                                false // offset out of bounds
+                                            }
+                                        }
+                                        None => true, // no ref_context → skip check
+                                    };
+
+                                    if anchor_ok {
+                                        // Safeguard 2: track closest match
+                                        let distance =
+                                            (ins_ref_pos - (anchor_pos + 1)).unsigned_abs();
+                                        if best_windowed_match
+                                            .map_or(true, |prev| distance < prev)
+                                        {
+                                            best_windowed_match = Some(distance);
+                                        }
+                                    } else {
+                                        debug!(
+                                            "check_insertion: S3 reject at shifted pos {} \
+                                             (anchor base mismatch)",
+                                            shifted_anchor_pos
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                ref_pos = block_end;
                 read_pos += *len as usize;
             }
             Cigar::Ins(len) => {
@@ -525,37 +832,125 @@ fn check_insertion(record: &Record, variant: &Variant) -> (bool, bool) {
         }
     }
 
-    (false, false)
+    // Evaluate results after full CIGAR walk
+    if best_windowed_match.is_some() {
+        debug!(
+            "check_insertion: windowed match for variant at pos {}",
+            anchor_pos
+        );
+        return (false, true); // ALT — windowed match
+    }
+    if found_ref_coverage {
+        return (true, false); // REF — read covers anchor without matching insertion
+    }
+    (false, false) // Read does not cover the variant region
 }
 
+/// Check if a read supports a deletion variant.
+///
+/// Uses the same single-walk strategy as check_insertion:
+/// 1. **Strict match (fast path):** Deletion immediately after anchor, length matches.
+/// 2. **Windowed scan (fallback):** Any deletion within ±5bp, validated by:
+///    - S1: Deletion length matches expected
+///    - S2: Closest match wins
+///    - S3: Reference bases at shifted position match expected deleted sequence
+///          (via variant.ref_context)
 fn check_deletion(record: &Record, variant: &Variant) -> (bool, bool) {
-    // Deletion: VCF REF=AT, ALT=A. Deletion of T.
-    // Anchor is A.
-
     let cigar_view = record.cigar();
     let mut ref_pos = record.pos();
+
+    let anchor_pos = variant.pos;
+    let expected_del_len = variant.ref_allele.len() - 1; // REF without anchor
+    // The expected deleted bases (REF without the anchor base)
+    let expected_del_seq = &variant.ref_allele.as_bytes()[1..];
+
+    // Windowed scan parameters
+    let window: i64 = 5;
+    let window_start = (anchor_pos - window).max(0);
+    let window_end = anchor_pos + window;
+
+    let mut found_ref_coverage = false;
+    let mut best_windowed_match: Option<u64> = None;
 
     for (i, op) in cigar_view.iter().enumerate() {
         match op {
             Cigar::Match(len) | Cigar::Equal(len) | Cigar::Diff(len) => {
                 let len_i64 = *len as i64;
+                let block_end = ref_pos + len_i64;
 
-                if variant.pos >= ref_pos && variant.pos < ref_pos + len_i64 {
-                    if variant.pos == ref_pos + len_i64 - 1 {
-                        // Anchor at end of match. Check next op.
+                // --- Strict fast path ---
+                if anchor_pos >= ref_pos && anchor_pos < block_end {
+                    if anchor_pos == block_end - 1 {
+                        // Anchor at end of match. Check if next op is a deletion.
                         if let Some(Cigar::Del(del_len)) = cigar_view.get(i + 1) {
-                            // Found deletion!
-                            let expected_del_len = variant.ref_allele.len() - 1;
                             if *del_len as usize == expected_del_len {
-                                return (false, true); // ALT
+                                debug!(
+                                    "check_deletion: strict match at pos {}",
+                                    anchor_pos
+                                );
+                                return (false, true); // ALT — strict match
                             }
                         }
-                        return (true, false); // REF
+                        found_ref_coverage = true;
                     } else {
-                        return (true, false); // REF
+                        // Anchor in middle of match → REF coverage
+                        found_ref_coverage = true;
                     }
                 }
-                ref_pos += len_i64;
+
+                // --- Windowed scan: check for Del after this block within window ---
+                if let Some(Cigar::Del(del_len)) = cigar_view.get(i + 1) {
+                    let del_ref_pos = block_end; // genomic position where deletion starts
+                    if del_ref_pos >= window_start && del_ref_pos <= window_end
+                        && del_ref_pos != anchor_pos + 1 // skip strict position
+                    {
+                        let del_len_usize = *del_len as usize;
+                        // Safeguard 1: deletion length matches
+                        if del_len_usize == expected_del_len {
+                            // Safeguard 3: verify the deleted reference bases match
+                            let del_ok = match &variant.ref_context {
+                                Some(ctx) => {
+                                    let ctx_bytes = ctx.as_bytes();
+                                    let ctx_offset =
+                                        (del_ref_pos - variant.ref_context_start) as usize;
+                                    if ctx_offset + del_len_usize <= ctx_bytes.len() {
+                                        let ref_at_shift = &ctx_bytes
+                                            [ctx_offset..ctx_offset + del_len_usize];
+                                        // Compare case-insensitively
+                                        ref_at_shift.iter().zip(expected_del_seq.iter()).all(
+                                            |(a, b)| {
+                                                a.to_ascii_uppercase()
+                                                    == b.to_ascii_uppercase()
+                                            },
+                                        )
+                                    } else {
+                                        false // offset out of bounds
+                                    }
+                                }
+                                None => true, // no ref_context → skip check
+                            };
+
+                            if del_ok {
+                                // Safeguard 2: track closest match
+                                let distance =
+                                    (del_ref_pos - (anchor_pos + 1)).unsigned_abs();
+                                if best_windowed_match
+                                    .map_or(true, |prev| distance < prev)
+                                {
+                                    best_windowed_match = Some(distance);
+                                }
+                            } else {
+                                debug!(
+                                    "check_deletion: S3 reject at shifted pos {} \
+                                     (deleted bases mismatch)",
+                                    del_ref_pos
+                                );
+                            }
+                        }
+                    }
+                }
+
+                ref_pos = block_end;
             }
             Cigar::Del(len) | Cigar::RefSkip(len) => {
                 ref_pos += *len as i64;
@@ -564,7 +959,18 @@ fn check_deletion(record: &Record, variant: &Variant) -> (bool, bool) {
         }
     }
 
-    (false, false)
+    // Evaluate results after full CIGAR walk
+    if best_windowed_match.is_some() {
+        debug!(
+            "check_deletion: windowed match for variant at pos {}",
+            anchor_pos
+        );
+        return (false, true); // ALT — windowed match
+    }
+    if found_ref_coverage {
+        return (true, false); // REF
+    }
+    (false, false) // Read does not cover the variant region
 }
 
 fn check_mnp(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool) {
@@ -622,7 +1028,6 @@ fn check_mnp(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool) 
 
     // If contiguous, end - start should be len - 1
     if end_read_pos - start_read_pos != len - 1 {
-        // println!("MNP Debug: Indel detected");
         return (false, false); // Indel detected within MNP
     }
 

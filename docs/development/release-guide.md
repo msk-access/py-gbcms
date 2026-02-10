@@ -22,6 +22,9 @@ All these files must be updated with the new version:
 | `src/gbcms/__init__.py` | Line 11 | `__version__ = "X.Y.Z"` |
 | `rust/Cargo.toml` | Line 3 | `version = "X.Y.Z"` |
 | `nextflow/modules/local/gbcms/run/main.nf` | Line 7 | `container "ghcr.io/msk-access/py-gbcms:X.Y.Z"` |
+| `docs/getting-started/installation.md` | Multiple | Docker/Singularity pull/run/exec commands (8×) |
+| `docs/getting-started/quickstart.md` | Docker section | `ghcr.io/msk-access/py-gbcms:X.Y.Z` (1×) |
+| `docs/development/developer-guide.md` | Git-flow diagram | Release branch labels (3×) |
 | `CHANGELOG.md` | Top section | `## [X.Y.Z] - YYYY-MM-DD` |
 
 ---
@@ -125,7 +128,7 @@ The tag triggers `.github/workflows/release.yml`:
 1. **Build wheels** (Linux x86_64, aarch64; macOS x86_64, arm64; Windows)
 2. **Publish to PyPI** (via maturin)
 3. **Build Docker image** → push to `ghcr.io/msk-access/py-gbcms:X.Y.Z`
-4. **Deploy docs** → GitHub Pages
+4. **Deploy docs** → GitHub Pages (versioned via `mike` as `X.Y.Z` / `stable`)
 
 ### 9. Merge main back to develop
 
@@ -200,8 +203,7 @@ Interactive helper for git-flow operations:
 |:---------|:--------|:--------|
 | `test.yml` | Push to develop/main, PR | Run tests |
 | `release.yml` | Tag push `X.Y.Z` | Build wheels, publish PyPI, Docker |
-| `deploy-docs.yml` | Push to main (docs/) | Deploy docs to gh-pages |
-| `deploy-docs-staging.yml` | Push to develop (docs/) | Build docs (staging) |
+| `deploy-docs.yml` | Push to main or develop (docs/) | Deploy versioned docs via `mike` (`stable` from main, `dev` from develop) |
 
 ---
 

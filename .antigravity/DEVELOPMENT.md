@@ -3,8 +3,8 @@
 ## Quick Start
 
 ```bash
-# Install in editable mode
-pip install -e .
+# Install in editable mode (builds Rust extension)
+maturin develop --release
 
 # Run tests
 pytest tests/
@@ -26,11 +26,18 @@ py-gbcms/
 │   └── utils/          # Logging utilities
 ├── rust/               # Rust extension (top-level)
 │   ├── src/
-│   │   ├── counting.rs # BAM processing
+│   │   ├── counting.rs # BAM processing (~1070 LOC)
 │   │   ├── types.rs    # PyO3 bindings
-│   │   └── stats.rs    # Fisher's test
+│   │   ├── stats.rs    # Fisher's test
+│   │   └── lib.rs      # Module exports
 │   └── Cargo.toml
-├── tests/              # Test suite
+├── tests/              # Test suite (47 tests)
+│   ├── test_accuracy.py
+│   ├── test_shifted_indels.py   # Windowed indel detection
+│   ├── test_fuzzy_complex.py    # Masked complex matching
+│   ├── test_filters.py
+│   ├── test_strand_counts.py
+│   └── ...
 └── docs/               # Documentation
 ```
 
