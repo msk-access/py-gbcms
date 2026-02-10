@@ -123,7 +123,7 @@ src/gbcms/
 
 rust/src/
 ├── lib.rs           # PyO3 module (_rs)
-├── counting.rs      # BAM processing
+├── counting.rs      # BAM processing, FragmentEvidence, QNAME hashing
 ├── stats.rs         # Fisher's exact test
 └── types.rs         # Variant, BaseCounts
 ```
@@ -142,7 +142,7 @@ flowchart TB
     
     OutputConfig --> D1[output_dir, format, suffix]
     ReadFilters --> D2[exclude_secondary, exclude_duplicates]
-    QualityThresholds --> D3[min_mapq, min_baseq]
+    QualityThresholds --> D3["min_mapq, min_baseq, fragment_qual_threshold"]
 ```
 
 See [models/core.py](file:///src/gbcms/models/core.py) for definitions.
@@ -195,7 +195,7 @@ sequenceDiagram
 | Counting algorithm | Region-based chunking, position matching | Per-variant CIGAR traversal |
 | Complex variants | Optional via `--generic_counting` | Always uses haplotype reconstruction |
 | MNP handling | Not explicit | Dedicated `check_mnp` with contiguity check |
-| Fragment counting | Optional (`--fragment_count`) | Always computed |
+| Fragment counting | Optional (`--fragment_count`), majority-rule | Always computed, quality-weighted consensus with discard |
 | Positive strand counts | Optional (`--positive_count`) | Always computed |
 | Strand bias | Not computed | Fisher's exact test (read + fragment level) |
 | Fractional depth | `--fragment_fractional_weight` | Not implemented |

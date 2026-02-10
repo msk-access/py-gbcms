@@ -565,28 +565,56 @@ Each read is counted independently.
 
 ### Fragment Counting Algorithm
 
-Fragment counting collapses read pairs into a single observation per fragment.
+Fragment counting collapses read pairs into a single observation per fragment using **quality-weighted consensus**. Each fragment is tracked internally as a `FragmentEvidence` struct that records the best base quality seen for REF and ALT across both reads.
 
 ```mermaid
 flowchart TD
     Start([For each read passing filters]):::start
-    Start --> Track[Track by QNAME]
-    Track --> Done[After all reads processed]
+    Start --> Hash["Hash QNAME → u64 key"]
+    Hash --> Observe["Record allele + base quality into FragmentEvidence"]
+    Observe --> Done[After all reads processed]
     Done --> ForEach[For each unique fragment]
-    ForEach --> HasBoth{Both reads present?}
-    HasBoth -->|Yes| Orient1[Orientation = Read 1 direction]
-    HasBoth -->|No| Orient2[Orientation = single read direction]
-    Orient1 --> Allele
-    Orient2 --> Allele
-    Allele[Update RDF / ADF / DPF counts] --> Strand[Update strand-specific counts]
+    ForEach --> HasBoth{Both REF and ALT evidence?}
+    HasBoth -->|No| Direct[Assign to whichever allele was seen]
+    HasBoth -->|Yes| QualCheck{"Quality difference > threshold?"}
+    QualCheck -->|"REF qual >> ALT qual"| Ref([✅ Count as REF]):::ref
+    QualCheck -->|"ALT qual >> REF qual"| Alt([🔴 Count as ALT]):::alt
+    QualCheck -->|"Within threshold"| Discard([⚪ Discard — ambiguous]):::discard
+    Direct --> Count
+    Ref --> Count
+    Alt --> Count
+    Discard --> DPF["Still counted in DPF"]:::info
+    Count[Update RDF / ADF / DPF + strand counts]
 
     classDef start fill:#3498db,color:#fff,stroke:#2471a3,stroke-width:2px;
+    classDef ref fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
+    classDef alt fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
+    classDef discard fill:#95a5a6,color:#fff,stroke:#7f8c8d,stroke-width:2px;
+    classDef info fill:#3498db15,stroke:#3498db;
 ```
+
+#### Quality-Weighted Consensus
+
+When R1 and R2 of a fragment **disagree** (one supports REF, the other ALT), the engine resolves the conflict using base quality scores:
+
+| Scenario | Condition | Result |
+|:---------|:----------|:-------|
+| **REF wins** | `best_ref_qual > best_alt_qual + threshold` | Count as REF |
+| **ALT wins** | `best_alt_qual > best_ref_qual + threshold` | Count as ALT |
+| **Ambiguous** | Quality difference ≤ threshold | **Discard** (neither REF nor ALT) |
+
+The threshold is configurable via `--fragment-qual-threshold` (default: **10**).
+
+!!! important "Why discard instead of defaulting to REF?"
+    Assigning ambiguous fragments to REF would systematically **deflate VAF** by inflating the reference count. In cfDNA sequencing where true variants can be at 0.1–1% VAF, this bias could mask real mutations. Discarding preserves an unbiased VAF estimate at the cost of slightly reduced power (fewer counted fragments).
+
+!!! tip "Quality metric: DPF − (RDF + ADF)"
+    Discarded fragments are still counted in **DPF** (total fragment depth) but *not* in RDF or ADF. The gap `DPF − (RDF + ADF)` reveals how many ambiguous fragments exist at a locus — a useful quality signal. A high gap suggests a noisy or error-prone site.
 
 | Metric | Description |
 |:-------|:------------|
-| **DPF** | Fragment depth |
-| **RDF** / **ADF** | Reference / Alternate fragment counts |
+| **DPF** | Fragment depth (all fragments, including discarded) |
+| **RDF** / **ADF** | Reference / Alternate fragment counts (resolved only) |
 | **RDF_fwd** / **RDF_rev** | Strand-specific reference fragment counts |
 | **ADF_fwd** / **ADF_rev** | Strand-specific alternate fragment counts |
 

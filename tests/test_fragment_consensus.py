@@ -30,7 +30,7 @@ def fragment_consensus_bam(tmp_path):
         Fragment 2 (frag_agree_alt): R1=T (q30), R2=T (q30) → ALT
         Fragment 3 (frag_disagree_alt_wins): R1=A (q10), R2=T (q35) → ALT (q35 >> q10)
         Fragment 4 (frag_disagree_ref_wins): R1=A (q35), R2=T (q10) → REF (q35 >> q10)
-        Fragment 5 (frag_disagree_tie): R1=A (q30), R2=T (q30) → REF (conservative)
+        Fragment 5 (frag_disagree_tie): R1=A (q30), R2=T (q30) → DISCARDED (ambiguous)
         Fragment 6 (frag_single_read): R1=T (q30), no R2 → ALT
     """
     bam_path = tmp_path / "fragment_consensus.bam"
@@ -172,17 +172,20 @@ def fragment_consensus_bam(tmp_path):
 
 def test_fragment_consensus_no_double_counting(fragment_consensus_bam):
     """
-    Verify that dpf == rdf + adf (no double-counting).
+    Verify correct fragment consensus with discard behavior for ambiguous fragments.
 
     Expected fragment-level results:
         frag_agree_ref:          REF (both reads agree)
         frag_agree_alt:          ALT (both reads agree)
         frag_disagree_alt_wins:  ALT (q35 > q10 + 10 threshold)
         frag_disagree_ref_wins:  REF (q35 > q10 + 10 threshold)
-        frag_disagree_tie:       REF (conservative: q30 vs q30, within threshold)
+        frag_disagree_tie:       DISCARDED (q30 vs q30, within threshold)
         frag_single_read:        ALT (single read, no conflict)
 
-    Expected: rdf = 3 (agree_ref + ref_wins + tie), adf = 3 (agree_alt + alt_wins + single)
+    Expected: dpf = 6 (all fragments seen),
+              rdf = 2 (agree_ref + ref_wins),
+              adf = 3 (agree_alt + alt_wins + single),
+              discarded = 1 (tie)
     """
     from gbcms._rs import Variant
 
@@ -210,16 +213,16 @@ def test_fragment_consensus_no_double_counting(fragment_consensus_bam):
 
     counts = results[0]
 
-    # Core assertion: dpf must equal rdf + adf (no double-counting)
-    assert counts.dpf == counts.rdf + counts.adf, (
-        f"Fragment double-counting detected! "
-        f"dpf={counts.dpf} != rdf({counts.rdf}) + adf({counts.adf})"
-    )
-
-    # Expected fragment counts
+    # dpf counts ALL fragments (including discarded ambiguous ones)
     assert counts.dpf == 6, f"Expected 6 fragments, got {counts.dpf}"
-    assert counts.rdf == 3, f"Expected rdf=3 (agree_ref + ref_wins + tie), got {counts.rdf}"
+
+    # rdf and adf reflect only resolved fragments
+    assert counts.rdf == 2, f"Expected rdf=2 (agree_ref + ref_wins), got {counts.rdf}"
     assert counts.adf == 3, f"Expected adf=3 (agree_alt + alt_wins + single), got {counts.adf}"
+
+    # The gap dpf - (rdf + adf) = 1 discarded fragment (the tie)
+    discarded = counts.dpf - (counts.rdf + counts.adf)
+    assert discarded == 1, f"Expected 1 discarded fragment (tie), got {discarded}"
 
     # Read-level counts should reflect ALL reads (11 total)
     # R1+R2 for fragments 1-5 = 10 reads, plus 1 single read = 11

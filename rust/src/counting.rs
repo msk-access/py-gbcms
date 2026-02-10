@@ -65,14 +65,16 @@ impl FragmentEvidence {
             (true, true) => {
                 // Conflict: both alleles seen across reads in this fragment.
                 // Use quality-weighted consensus: higher quality wins.
-                // If quality difference is within threshold, call REF (conservative).
+                // If quality difference is within threshold, discard the fragment
+                // to avoid biasing VAF in either direction — critical for low-VAF
+                // cfDNA detection where every fragment matters.
                 if self.best_ref_qual > self.best_alt_qual + qual_diff_threshold {
                     (true, false)  // REF wins by quality margin
                 } else if self.best_alt_qual > self.best_ref_qual + qual_diff_threshold {
                     (false, true)  // ALT wins by quality margin
                 } else {
-                    // Within threshold — conservative: call REF
-                    (true, false)
+                    // Within threshold — ambiguous, discard to preserve VAF accuracy
+                    (false, false)
                 }
             }
             (false, false) => (false, false),  // Should not happen (filtered earlier)
@@ -98,6 +100,7 @@ fn hash_qname(qname: &[u8]) -> u64 {
 
 /// Count bases for a list of variants in a BAM file.
 #[pyfunction]
+#[pyo3(signature = (bam_path, variants, min_mapq, min_baseq, filter_duplicates, filter_secondary, filter_supplementary, filter_qc_failed, filter_improper_pair, filter_indel, threads, fragment_qual_threshold=10))]
 pub fn count_bam(
     py: Python<'_>,
     bam_path: String,
@@ -111,6 +114,7 @@ pub fn count_bam(
     filter_improper_pair: bool,
     filter_indel: bool,
     threads: usize,
+    fragment_qual_threshold: u8,
 ) -> PyResult<Vec<BaseCounts>> {
     // We cannot share a single IndexedReader across threads because it's not Sync.
     // Instead, we use rayon's map_init to initialize a reader for each thread.
@@ -154,6 +158,7 @@ pub fn count_bam(
                             filter_qc_failed,
                             filter_improper_pair,
                             filter_indel,
+                            fragment_qual_threshold,
                         )
                     },
                 )
@@ -179,6 +184,7 @@ fn count_single_variant(
     filter_qc_failed: bool,
     filter_improper_pair: bool,
     filter_indel: bool,
+    fragment_qual_threshold: u8,
 ) -> Result<BaseCounts> {
     let tid = bam.header().tid(variant.chrom.as_bytes()).ok_or_else(|| {
         anyhow::anyhow!("Chromosome not found in BAM: {}", variant.chrom)
@@ -200,7 +206,8 @@ fn count_single_variant(
     // Quality threshold for fragment consensus tiebreaking.
     // When R1 and R2 disagree, the allele with higher quality wins
     // only if the quality difference exceeds this threshold.
-    let qual_diff_threshold: u8 = 10;
+    // Configurable via --fragment-qual-threshold (default: 10).
+    let qual_diff_threshold: u8 = fragment_qual_threshold;
 
     for result in bam.records() {
         let record = result.context("Error reading BAM record")?;
@@ -283,16 +290,16 @@ fn count_single_variant(
     for (_qname_hash, evidence) in &fragments {
         let (frag_ref, frag_alt) = evidence.resolve(qual_diff_threshold);
 
-        if !frag_ref && !frag_alt {
-            continue; // Should not happen, but guard defensively
-        }
-
         // Get fragment orientation (prefer read 1)
         let orientation = match evidence.orientation() {
             Some(o) => o,
             None => continue, // No orientation data (should not happen)
         };
 
+        // Count every fragment in dpf regardless of consensus outcome.
+        // Discarded fragments (ambiguous R1-vs-R2 within quality threshold)
+        // are still real molecules — tracking them in dpf makes the gap
+        // dpf - (rdf + adf) a useful quality metric for the locus.
         counts.dpf += 1;
 
         if frag_ref {
