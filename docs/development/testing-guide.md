@@ -22,6 +22,8 @@ pytest tests/test_accuracy.py -v
 | Category | Files | Purpose |
 |:---------|:------|:--------|
 | Accuracy | `test_accuracy.py` | SNP, indel, complex variant counting |
+| Shifted Indels | `test_shifted_indels.py` | Windowed indel detection (±5bp), 3-layer safeguards |
+| Complex Masking | `test_fuzzy_complex.py` | Quality-aware masked comparison, ambiguity detection |
 | CLI | `test_cli_sample_id.py` | Command-line parsing |
 | Filters | `test_filters.py` | Read filtering logic |
 | MAF | `test_maf_*.py` | MAF column preservation |
@@ -34,12 +36,14 @@ pytest tests/test_accuracy.py -v
 
 ```
 tests/
-├── test_accuracy.py        # Variant type accuracy
-├── test_cli_sample_id.py   # CLI argument parsing
-├── test_filters.py         # Read filtering
+├── test_accuracy.py           # Variant type accuracy
+├── test_cli_sample_id.py      # CLI argument parsing
+├── test_filters.py            # Read filtering
+├── test_fuzzy_complex.py      # Quality-aware masked complex matching
 ├── test_maf_preservation.py
 ├── test_maf_reader.py
 ├── test_pipeline_v2.py
+├── test_shifted_indels.py     # Windowed indel detection (±5bp)
 └── test_strand_counts.py
 ```
 
@@ -119,6 +123,8 @@ awk -F'\t' 'NR==2 {print "REF="$41, "ALT="$42}' output/*.maf
 | Deletion | `test_deletion_accuracy` | ✅ |
 | Complex | `test_complex_accuracy` | ✅ |
 | MNP | `test_mnp_accuracy` | ✅ |
+| Shifted Indels | `test_shifted_indels.py` (15 cases) | ✅ |
+| Complex Masking | `test_fuzzy_complex.py` (14 cases) | ✅ |
 
 ### Real-World Validation
 
