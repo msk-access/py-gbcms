@@ -1399,6 +1399,7 @@ Use mouse to pan and zoom
 </tbody>
 </table>
 <h4 id="algorithm-flow_1">Algorithm Flow<a class="headerlink" href="#algorithm-flow_1" title="Permanent link">¶</a></h4>
+<p>The insertion check uses a <strong>single CIGAR walk</strong> with two strategies: strict match (fast path) and windowed scan (±5bp fallback).</p>
 <div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
 <nav class="panzoom-nav">
 <button class="panzoom-info panzoom-button">
@@ -1420,18 +1421,34 @@ Use mouse to pan and zoom
 </button>
 </nav>
 <pre class="mermaid"><code>flowchart TD
-    Start([🧬 Insertion Check]):::start --&gt; Walk[Walk CIGAR to anchor pos]
-    Walk --&gt; Found{Anchor found in match block?}
-    Found --&gt;|No| Neither1([Neither]):::neither
-    Found --&gt;|Yes| AtEnd{Anchor at end of match block?}
-    AtEnd --&gt;|No| Ref1([✅ REF]):::ref
-    AtEnd --&gt;|Yes| NextOp{Next CIGAR op is Ins?}
-    NextOp --&gt;|No| Ref2([✅ REF]):::ref
-    NextOp --&gt;|Yes| LenCheck{Insertion length == expected?}
-    LenCheck --&gt;|No| Neither2([Neither]):::neither
-    LenCheck --&gt;|Yes| SeqCheck{Inserted seq matches ALT?}
-    SeqCheck --&gt;|No| Neither3([Neither]):::neither
-    SeqCheck --&gt;|Yes| Alt([🔴 ALT]):::alt
+    Start([🧬 Insertion Check]):::start --&gt; Walk[Walk CIGAR left → right]
+    Walk --&gt; Found{Match block contains anchor?}
+    Found --&gt;|No| WindowCheck
+    Found --&gt;|Yes| AtEnd{Anchor at end of block?}
+    AtEnd --&gt;|No| RefCov[Mark ref coverage]
+    AtEnd --&gt;|Yes| NextOp{Next op is Ins?}
+    NextOp --&gt;|No| RefCov
+    NextOp --&gt;|Yes| Strict{Length + seq match?}
+    Strict --&gt;|Yes| StrictAlt([🔴 ALT - strict]):::alt
+    Strict --&gt;|No| RefCov
+    RefCov --&gt; WindowCheck
+
+    WindowCheck{Ins within ±5bp window?}
+    WindowCheck --&gt;|No| Continue[Continue CIGAR walk]
+    WindowCheck --&gt;|Yes| S1{S1: Seq matches?}
+    S1 --&gt;|No| Continue
+    S1 --&gt;|Yes| S3{S3: Anchor base matches ref?}
+    S3 --&gt;|No| Continue
+    S3 --&gt;|Yes| S2[S2: Track closest match]
+    S2 --&gt; Continue
+
+    Continue --&gt; MoreOps{More CIGAR ops?}
+    MoreOps --&gt;|Yes| Walk
+    MoreOps --&gt;|No| Eval{Windowed candidate found?}
+    Eval --&gt;|Yes| WinAlt([🔴 ALT - windowed]):::alt
+    Eval --&gt;|No| HasRef{Read covered anchor?}
+    HasRef --&gt;|Yes| Ref([✅ REF]):::ref
+    HasRef --&gt;|No| Neither([Neither]):::neither
 
     classDef start fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
     classDef ref fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
@@ -1450,20 +1467,25 @@ Use mouse to pan and zoom
 <a href="#__codelineno-1-5" id="__codelineno-1-5" name="__codelineno-1-5"></a>                               ▲
 <a href="#__codelineno-1-6" id="__codelineno-1-6" name="__codelineno-1-6"></a>                          anchor pos
 <a href="#__codelineno-1-7" id="__codelineno-1-7" name="__codelineno-1-7"></a>
-<a href="#__codelineno-1-8" id="__codelineno-1-8" name="__codelineno-1-8"></a>Read 1 (ALT):  CIGAR = 5M 2I 5M
+<a href="#__codelineno-1-8" id="__codelineno-1-8" name="__codelineno-1-8"></a>Read 1 (ALT, strict):  CIGAR = 5M 2I 5M
 <a href="#__codelineno-1-9" id="__codelineno-1-9" name="__codelineno-1-9"></a>               5'─ ...C  G  A [T  G] C  G  T  A... ─3'
 <a href="#__codelineno-1-10" id="__codelineno-1-10" name="__codelineno-1-10"></a>                               └──┘
-<a href="#__codelineno-1-11" id="__codelineno-1-11" name="__codelineno-1-11"></a>                          inserted bases match ALT → ALT ✅
+<a href="#__codelineno-1-11" id="__codelineno-1-11" name="__codelineno-1-11"></a>                          inserted bases at anchor → ALT ✅ (strict)
 <a href="#__codelineno-1-12" id="__codelineno-1-12" name="__codelineno-1-12"></a>
-<a href="#__codelineno-1-13" id="__codelineno-1-13" name="__codelineno-1-13"></a>Read 2 (REF):  CIGAR = 10M
-<a href="#__codelineno-1-14" id="__codelineno-1-14" name="__codelineno-1-14"></a>               5'─ ...C  G  A  C  G  T  A... ─3'
-<a href="#__codelineno-1-15" id="__codelineno-1-15" name="__codelineno-1-15"></a>                               ↑
-<a href="#__codelineno-1-16" id="__codelineno-1-16" name="__codelineno-1-16"></a>                          no insertion after anchor → REF ✅
+<a href="#__codelineno-1-13" id="__codelineno-1-13" name="__codelineno-1-13"></a>Read 2 (ALT, windowed): CIGAR = 7M 2I 3M
+<a href="#__codelineno-1-14" id="__codelineno-1-14" name="__codelineno-1-14"></a>               5'─ ...C  G  A  C  G [T  G] T  A... ─3'
+<a href="#__codelineno-1-15" id="__codelineno-1-15" name="__codelineno-1-15"></a>                                          └──┘
+<a href="#__codelineno-1-16" id="__codelineno-1-16" name="__codelineno-1-16"></a>                    insertion shifted +2bp, same seq → ALT ✅ (windowed)
 <a href="#__codelineno-1-17" id="__codelineno-1-17" name="__codelineno-1-17"></a>
-<a href="#__codelineno-1-18" id="__codelineno-1-18" name="__codelineno-1-18"></a>Read 3 (other): CIGAR = 5M 1I 5M
-<a href="#__codelineno-1-19" id="__codelineno-1-19" name="__codelineno-1-19"></a>               5'─ ...C  G  A [C] C  G  T  A... ─3'
+<a href="#__codelineno-1-18" id="__codelineno-1-18" name="__codelineno-1-18"></a>Read 3 (REF):  CIGAR = 10M
+<a href="#__codelineno-1-19" id="__codelineno-1-19" name="__codelineno-1-19"></a>               5'─ ...C  G  A  C  G  T  A... ─3'
 <a href="#__codelineno-1-20" id="__codelineno-1-20" name="__codelineno-1-20"></a>                               ↑
-<a href="#__codelineno-1-21" id="__codelineno-1-21" name="__codelineno-1-21"></a>                          1bp insertion ≠ expected 2bp → Neither
+<a href="#__codelineno-1-21" id="__codelineno-1-21" name="__codelineno-1-21"></a>                          no insertion after anchor → REF ✅
+<a href="#__codelineno-1-22" id="__codelineno-1-22" name="__codelineno-1-22"></a>
+<a href="#__codelineno-1-23" id="__codelineno-1-23" name="__codelineno-1-23"></a>Read 4 (wrong seq): CIGAR = 5M 2I 5M
+<a href="#__codelineno-1-24" id="__codelineno-1-24" name="__codelineno-1-24"></a>               5'─ ...C  G  A [C  C] C  G  T  A... ─3'
+<a href="#__codelineno-1-25" id="__codelineno-1-25" name="__codelineno-1-25"></a>                               └──┘
+<a href="#__codelineno-1-26" id="__codelineno-1-26" name="__codelineno-1-26"></a>                          insertion bases ≠ expected TG → S1 reject
 </code></pre></div>
 <div class="admonition tip">
 <p class="admonition-title">Why anchor-based?</p>
@@ -1555,6 +1577,7 @@ Use mouse to pan and zoom
 </tbody>
 </table>
 <h4 id="algorithm-flow_2">Algorithm Flow<a class="headerlink" href="#algorithm-flow_2" title="Permanent link">¶</a></h4>
+<p>Same single-walk strategy as insertion, with Safeguard 3 checking deleted reference bases.</p>
 <div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
 <nav class="panzoom-nav">
 <button class="panzoom-info panzoom-button">
@@ -1576,16 +1599,34 @@ Use mouse to pan and zoom
 </button>
 </nav>
 <pre class="mermaid"><code>flowchart TD
-    Start([🧬 Deletion Check]):::start --&gt; Walk[Walk CIGAR to anchor pos]
-    Walk --&gt; Found{Anchor found in match block?}
-    Found --&gt;|No| Neither1([Neither]):::neither
-    Found --&gt;|Yes| AtEnd{Anchor at end of match block?}
-    AtEnd --&gt;|No| Ref1([✅ REF]):::ref
-    AtEnd --&gt;|Yes| NextOp{Next CIGAR op is Del?}
-    NextOp --&gt;|No| Ref2([✅ REF]):::ref
-    NextOp --&gt;|Yes| LenCheck{Deletion length == expected?}
-    LenCheck --&gt;|No| Neither2([Neither]):::neither
-    LenCheck --&gt;|Yes| Alt([🔴 ALT]):::alt
+    Start([🧬 Deletion Check]):::start --&gt; Walk[Walk CIGAR left → right]
+    Walk --&gt; Found{Match block contains anchor?}
+    Found --&gt;|No| WindowCheck
+    Found --&gt;|Yes| AtEnd{Anchor at end of block?}
+    AtEnd --&gt;|No| RefCov[Mark ref coverage]
+    AtEnd --&gt;|Yes| NextOp{Next op is Del?}
+    NextOp --&gt;|No| RefCov
+    NextOp --&gt;|Yes| Strict{Length matches?}
+    Strict --&gt;|Yes| StrictAlt([🔴 ALT - strict]):::alt
+    Strict --&gt;|No| RefCov
+    RefCov --&gt; WindowCheck
+
+    WindowCheck{Del within ±5bp window?}
+    WindowCheck --&gt;|No| Continue[Continue CIGAR walk]
+    WindowCheck --&gt;|Yes| S1{S1: Del length matches?}
+    S1 --&gt;|No| Continue
+    S1 --&gt;|Yes| S3{S3: Ref bases at shift match?}
+    S3 --&gt;|No| Continue
+    S3 --&gt;|Yes| S2[S2: Track closest match]
+    S2 --&gt; Continue
+
+    Continue --&gt; MoreOps{More CIGAR ops?}
+    MoreOps --&gt;|Yes| Walk
+    MoreOps --&gt;|No| Eval{Windowed candidate found?}
+    Eval --&gt;|Yes| WinAlt([🔴 ALT - windowed]):::alt
+    Eval --&gt;|No| HasRef{Read covered anchor?}
+    HasRef --&gt;|Yes| Ref([✅ REF]):::ref
+    HasRef --&gt;|No| Neither([Neither]):::neither
 
     classDef start fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
     classDef ref fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
@@ -1604,20 +1645,26 @@ Use mouse to pan and zoom
 <a href="#__codelineno-2-5" id="__codelineno-2-5" name="__codelineno-2-5"></a>                               ▲
 <a href="#__codelineno-2-6" id="__codelineno-2-6" name="__codelineno-2-6"></a>                          anchor pos
 <a href="#__codelineno-2-7" id="__codelineno-2-7" name="__codelineno-2-7"></a>
-<a href="#__codelineno-2-8" id="__codelineno-2-8" name="__codelineno-2-8"></a>Read 1 (ALT):  CIGAR = 5M 2D 5M
+<a href="#__codelineno-2-8" id="__codelineno-2-8" name="__codelineno-2-8"></a>Read 1 (ALT, strict):  CIGAR = 5M 2D 5M
 <a href="#__codelineno-2-9" id="__codelineno-2-9" name="__codelineno-2-9"></a>               5'─ ...T  G  A  ──  ──  T  A  C... ─3'
 <a href="#__codelineno-2-10" id="__codelineno-2-10" name="__codelineno-2-10"></a>                               └─────┘
-<a href="#__codelineno-2-11" id="__codelineno-2-11" name="__codelineno-2-11"></a>                          2bp deletion matches len(REF)-1 → ALT ✅
+<a href="#__codelineno-2-11" id="__codelineno-2-11" name="__codelineno-2-11"></a>                          2bp deletion at anchor → ALT ✅ (strict)
 <a href="#__codelineno-2-12" id="__codelineno-2-12" name="__codelineno-2-12"></a>
-<a href="#__codelineno-2-13" id="__codelineno-2-13" name="__codelineno-2-13"></a>Read 2 (REF):  CIGAR = 12M
-<a href="#__codelineno-2-14" id="__codelineno-2-14" name="__codelineno-2-14"></a>               5'─ ...T  G  A  C  G  T  A  C... ─3'
-<a href="#__codelineno-2-15" id="__codelineno-2-15" name="__codelineno-2-15"></a>                               ↑
-<a href="#__codelineno-2-16" id="__codelineno-2-16" name="__codelineno-2-16"></a>                          no deletion after anchor → REF ✅
-<a href="#__codelineno-2-17" id="__codelineno-2-17" name="__codelineno-2-17"></a>
-<a href="#__codelineno-2-18" id="__codelineno-2-18" name="__codelineno-2-18"></a>Read 3 (other): CIGAR = 5M 3D 5M
-<a href="#__codelineno-2-19" id="__codelineno-2-19" name="__codelineno-2-19"></a>               5'─ ...T  G  A  ──  ──  ──  A  C... ─3'
-<a href="#__codelineno-2-20" id="__codelineno-2-20" name="__codelineno-2-20"></a>                               └────────┘
-<a href="#__codelineno-2-21" id="__codelineno-2-21" name="__codelineno-2-21"></a>                          3bp deletion ≠ expected 2bp → Neither
+<a href="#__codelineno-2-13" id="__codelineno-2-13" name="__codelineno-2-13"></a>Read 2 (ALT, windowed): CIGAR = 7M 2D 3M
+<a href="#__codelineno-2-14" id="__codelineno-2-14" name="__codelineno-2-14"></a>               5'─ ...T  G  A  C  G  T  ──  ──  A  C... ─3'
+<a href="#__codelineno-2-15" id="__codelineno-2-15" name="__codelineno-2-15"></a>                                              └─────┘
+<a href="#__codelineno-2-16" id="__codelineno-2-16" name="__codelineno-2-16"></a>                  deletion shifted +2bp, same length, ref matches → ALT ✅ (windowed)
+<a href="#__codelineno-2-17" id="__codelineno-2-17" name="__codelineno-2-17"></a>                  (S3 verifies ref bases at shifted pos match deleted 'CG')
+<a href="#__codelineno-2-18" id="__codelineno-2-18" name="__codelineno-2-18"></a>
+<a href="#__codelineno-2-19" id="__codelineno-2-19" name="__codelineno-2-19"></a>Read 3 (REF):  CIGAR = 12M
+<a href="#__codelineno-2-20" id="__codelineno-2-20" name="__codelineno-2-20"></a>               5'─ ...T  G  A  C  G  T  A  C... ─3'
+<a href="#__codelineno-2-21" id="__codelineno-2-21" name="__codelineno-2-21"></a>                               ↑
+<a href="#__codelineno-2-22" id="__codelineno-2-22" name="__codelineno-2-22"></a>                          no deletion after anchor → REF ✅
+<a href="#__codelineno-2-23" id="__codelineno-2-23" name="__codelineno-2-23"></a>
+<a href="#__codelineno-2-24" id="__codelineno-2-24" name="__codelineno-2-24"></a>Read 4 (wrong length): CIGAR = 5M 3D 5M
+<a href="#__codelineno-2-25" id="__codelineno-2-25" name="__codelineno-2-25"></a>               5'─ ...T  G  A  ──  ──  ──  A  C... ─3'
+<a href="#__codelineno-2-26" id="__codelineno-2-26" name="__codelineno-2-26"></a>                               └────────┘
+<a href="#__codelineno-2-27" id="__codelineno-2-27" name="__codelineno-2-27"></a>                          3bp deletion ≠ expected 2bp → S1 reject
 </code></pre></div>
 <hr>
 <h3 id="mnp-multi-nucleotide-polymorphism">MNP (Multi-Nucleotide Polymorphism)<a class="headerlink" href="#mnp-multi-nucleotide-polymorphism" title="Permanent link">¶</a></h3>
@@ -2184,7 +2231,7 @@ Use mouse to pan and zoom
 <span class="md-icon" title="Last update">
 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
 </span>
-<span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 10, 2026 16:28:07 UTC"><span class="timeago" datetime="2026-02-10T16:28:07+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 10, 2026 16:28:07 UTC">2026-02-10</span>
+<span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 10, 2026 16:51:01 UTC"><span class="timeago" datetime="2026-02-10T16:51:01+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 10, 2026 16:51:01 UTC">2026-02-10</span>
 </span>
 <span class="md-source-file__fact">
 <span class="md-icon" title="Created">
