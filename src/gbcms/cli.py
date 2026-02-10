@@ -70,6 +70,15 @@ def run(
     # Quality thresholds
     min_mapq: int = typer.Option(20, "--min-mapq", help="Minimum mapping quality"),
     min_baseq: int = typer.Option(0, "--min-baseq", help="Minimum base quality"),
+    fragment_qual_threshold: int = typer.Option(
+        10,
+        "--fragment-qual-threshold",
+        help=(
+            "Quality difference threshold for fragment consensus. "
+            "When R1 and R2 disagree, the higher-quality allele wins only if "
+            "the difference exceeds this threshold; otherwise the fragment is discarded."
+        ),
+    ),
     # Read filters
     filter_duplicates: bool = typer.Option(True, help="Filter duplicate reads"),
     filter_secondary: bool = typer.Option(False, help="Filter secondary alignments"),
@@ -109,6 +118,7 @@ def run(
         quality_config = QualityThresholds(
             min_mapping_quality=min_mapq,
             min_base_quality=min_baseq,
+            fragment_qual_threshold=fragment_qual_threshold,
         )
 
         filter_config = ReadFilters(

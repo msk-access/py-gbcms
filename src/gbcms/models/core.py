@@ -114,6 +114,17 @@ class QualityThresholds(BaseModel):
 
     min_mapping_quality: int = Field(default=20, ge=0, description="Minimum mapping quality (MAPQ)")
     min_base_quality: int = Field(default=0, ge=0, description="Minimum base quality (BQ)")
+    fragment_qual_threshold: int = Field(
+        default=10,
+        ge=0,
+        le=93,
+        description=(
+            "Quality difference threshold for fragment consensus. "
+            "When R1 and R2 disagree, the allele with higher base quality wins "
+            "only if the difference exceeds this threshold. Ambiguous fragments "
+            "(within threshold) are discarded to preserve VAF accuracy."
+        ),
+    )
 
 
 class OutputConfig(BaseModel):

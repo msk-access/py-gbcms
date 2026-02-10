@@ -156,6 +156,7 @@ class Pipeline:
                 filter_improper_pair=self.config.filters.improper_pair,
                 filter_indel=self.config.filters.indel,
                 threads=self.config.threads,
+                fragment_qual_threshold=self.config.quality.fragment_qual_threshold,
             )
             rust_time = time.perf_counter() - rust_start
             logger.debug("Rust count_bam completed in %.3fs", rust_time)
