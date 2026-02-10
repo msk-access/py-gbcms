@@ -13,7 +13,6 @@ Reference genome: chr1, 500 bases of 'A' (all A's for homopolymer tests).
 """
 
 import pysam
-import pytest
 
 from gbcms._rs import Variant, count_bam
 
@@ -73,7 +72,10 @@ def _count_one(bam_path, variant):
 
 # ref_context: reference bases [95, 110) = "AAAAAAAAAAAAAAA" (all A's)
 INS_VARIANT = Variant(
-    chrom="chr1", pos=100, ref_allele="A", alt_allele="AT",
+    chrom="chr1",
+    pos=100,
+    ref_allele="A",
+    alt_allele="AT",
     variant_type="INSERTION",
     ref_context="AAAAAAAAAAAAAAA",  # [95, 110)
     ref_context_start=95,
@@ -157,7 +159,10 @@ class TestInsertionWindowed:
         # Pos 100 = 'C' (offset 5), Pos 101 = 'G' (offset 6)
         # Anchor base is 'A' (from REF allele). Shifted anchor at pos 100 would be 'C' → S3 reject.
         variant = Variant(
-            chrom="chr1", pos=98, ref_allele="A", alt_allele="AT",
+            chrom="chr1",
+            pos=98,
+            ref_allele="A",
+            alt_allele="AT",
             variant_type="INSERTION",
             ref_context="AAAAACGAAAA",  # [93, 104)
             ref_context_start=93,
@@ -214,7 +219,10 @@ class TestInsertionHomopolymer:
 # We need a custom ref_context that matches the biology.
 
 DEL_VARIANT = Variant(
-    chrom="chr1", pos=200, ref_allele="AT", alt_allele="A",
+    chrom="chr1",
+    pos=200,
+    ref_allele="AT",
+    alt_allele="A",
     variant_type="DELETION",
     # ref_context covers [195, 210) — reference has T's at 201, 202, 203 so windowed shifts pass S3
     ref_context="AAAAATTTTAAAAAA",  # A(195)..A(199) T(200)? No...
@@ -234,7 +242,10 @@ DEL_VARIANT = Variant(
 #                    195         200 201 202 203 204
 # pos 200='A' (anchor), 201='T' (deleted), 202='T', 203='T'
 DEL_VARIANT = Variant(
-    chrom="chr1", pos=200, ref_allele="AT", alt_allele="A",
+    chrom="chr1",
+    pos=200,
+    ref_allele="AT",
+    alt_allele="A",
     variant_type="DELETION",
     ref_context="AAAAAATTTTTAAAA",  # [195, 210): 6 A's + 5 T's + 4 A's = 15 chars
     ref_context_start=195,
@@ -292,7 +303,10 @@ class TestDeletionWindowed:
         # ref_context: "AAAAAATGAAAAAAAA" covering [195, 210)
         # pos 201='T', 202='G'. If deletion shifts to 202, ref='G' but expected='T' → S3 reject.
         variant = Variant(
-            chrom="chr1", pos=200, ref_allele="AT", alt_allele="A",
+            chrom="chr1",
+            pos=200,
+            ref_allele="AT",
+            alt_allele="A",
             variant_type="DELETION",
             ref_context="AAAAAATGAAAAAAA",  # [195, 210): T at 201, G at 202
             ref_context_start=195,
@@ -313,7 +327,10 @@ class TestNoRefContext:
     def test_insertion_no_ref_context(self, tmp_path):
         """Windowed insertion without ref_context → S3 skipped, should match."""
         variant = Variant(
-            chrom="chr1", pos=100, ref_allele="A", alt_allele="AT",
+            chrom="chr1",
+            pos=100,
+            ref_allele="A",
+            alt_allele="AT",
             variant_type="INSERTION",
         )
         # Shifted insertion +2bp from anchor
@@ -325,7 +342,10 @@ class TestNoRefContext:
     def test_deletion_no_ref_context(self, tmp_path):
         """Windowed deletion without ref_context → S3 skipped, should match."""
         variant = Variant(
-            chrom="chr1", pos=200, ref_allele="AT", alt_allele="A",
+            chrom="chr1",
+            pos=200,
+            ref_allele="AT",
+            alt_allele="A",
             variant_type="DELETION",
         )
         # Shifted deletion +2bp

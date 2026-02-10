@@ -116,7 +116,10 @@ class MafReader(VariantReader):
                                     logger.warning(
                                         "FASTA fetch failed for insertion anchor at %s:%d. "
                                         "Tried both '%s' and '%s'. Skipping variant.",
-                                        chrom, anchor_pos_0based, norm_chrom, chrom,
+                                        chrom,
+                                        anchor_pos_0based,
+                                        norm_chrom,
+                                        chrom,
                                     )
                                     continue
 
@@ -151,7 +154,10 @@ class MafReader(VariantReader):
                                     logger.warning(
                                         "FASTA fetch failed for deletion anchor at %s:%d. "
                                         "Tried both '%s' and '%s'. Skipping variant.",
-                                        chrom, anchor_pos_0based, norm_chrom, chrom,
+                                        chrom,
+                                        anchor_pos_0based,
+                                        norm_chrom,
+                                        chrom,
                                     )
                                     continue
 
@@ -183,7 +189,8 @@ class MafReader(VariantReader):
                                     "MAF indel at %s:%s uses maf_to_internal() fallback "
                                     "(no --fasta provided). Indel coordinates may be incorrect. "
                                     "Provide --fasta for accurate indel normalization.",
-                                    chrom, start_pos,
+                                    chrom,
+                                    start_pos,
                                 )
                                 warnings.warn(
                                     "maf_to_internal() is deprecated for indels. "

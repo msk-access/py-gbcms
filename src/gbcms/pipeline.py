@@ -100,11 +100,16 @@ class Pipeline:
                     logger.warning(
                         "Could not fetch ref_context for %s:%d. "
                         "Windowed indel detection will skip Safeguard 3 for this variant.",
-                        v.chrom, v.pos,
+                        v.chrom,
+                        v.pos,
                     )
             rs_variants.append(
                 gbcms_rs.Variant(
-                    v.chrom, v.pos, v.ref, v.alt, v.variant_type.value,
+                    v.chrom,
+                    v.pos,
+                    v.ref,
+                    v.alt,
+                    v.variant_type.value,
                     ref_context=ref_context,
                     ref_context_start=ref_context_start,
                 )

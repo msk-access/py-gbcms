@@ -9,8 +9,6 @@ Prior bug: fragments where R1=REF and R2=ALT were counted to BOTH
 rdf and adf, inflating dpf != rdf + adf.
 """
 
-import os
-
 import pysam
 import pytest
 
@@ -61,9 +59,7 @@ def fragment_consensus_bam(tmp_path):
             a.reference_start = pos
             a.mapping_quality = 60
             a.cigar = [(0, len(seq))]  # All match
-            a.query_qualities = pysam.qualitystring_to_array(
-                "".join(chr(q + 33) for q in quals)
-            )
+            a.query_qualities = pysam.qualitystring_to_array("".join(chr(q + 33) for q in quals))
             # Set mate info
             a.next_reference_id = 0
             a.next_reference_start = pos
@@ -75,21 +71,13 @@ def fragment_consensus_bam(tmp_path):
 
         # Fragment 1: Both reads agree on REF (A at pos 100)
         ref_seq = "AAAAAAAAA" + "A"  # 10 bases, pos 100 is 'A' (REF)
-        outf.write(
-            make_read("frag_agree_ref", ref_seq, [30] * 10, is_read1=True, is_reverse=False)
-        )
-        outf.write(
-            make_read("frag_agree_ref", ref_seq, [30] * 10, is_read1=False, is_reverse=True)
-        )
+        outf.write(make_read("frag_agree_ref", ref_seq, [30] * 10, is_read1=True, is_reverse=False))
+        outf.write(make_read("frag_agree_ref", ref_seq, [30] * 10, is_read1=False, is_reverse=True))
 
         # Fragment 2: Both reads agree on ALT (T at pos 100)
         alt_seq = "AAAAATAAAA"  # pos 100 = T (ALT)
-        outf.write(
-            make_read("frag_agree_alt", alt_seq, [30] * 10, is_read1=True, is_reverse=False)
-        )
-        outf.write(
-            make_read("frag_agree_alt", alt_seq, [30] * 10, is_read1=False, is_reverse=True)
-        )
+        outf.write(make_read("frag_agree_alt", alt_seq, [30] * 10, is_read1=True, is_reverse=False))
+        outf.write(make_read("frag_agree_alt", alt_seq, [30] * 10, is_read1=False, is_reverse=True))
 
         # Fragment 3: R1=REF(q10), R2=ALT(q35) → ALT should win
         outf.write(
@@ -260,9 +248,9 @@ def test_fragment_consensus_quality_tiebreaker(fragment_consensus_bam):
     counts = results[0]
 
     # Strand-level fragment counts should also be consistent
-    assert counts.rdf == counts.rdf_fwd + counts.rdf_rev, (
-        f"rdf strand inconsistency: {counts.rdf} != {counts.rdf_fwd} + {counts.rdf_rev}"
-    )
-    assert counts.adf == counts.adf_fwd + counts.adf_rev, (
-        f"adf strand inconsistency: {counts.adf} != {counts.adf_fwd} + {counts.adf_rev}"
-    )
+    assert (
+        counts.rdf == counts.rdf_fwd + counts.rdf_rev
+    ), f"rdf strand inconsistency: {counts.rdf} != {counts.rdf_fwd} + {counts.rdf_rev}"
+    assert (
+        counts.adf == counts.adf_fwd + counts.adf_rev
+    ), f"adf strand inconsistency: {counts.adf} != {counts.adf_fwd} + {counts.adf_rev}"

@@ -16,7 +16,6 @@ Variant definitions used:
 """
 
 import pysam
-import pytest
 
 from gbcms._rs import Variant, count_bam
 
@@ -77,7 +76,10 @@ def _count_one(bam_path, variant):
 
 # COMPLEX variant with equal-length REF/ALT
 EQUAL_LEN_VARIANT = Variant(
-    chrom="chr1", pos=100, ref_allele="AT", alt_allele="CG",
+    chrom="chr1",
+    pos=100,
+    ref_allele="AT",
+    alt_allele="CG",
     variant_type="COMPLEX",
 )
 
@@ -174,7 +176,10 @@ class TestCaseA_MaskedComparison:
         → Ambiguous (both match on reliable) → Neither.
         """
         variant = Variant(
-            chrom="chr1", pos=100, ref_allele="AA", alt_allele="AC",
+            chrom="chr1",
+            pos=100,
+            ref_allele="AA",
+            alt_allele="AC",
             variant_type="COMPLEX",
         )
         quals = [30, 30, 30, 30, 30, 5, 30, 30, 30, 30]
@@ -205,7 +210,10 @@ class TestCaseA_AllBasesLowQual:
 # ==========================================================================
 
 DELINS_VARIANT = Variant(
-    chrom="chr1", pos=100, ref_allele="ATG", alt_allele="CC",
+    chrom="chr1",
+    pos=100,
+    ref_allele="ATG",
+    alt_allele="CC",
     variant_type="COMPLEX",
 )
 
@@ -262,7 +270,10 @@ class TestCaseB_DelIns:
 # ==========================================================================
 
 INSLIKE_VARIANT = Variant(
-    chrom="chr1", pos=100, ref_allele="CC", alt_allele="ATG",
+    chrom="chr1",
+    pos=100,
+    ref_allele="CC",
+    alt_allele="ATG",
     variant_type="COMPLEX",
 )
 
@@ -294,6 +305,7 @@ class TestCaseC_RefOnly:
 # ==========================================================================
 # Length mismatch — neither matches
 # ==========================================================================
+
 
 class TestLengthMismatch:
     """Reconstruction length matches neither REF nor ALT."""
