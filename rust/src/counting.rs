@@ -425,29 +425,45 @@ fn get_variant_base_qual(record: &Record, variant: &Variant) -> u8 {
     }
 }
 
+/// Check if a read supports a complex variant (indel + substitution).
+///
+/// Uses **haplotype reconstruction**: walks the CIGAR to rebuild what the read
+/// shows for the genomic region covered by REF, then compares the reconstructed
+/// sequence to both REF and ALT using **quality-aware masked comparison**.
+///
+/// ## Masked Comparison ("Reliable Intersection")
+///
+/// Instead of requiring exact byte-for-byte match, bases with quality below
+/// `min_baseq` are **masked out** — they cannot vote for either allele. Only
+/// "reliable" (high-quality) bases participate in the comparison.
+///
+/// Three cases based on reconstructed sequence length:
+/// - **Case A** (`recon == alt == ref` length): simultaneous REF/ALT check with
+///   ambiguity detection. If reliable bases match *both*, read is discarded.
+/// - **Case B** (`recon == alt` length only): masked comparison against ALT only.
+/// - **Case C** (`recon == ref` length only): masked comparison against REF only.
 fn check_complex(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool) {
-    // Haplotype Reconstruction Strategy
-    // 1. Identify genomic region of REF allele: [start, end)
-    // 2. Traverse CIGAR to reconstruct the sequence the read has for this region.
-    //    - Match/Mismatch: Append base.
-    //    - Insertion: Append inserted bases (if occurring within/at start of region).
-    //    - Deletion: Skip (do not append).
-    // 3. Compare reconstructed sequence to ALT allele.
-
     let start_pos = variant.pos;
-    let end_pos = variant.pos + variant.ref_allele.len() as i64; // Exclusive end
+    let end_pos = variant.pos + variant.ref_allele.len() as i64; // exclusive
 
     let cigar = record.cigar();
     let mut ref_pos = record.pos();
-    let mut read_pos = 0;
+    let mut read_pos: usize = 0;
     let seq = record.seq();
     let quals = record.qual();
 
-    let mut reconstructed_seq = Vec::new();
-    let mut min_qual_observed = 255u8;
+    // Pre-allocate reconstruction buffers for performance
+    let capacity = seq.len();
+    let mut reconstructed_seq: Vec<u8> = Vec::with_capacity(capacity);
+    let mut quals_per_base: Vec<u8> = Vec::with_capacity(capacity);
 
-    debug!("check_complex start: pos={} ref={} alt={}", start_pos, variant.ref_allele, variant.alt_allele);
+    debug!(
+        "check_complex start: pos={} ref={} alt={}",
+        start_pos, variant.ref_allele, variant.alt_allele
+    );
 
+    // --- Phase 1: Haplotype Reconstruction ---
+    // Walk the CIGAR to reconstruct what the read shows for [start_pos, end_pos).
     for op in cigar.iter() {
         match op {
             Cigar::Match(len) | Cigar::Equal(len) | Cigar::Diff(len) => {
@@ -458,25 +474,18 @@ fn check_complex(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bo
                 let overlap_start = std::cmp::max(ref_pos, start_pos);
                 let overlap_end = std::cmp::min(ref_pos + len_i64, end_pos);
 
-                debug!("Match op len={} ref_pos={} overlap=[{}, {})", len, ref_pos, overlap_start, overlap_end);
-
                 if overlap_start < overlap_end {
-                    // We have overlap
                     let offset_in_op = (overlap_start - ref_pos) as usize;
                     let overlap_len = (overlap_end - overlap_start) as usize;
-
                     let current_read_pos = read_pos + offset_in_op;
-                    
+
                     for i in 0..overlap_len {
                         let p = current_read_pos + i;
-                        if p >= seq.len() { break; } // Should not happen if BAM is valid
-                        
-                        let base = seq[p];
-                        let qual = quals[p];
-                        reconstructed_seq.push(base);
-                        if qual < min_qual_observed {
-                            min_qual_observed = qual;
+                        if p >= seq.len() {
+                            break;
                         }
+                        reconstructed_seq.push(seq[p]);
+                        quals_per_base.push(quals[p]);
                     }
                 }
                 ref_pos += len_i64;
@@ -484,25 +493,19 @@ fn check_complex(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bo
             }
             Cigar::Ins(len) => {
                 let len_usize = *len as usize;
-                debug!("Ins op len={} ref_pos={}", len, ref_pos);
-                
                 if ref_pos >= start_pos && ref_pos <= end_pos {
-                     for i in 0..len_usize {
+                    for i in 0..len_usize {
                         let p = read_pos + i;
-                        if p >= seq.len() { break; }
-                        let base = seq[p];
-                        let qual = quals[p];
-                         reconstructed_seq.push(base);
-                         if qual < min_qual_observed {
-                            min_qual_observed = qual;
+                        if p >= seq.len() {
+                            break;
                         }
-                     }
+                        reconstructed_seq.push(seq[p]);
+                        quals_per_base.push(quals[p]);
+                    }
                 }
-                
                 read_pos += len_usize;
             }
             Cigar::Del(len) | Cigar::RefSkip(len) => {
-                debug!("Del op len={} ref_pos={}", len, ref_pos);
                 ref_pos += *len as i64;
             }
             Cigar::SoftClip(len) => {
@@ -513,61 +516,154 @@ fn check_complex(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bo
     }
 
     let reconstructed_str = String::from_utf8_lossy(&reconstructed_seq);
-    debug!("Reconstructed: '{}' (len={})", reconstructed_str, reconstructed_seq.len());
+    debug!(
+        "Reconstructed: '{}' (len={})",
+        reconstructed_str,
+        reconstructed_seq.len()
+    );
 
-    // Compare reconstructed sequence to ALT
+    // --- Phase 2: Quality-Aware Masked Comparison ---
+    // Mask out low-quality bases. Only reliable bases (qual >= min_baseq) vote.
     let alt_bytes = variant.alt_allele.as_bytes();
-    
-    // Convert reconstructed to bytes for comparison (it's already Vec<u8>)
-    // But we need to handle case sensitivity
-    if reconstructed_seq.len() != alt_bytes.len() {
-        debug!("Len mismatch ALT: {} != {}", reconstructed_seq.len(), alt_bytes.len());
-    } else {
-        let mut matches_alt = true;
-        for (i, &b) in reconstructed_seq.iter().enumerate() {
-            if b.to_ascii_uppercase() != alt_bytes[i].to_ascii_uppercase() {
-                matches_alt = false;
-                break;
-            }
-        }
-        
-        if matches_alt {
-            if min_qual_observed < min_baseq {
-                debug!("Matches ALT but low qual: {} < {}", min_qual_observed, min_baseq);
-                return (false, false);
-            }
-            debug!("Matches ALT");
-            return (false, true); // Matches ALT
-        }
-    }
-    
-    // Check REF?
     let ref_bytes = variant.ref_allele.as_bytes();
-    debug!("Checking REF. ReconLen={} RefLen={}", reconstructed_seq.len(), ref_bytes.len());
-    
-    if reconstructed_seq.len() == ref_bytes.len() {
-        let mut matches_ref = true;
-        for (i, &b) in reconstructed_seq.iter().enumerate() {
-            let rb = ref_bytes[i].to_ascii_uppercase();
-            let bb = b.to_ascii_uppercase();
-            if bb != rb {
-                debug!("Mismatch at {}: {} != {}", i, bb as char, rb as char);
-                matches_ref = false;
-                break;
-            }
+    let recon_len = reconstructed_seq.len();
+    let matches_alt_len = recon_len == alt_bytes.len();
+    let matches_ref_len = recon_len == ref_bytes.len();
+
+    if matches_alt_len && matches_ref_len {
+        // Case A: Equal-length REF and ALT — need simultaneous check + ambiguity detection
+        let (mismatches_alt, mismatches_ref, reliable_count) =
+            masked_dual_compare(&reconstructed_seq, &quals_per_base, alt_bytes, ref_bytes, min_baseq);
+
+        debug!(
+            "Case A: reliable={} mm_alt={} mm_ref={}",
+            reliable_count, mismatches_alt, mismatches_ref
+        );
+
+        // Step 1: No reliable data → discard (MUST come first)
+        if reliable_count == 0 {
+            debug!("No reliable bases — discarding");
+            return (false, false);
         }
-        if matches_ref {
-             if min_qual_observed < min_baseq {
-                debug!("Matches REF but low qual: {} < {}", min_qual_observed, min_baseq);
-                return (false, false);
-            }
-            debug!("Matches REF");
+
+        // Step 2: Ambiguity — reliable bases match both alleles → discard
+        if mismatches_alt == 0 && mismatches_ref == 0 {
+            debug!("Ambiguous: reliable bases match both REF and ALT — discarding");
+            return (false, false);
+        }
+
+        // Step 3: Unambiguous match
+        if mismatches_alt == 0 {
+            debug!("Matches ALT on {} reliable bases", reliable_count);
+            return (false, true);
+        }
+        if mismatches_ref == 0 {
+            debug!("Matches REF on {} reliable bases", reliable_count);
             return (true, false);
         }
+
+        // Step 4: Neither matches on reliable bases
+        debug!("No match: mm_alt={} mm_ref={}", mismatches_alt, mismatches_ref);
+    } else if matches_alt_len {
+        // Case B: Only ALT length matches (e.g., DelIns) — no ambiguity possible
+        let (mismatches, reliable_count) =
+            masked_single_compare(&reconstructed_seq, &quals_per_base, alt_bytes, min_baseq);
+
+        debug!(
+            "Case B (ALT-only): reliable={} mismatches={}",
+            reliable_count, mismatches
+        );
+
+        if reliable_count > 0 && mismatches == 0 {
+            debug!("Matches ALT on {} reliable bases", reliable_count);
+            return (false, true);
+        }
+    } else if matches_ref_len {
+        // Case C: Only REF length matches — no ambiguity possible
+        let (mismatches, reliable_count) =
+            masked_single_compare(&reconstructed_seq, &quals_per_base, ref_bytes, min_baseq);
+
+        debug!(
+            "Case C (REF-only): reliable={} mismatches={}",
+            reliable_count, mismatches
+        );
+
+        if reliable_count > 0 && mismatches == 0 {
+            debug!("Matches REF on {} reliable bases", reliable_count);
+            return (true, false);
+        }
+    } else {
+        debug!(
+            "Length mismatch: recon={} alt={} ref={}",
+            recon_len,
+            alt_bytes.len(),
+            ref_bytes.len()
+        );
     }
 
-    debug!("No match");
     (false, false)
+}
+
+/// Masked comparison against two alleles simultaneously.
+///
+/// Masks out bases with quality below `min_baseq` and counts mismatches against
+/// both `allele_a` and `allele_b` on the remaining reliable bases only.
+///
+/// Returns `(mismatches_a, mismatches_b, reliable_count)`.
+fn masked_dual_compare(
+    recon: &[u8],
+    quals: &[u8],
+    allele_a: &[u8],
+    allele_b: &[u8],
+    min_baseq: u8,
+) -> (usize, usize, usize) {
+    let mut mm_a = 0;
+    let mut mm_b = 0;
+    let mut reliable = 0;
+
+    for (i, &base) in recon.iter().enumerate() {
+        if quals[i] < min_baseq {
+            continue; // mask out low-quality base entirely
+        }
+        reliable += 1;
+        let b = base.to_ascii_uppercase();
+        if b != allele_a[i].to_ascii_uppercase() {
+            mm_a += 1;
+        }
+        if b != allele_b[i].to_ascii_uppercase() {
+            mm_b += 1;
+        }
+    }
+
+    (mm_a, mm_b, reliable)
+}
+
+/// Masked comparison against a single allele.
+///
+/// Masks out bases below `min_baseq` and counts mismatches on reliable bases.
+/// Any mismatch on a reliable base means no match.
+///
+/// Returns `(mismatches, reliable_count)`.
+fn masked_single_compare(
+    recon: &[u8],
+    quals: &[u8],
+    allele: &[u8],
+    min_baseq: u8,
+) -> (usize, usize) {
+    let mut mismatches = 0;
+    let mut reliable = 0;
+
+    for (i, &base) in recon.iter().enumerate() {
+        if quals[i] < min_baseq {
+            continue;
+        }
+        reliable += 1;
+        if base.to_ascii_uppercase() != allele[i].to_ascii_uppercase() {
+            mismatches += 1;
+        }
+    }
+
+    (mismatches, reliable)
 }
 
 fn check_snp(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool) {

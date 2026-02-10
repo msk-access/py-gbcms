@@ -431,28 +431,28 @@ Read 4 (indel): CIGAR = 3M 1I 3M
 
 ### Complex (Indel + Substitution)
 
-Variants where REF and ALT differ in both sequence **and** length. This is the catch-all category that uses a sophisticated **haplotype reconstruction** algorithm.
+Variants where REF and ALT differ in both sequence **and** length. This is the catch-all category that uses a sophisticated **haplotype reconstruction** algorithm with **quality-aware masked comparison**.
 
 | Property | Value |
 |:---------|:------|
 | Detection | Fallback for all other combinations |
 | Position | 0-based index of the first reference base |
-| Quality check | Minimum base quality across all reconstructed bases must meet `--min-baseq` |
+| Quality check | **Masked comparison** — bases below `--min-baseq` are masked out and cannot vote for either allele |
 
-#### Algorithm Flow — Haplotype Reconstruction
+#### Algorithm Flow — Haplotype Reconstruction + Masked Comparison
 
 ```mermaid
 flowchart TD
-    Start([🧬 Complex Check]):::start --> Region[Define genomic region]:::info
-    Region --> Init[Init reconstructed seq + min qual]
+    Start([🧬 Complex Check]):::start --> Region["Define region: pos .. pos+len REF"]:::info
+    Region --> Init["Init reconstructed_seq + quals_per_base"]
 
-    subgraph CIGARWalk [CIGAR Walk]
+    subgraph CIGARWalk [Phase 1: CIGAR Walk — Haplotype Reconstruction]
         direction TB
         Walk[Walk each CIGAR op]
         OpType{CIGAR op type?}
         Walk --> OpType
-        OpType -->|"M / = / X"| Match[Append overlapping bases]
-        OpType -->|"I"| InsCheck[Append inserted bases]
+        OpType -->|"M / = / X"| Match["Append bases + quals"]
+        OpType -->|"I"| InsCheck["Append inserted bases + quals"]
         OpType -->|"D / N"| AdvRef[Advance ref_pos only]
         OpType -->|"S"| AdvRead[Advance read_pos only]
         OpType -->|"H / P"| Skip[No action]
@@ -466,22 +466,37 @@ flowchart TD
     end
 
     Init --> Walk
-    More -->|No| Compare
+    More -->|No| LenCheck
 
-    subgraph Classify [Allele Classification]
+    subgraph MaskedCompare ["Phase 2: Masked Comparison (Reliable Intersection)"]
         direction TB
-        Compare[Compare reconstructed seq]
-        Compare --> CmpAlt{Matches ALT?}
-        CmpAlt -->|Yes| QualA{Quality ≥ min_baseq?}
-        CmpAlt -->|No| CmpRef{Matches REF?}
-        CmpRef -->|Yes| QualR{Quality ≥ min_baseq?}
-        CmpRef -->|No| Neither3([Neither]):::neither
-    end
+        LenCheck{Check recon length}
+        LenCheck -->|"== ALT == REF"| CaseA["Case A: Dual masked compare"]
+        LenCheck -->|"== ALT only"| CaseB["Case B: ALT-only masked compare"]
+        LenCheck -->|"== REF only"| CaseC["Case C: REF-only masked compare"]
+        LenCheck -->|Neither| Neither4([Neither]):::neither
 
-    QualA -->|Yes| Alt([🔴 ALT]):::alt
-    QualA -->|No| Neither1([Neither]):::neither
-    QualR -->|Yes| Ref([✅ REF]):::ref
-    QualR -->|No| Neither2([Neither]):::neither
+        CaseA --> Mask1["Mask bases with qual < min_baseq"]
+        Mask1 --> Reliable1{reliable_count > 0?}
+        Reliable1 -->|No| Neither5([Neither]):::neither
+        Reliable1 -->|Yes| Ambig{Matches BOTH on reliable?}
+        Ambig -->|Yes| Neither6(["Neither (ambiguous)"]):::neither
+        Ambig -->|No| AltOnly{Matches ALT only?}
+        AltOnly -->|Yes| Alt1([🔴 ALT]):::alt
+        AltOnly -->|No| RefOnly{Matches REF only?}
+        RefOnly -->|Yes| Ref1([✅ REF]):::ref
+        RefOnly -->|No| Neither7([Neither]):::neither
+
+        CaseB --> Mask2["Mask low-qual bases"]
+        Mask2 --> ReliableB{reliable > 0 AND 0 mismatches?}
+        ReliableB -->|Yes| Alt2([🔴 ALT]):::alt
+        ReliableB -->|No| Neither8([Neither]):::neither
+
+        CaseC --> Mask3["Mask low-qual bases"]
+        Mask3 --> ReliableC{reliable > 0 AND 0 mismatches?}
+        ReliableC -->|Yes| Ref2([✅ REF]):::ref
+        ReliableC -->|No| Neither9([Neither]):::neither
+    end
 
     classDef start fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
     classDef info fill:#3498db,color:#fff,stroke:#2471a3,stroke-width:2px;
@@ -489,6 +504,12 @@ flowchart TD
     classDef alt fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
     classDef neither fill:#95a5a6,color:#fff,stroke:#7f8c8d,stroke-width:2px;
 ```
+
+!!! info "Masked Comparison — Why Not Exact Match?"
+    A single sequencing error at a low-quality base would discard the entire read
+    under exact matching. The masked approach ignores unreliable bases, allowing the
+    remaining high-quality bases to determine allele support. When masking causes both
+    alleles to match (ambiguity), the read is safely discarded rather than guessed.
 
 #### Worked Example: Step-by-Step Reconstruction
 

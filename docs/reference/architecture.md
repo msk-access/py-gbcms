@@ -194,6 +194,8 @@ sequenceDiagram
 |:--------|:---------------|:---------|
 | Counting algorithm | Region-based chunking, position matching | Per-variant CIGAR traversal |
 | Complex variants | Optional via `--generic_counting` | Always uses haplotype reconstruction |
+| Complex quality handling | Exact match only (no quality awareness) | **Masked comparison** — bases below `--min-baseq` are masked out, ambiguity detection prevents false positives |
+| Base quality filtering | No base quality threshold | Default `--min-baseq 20` (Phred Q20) |
 | MNP handling | Not explicit | Dedicated `check_mnp` with contiguity check |
 | Fragment counting | Optional (`--fragment_count`), majority-rule | Always computed, quality-weighted consensus with discard |
 | Positive strand counts | Optional (`--positive_count`) | Always computed |

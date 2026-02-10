@@ -38,7 +38,7 @@ def count_bam(
     bam_path: str,
     variants: list[Variant],
     min_mapq: int = 20,
-    min_baseq: int = 0,
+    min_baseq: int = 20,
     filter_duplicates: bool = True,
     filter_secondary: bool = False,
     filter_supplementary: bool = False,
