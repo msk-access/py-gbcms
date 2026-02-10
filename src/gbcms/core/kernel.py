@@ -90,22 +90,22 @@ class CoordinateKernel:
         # Handle MAF indels which often use '-'
         if ref == "-" or alt == "-":
             # MAF Insertion: Start_Position is the base BEFORE the insertion (anchor).
-            # ref='-', alt='T' -> VCF-like would be ref='A', alt='AT' (requires lookup)
-            # But if we just want to represent it internally:
+            # ref='-', alt='T' → insertion of T after the anchor.
+            # Without FASTA lookup, we cannot determine the anchor base,
+            # so ref remains '-'. Use --fasta for proper VCF-style normalization.
             if ref == "-":  # Insertion
                 vtype = VariantType.INSERTION
-                # MAF Start_Position is usually the flanking base 0 or 1?
-                # Standard MAF: Start_Position is the base BEFORE the insertion.
+                # MAF Start_Position is the anchor base (1-based).
+                # Convert to 0-based: internal_pos = Start_Position - 1.
                 internal_pos = start_pos - 1
-            else:  # Deletion
+            else:  # Deletion (alt == '-')
                 vtype = VariantType.DELETION
-                # MAF Start_Position is the first deleted base? Or anchor?
-                # Usually first deleted base.
-                # We need to convert to anchor-based for consistency if possible,
-                # OR handle MAF-style internally.
-                # Let's assume we want VCF-style anchor-based internally.
-                # This effectively requires a reference lookup to get the anchor base.
-                # For now, we will mark it as needing normalization or handle it in the engine.
+                # MAF Start_Position is the FIRST DELETED base (1-based).
+                # For VCF-style anchor-based representation, the anchor is
+                # at Start_Position - 1. However, without FASTA we cannot
+                # fetch the anchor base, so we store the deletion start.
+                # WARNING: This produces non-VCF coordinates. Use --fasta
+                # for proper anchor-based normalization via MafReader.
                 internal_pos = start_pos - 1
 
         elif len(ref) == len(alt) == 1:

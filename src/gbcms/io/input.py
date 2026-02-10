@@ -7,6 +7,7 @@ converting them into the internal normalized representation using CoordinateKern
 
 import csv
 import logging
+import warnings
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -111,8 +112,12 @@ class MafReader(VariantReader):
                                         chrom, anchor_pos_0based, anchor_pos_0based + 1
                                     ).upper()
                                 except (KeyError, ValueError):
-                                    # If both fail, we can't normalize. Skip or raise?
-                                    # For now, skip/log
+                                    # FASTA fetch failed for both normalized and original chrom names
+                                    logger.warning(
+                                        "FASTA fetch failed for insertion anchor at %s:%d. "
+                                        "Tried both '%s' and '%s'. Skipping variant.",
+                                        chrom, anchor_pos_0based, norm_chrom, chrom,
+                                    )
                                     continue
 
                             # VCF Style:
@@ -142,6 +147,12 @@ class MafReader(VariantReader):
                                         chrom, anchor_pos_0based, anchor_pos_0based + 1
                                     ).upper()
                                 except (KeyError, ValueError):
+                                    # FASTA fetch failed for both normalized and original chrom names
+                                    logger.warning(
+                                        "FASTA fetch failed for deletion anchor at %s:%d. "
+                                        "Tried both '%s' and '%s'. Skipping variant.",
+                                        chrom, anchor_pos_0based, norm_chrom, chrom,
+                                    )
                                     continue
 
                             # VCF Style:
@@ -163,8 +174,23 @@ class MafReader(VariantReader):
                                 chrom=chrom, pos=start_pos, ref=ref, alt=alt
                             ).model_copy(update={"metadata": row})
                         else:
-                            # Fallback for complex/unhandled without FASTA
-                            # This might fail in Rust engine if it expects anchor
+                            # Fallback for complex/unhandled without FASTA.
+                            # This path may produce incorrect indel coordinates
+                            # because maf_to_internal cannot properly resolve
+                            # anchor bases without a reference genome.
+                            if ref == "-" or alt == "-":
+                                logger.warning(
+                                    "MAF indel at %s:%s uses maf_to_internal() fallback "
+                                    "(no --fasta provided). Indel coordinates may be incorrect. "
+                                    "Provide --fasta for accurate indel normalization.",
+                                    chrom, start_pos,
+                                )
+                                warnings.warn(
+                                    "maf_to_internal() is deprecated for indels. "
+                                    "Use --fasta for proper VCF-style normalization.",
+                                    DeprecationWarning,
+                                    stacklevel=2,
+                                )
                             yield CoordinateKernel.maf_to_internal(
                                 chrom=chrom,
                                 start_pos=start_pos,
