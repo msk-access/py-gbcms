@@ -166,20 +166,38 @@ Bases inserted after an **anchor** position. The anchor is the last reference ba
 
 #### Algorithm Flow
 
+The insertion check uses a **single CIGAR walk** with two strategies: strict match (fast path) and windowed scan (±5bp fallback).
+
 ```mermaid
 flowchart TD
-    Start([🧬 Insertion Check]):::start --> Walk[Walk CIGAR to anchor pos]
-    Walk --> Found{Anchor found in match block?}
-    Found -->|No| Neither1([Neither]):::neither
-    Found -->|Yes| AtEnd{Anchor at end of match block?}
-    AtEnd -->|No| Ref1([✅ REF]):::ref
-    AtEnd -->|Yes| NextOp{Next CIGAR op is Ins?}
-    NextOp -->|No| Ref2([✅ REF]):::ref
-    NextOp -->|Yes| LenCheck{Insertion length == expected?}
-    LenCheck -->|No| Neither2([Neither]):::neither
-    LenCheck -->|Yes| SeqCheck{Inserted seq matches ALT?}
-    SeqCheck -->|No| Neither3([Neither]):::neither
-    SeqCheck -->|Yes| Alt([🔴 ALT]):::alt
+    Start([🧬 Insertion Check]):::start --> Walk[Walk CIGAR left → right]
+    Walk --> Found{Match block contains anchor?}
+    Found -->|No| WindowCheck
+    Found -->|Yes| AtEnd{Anchor at end of block?}
+    AtEnd -->|No| RefCov[Mark ref coverage]
+    AtEnd -->|Yes| NextOp{Next op is Ins?}
+    NextOp -->|No| RefCov
+    NextOp -->|Yes| Strict{Length + seq match?}
+    Strict -->|Yes| StrictAlt([🔴 ALT - strict]):::alt
+    Strict -->|No| RefCov
+    RefCov --> WindowCheck
+
+    WindowCheck{Ins within ±5bp window?}
+    WindowCheck -->|No| Continue[Continue CIGAR walk]
+    WindowCheck -->|Yes| S1{S1: Seq matches?}
+    S1 -->|No| Continue
+    S1 -->|Yes| S3{S3: Anchor base matches ref?}
+    S3 -->|No| Continue
+    S3 -->|Yes| S2[S2: Track closest match]
+    S2 --> Continue
+
+    Continue --> MoreOps{More CIGAR ops?}
+    MoreOps -->|Yes| Walk
+    MoreOps -->|No| Eval{Windowed candidate found?}
+    Eval -->|Yes| WinAlt([🔴 ALT - windowed]):::alt
+    Eval -->|No| HasRef{Read covered anchor?}
+    HasRef -->|Yes| Ref([✅ REF]):::ref
+    HasRef -->|No| Neither([Neither]):::neither
 
     classDef start fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
     classDef ref fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
@@ -197,20 +215,25 @@ Reference:     5'─ ...C  G  A ── C  G  T  A... ─3'
                                ▲
                           anchor pos
 
-Read 1 (ALT):  CIGAR = 5M 2I 5M
+Read 1 (ALT, strict):  CIGAR = 5M 2I 5M
                5'─ ...C  G  A [T  G] C  G  T  A... ─3'
                                └──┘
-                          inserted bases match ALT → ALT ✅
+                          inserted bases at anchor → ALT ✅ (strict)
 
-Read 2 (REF):  CIGAR = 10M
+Read 2 (ALT, windowed): CIGAR = 7M 2I 3M
+               5'─ ...C  G  A  C  G [T  G] T  A... ─3'
+                                          └──┘
+                    insertion shifted +2bp, same seq → ALT ✅ (windowed)
+
+Read 3 (REF):  CIGAR = 10M
                5'─ ...C  G  A  C  G  T  A... ─3'
                                ↑
                           no insertion after anchor → REF ✅
 
-Read 3 (other): CIGAR = 5M 1I 5M
-               5'─ ...C  G  A [C] C  G  T  A... ─3'
-                               ↑
-                          1bp insertion ≠ expected 2bp → Neither
+Read 4 (wrong seq): CIGAR = 5M 2I 5M
+               5'─ ...C  G  A [C  C] C  G  T  A... ─3'
+                               └──┘
+                          insertion bases ≠ expected TG → S1 reject
 ```
 
 !!! tip "Why anchor-based?"
@@ -253,18 +276,38 @@ Bases deleted after an **anchor** position. The logic mirrors insertion but look
 
 #### Algorithm Flow
 
+Same single-walk strategy as insertion, with Safeguard 3 checking deleted reference bases.
+
 ```mermaid
 flowchart TD
-    Start([🧬 Deletion Check]):::start --> Walk[Walk CIGAR to anchor pos]
-    Walk --> Found{Anchor found in match block?}
-    Found -->|No| Neither1([Neither]):::neither
-    Found -->|Yes| AtEnd{Anchor at end of match block?}
-    AtEnd -->|No| Ref1([✅ REF]):::ref
-    AtEnd -->|Yes| NextOp{Next CIGAR op is Del?}
-    NextOp -->|No| Ref2([✅ REF]):::ref
-    NextOp -->|Yes| LenCheck{Deletion length == expected?}
-    LenCheck -->|No| Neither2([Neither]):::neither
-    LenCheck -->|Yes| Alt([🔴 ALT]):::alt
+    Start([🧬 Deletion Check]):::start --> Walk[Walk CIGAR left → right]
+    Walk --> Found{Match block contains anchor?}
+    Found -->|No| WindowCheck
+    Found -->|Yes| AtEnd{Anchor at end of block?}
+    AtEnd -->|No| RefCov[Mark ref coverage]
+    AtEnd -->|Yes| NextOp{Next op is Del?}
+    NextOp -->|No| RefCov
+    NextOp -->|Yes| Strict{Length matches?}
+    Strict -->|Yes| StrictAlt([🔴 ALT - strict]):::alt
+    Strict -->|No| RefCov
+    RefCov --> WindowCheck
+
+    WindowCheck{Del within ±5bp window?}
+    WindowCheck -->|No| Continue[Continue CIGAR walk]
+    WindowCheck -->|Yes| S1{S1: Del length matches?}
+    S1 -->|No| Continue
+    S1 -->|Yes| S3{S3: Ref bases at shift match?}
+    S3 -->|No| Continue
+    S3 -->|Yes| S2[S2: Track closest match]
+    S2 --> Continue
+
+    Continue --> MoreOps{More CIGAR ops?}
+    MoreOps -->|Yes| Walk
+    MoreOps -->|No| Eval{Windowed candidate found?}
+    Eval -->|Yes| WinAlt([🔴 ALT - windowed]):::alt
+    Eval -->|No| HasRef{Read covered anchor?}
+    HasRef -->|Yes| Ref([✅ REF]):::ref
+    HasRef -->|No| Neither([Neither]):::neither
 
     classDef start fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
     classDef ref fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
@@ -282,20 +325,26 @@ Reference:     5'─ ...T  G  A  C  G  T  A  C... ─3'
                                ▲
                           anchor pos
 
-Read 1 (ALT):  CIGAR = 5M 2D 5M
+Read 1 (ALT, strict):  CIGAR = 5M 2D 5M
                5'─ ...T  G  A  ──  ──  T  A  C... ─3'
                                └─────┘
-                          2bp deletion matches len(REF)-1 → ALT ✅
+                          2bp deletion at anchor → ALT ✅ (strict)
 
-Read 2 (REF):  CIGAR = 12M
+Read 2 (ALT, windowed): CIGAR = 7M 2D 3M
+               5'─ ...T  G  A  C  G  T  ──  ──  A  C... ─3'
+                                              └─────┘
+                  deletion shifted +2bp, same length, ref matches → ALT ✅ (windowed)
+                  (S3 verifies ref bases at shifted pos match deleted 'CG')
+
+Read 3 (REF):  CIGAR = 12M
                5'─ ...T  G  A  C  G  T  A  C... ─3'
                                ↑
                           no deletion after anchor → REF ✅
 
-Read 3 (other): CIGAR = 5M 3D 5M
+Read 4 (wrong length): CIGAR = 5M 3D 5M
                5'─ ...T  G  A  ──  ──  ──  A  C... ─3'
                                └────────┘
-                          3bp deletion ≠ expected 2bp → Neither
+                          3bp deletion ≠ expected 2bp → S1 reject
 ```
 
 ---

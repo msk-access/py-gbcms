@@ -82,9 +82,39 @@ class Pipeline:
         self._stats["total_variants"] = len(variants)
 
         # 3. Prepare Rust Variants
-        rs_variants = [
-            gbcms_rs.Variant(v.chrom, v.pos, v.ref, v.alt, v.variant_type.value) for v in variants
-        ]
+        # For indels, fetch reference context (±5bp) for windowed detection.
+        # This enables Safeguard 3 (reference context check) in the Rust engine.
+        window_pad = 5
+        fasta = pysam.FastaFile(str(self.config.reference_fasta))
+        rs_variants = []
+        for v in variants:
+            ref_context = None
+            ref_context_start = 0
+            if v.variant_type.value in ("INSERTION", "DELETION"):
+                ctx_start = max(0, v.pos - window_pad)
+                ctx_end = v.pos + len(v.ref) + window_pad
+                try:
+                    ref_context = fasta.fetch(v.chrom, ctx_start, ctx_end)
+                    ref_context_start = ctx_start
+                except (KeyError, ValueError):
+                    logger.warning(
+                        "Could not fetch ref_context for %s:%d. "
+                        "Windowed indel detection will skip Safeguard 3 for this variant.",
+                        v.chrom, v.pos,
+                    )
+            rs_variants.append(
+                gbcms_rs.Variant(
+                    v.chrom, v.pos, v.ref, v.alt, v.variant_type.value,
+                    ref_context=ref_context,
+                    ref_context_start=ref_context_start,
+                )
+            )
+        fasta.close()
+        logger.debug(
+            "Prepared %d Rust variants (%d with ref_context)",
+            len(rs_variants),
+            sum(1 for v in rs_variants if v.ref_context is not None),
+        )
 
         # 4. Process Each Sample
         self.config.output.directory.mkdir(parents=True, exist_ok=True)
