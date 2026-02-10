@@ -619,24 +619,6 @@
 </nav>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#full-pipeline-end-to-end-example">
-<span class="md-ellipsis">
-      
-        Full Pipeline: End-to-End Example
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#comparison-with-original-gbcms">
-<span class="md-ellipsis">
-      
-        Comparison with Original GBCMS
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
 <a class="md-nav__link" href="#related">
 <span class="md-ellipsis">
       
@@ -1061,24 +1043,6 @@
 </nav>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#full-pipeline-end-to-end-example">
-<span class="md-ellipsis">
-      
-        Full Pipeline: End-to-End Example
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#comparison-with-original-gbcms">
-<span class="md-ellipsis">
-      
-        Comparison with Original GBCMS
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
 <a class="md-nav__link" href="#related">
 <span class="md-ellipsis">
       
@@ -1137,22 +1101,22 @@
 </button>
 </nav>
 <pre class="mermaid"><code>flowchart LR
-    Fetch["📥 Fetch reads\nat variant locus"] --&gt; Filter["🔍 Apply\nread filters"]
-    Filter --&gt; Dispatch{"Variant\ntype?"}
-    Dispatch --&gt;|SNP| SNP["check_snp"]
-    Dispatch --&gt;|Insertion| INS["check_insertion"]
-    Dispatch --&gt;|Deletion| DEL["check_deletion"]
-    Dispatch --&gt;|MNP| MNP["check_mnp"]
-    Dispatch --&gt;|Complex| CPX["check_complex"]
-    SNP --&gt; Count["📊 Update\ncounts"]
+    Fetch([📥 Fetch Reads]):::fetch --&gt; Filter([🔍 Apply Filters]):::filter
+    Filter --&gt; Dispatch{Variant Type?}
+    Dispatch --&gt;|SNP| SNP[check_snp]
+    Dispatch --&gt;|Insertion| INS[check_insertion]
+    Dispatch --&gt;|Deletion| DEL[check_deletion]
+    Dispatch --&gt;|MNP| MNP[check_mnp]
+    Dispatch --&gt;|Complex| CPX[check_complex]
+    SNP --&gt; Count([📊 Update Counts]):::count
     INS --&gt; Count
     DEL --&gt; Count
     MNP --&gt; Count
     CPX --&gt; Count
 
-    style Fetch fill:#4a90d9,color:#fff
-    style Filter fill:#e67e22,color:#fff
-    style Count fill:#27ae60,color:#fff
+    classDef fetch fill:#4a90d9,color:#fff,stroke:#2c6fad,stroke-width:2px;
+    classDef filter fill:#e67e22,color:#fff,stroke:#bf6516,stroke-width:2px;
+    classDef count fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
 </code></pre>
 <div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
 Use mouse to pan and zoom
@@ -1182,25 +1146,49 @@ Use mouse to pan and zoom
 </button>
 </nav>
 <pre class="mermaid"><code>flowchart TD
-    Read["📖 Read from BAM"] --&gt; F1{"🔴 Duplicate?\n--filter-duplicates"}
-    F1 --&gt;|"Yes (default: ON)"| Drop["❌ Discard read"]
-    F1 --&gt;|No| F2{"Secondary?\n--filter-secondary"}
-    F2 --&gt;|"Yes &amp; filter ON"| Drop
-    F2 --&gt;|No or filter OFF| F3{"Supplementary?\n--filter-supplementary"}
-    F3 --&gt;|"Yes &amp; filter ON"| Drop
-    F3 --&gt;|No or filter OFF| F4{"QC Failed?\n--filter-qc-failed"}
-    F4 --&gt;|"Yes &amp; filter ON"| Drop
-    F4 --&gt;|No or filter OFF| F5{"Improper pair?\n--filter-improper-pair"}
-    F5 --&gt;|"Yes &amp; filter ON"| Drop
-    F5 --&gt;|No or filter OFF| F6{"Contains indel?\n--filter-indel"}
-    F6 --&gt;|"Yes &amp; filter ON"| Drop
-    F6 --&gt;|No or filter OFF| F7{"MAPQ ≥ 20?\n--min-mapq"}
-    F7 --&gt;|"No (below threshold)"| Drop
-    F7 --&gt;|"Yes"| Pass["✅ Pass to\nallele checker"]
+    Start([📖 Read from BAM]):::process
 
-    style Read fill:#3498db,color:#fff
-    style Drop fill:#e74c3c,color:#fff
-    style Pass fill:#27ae60,color:#fff
+    subgraph Filters [Quality &amp; Alignment Filters]
+        direction TB
+        F1{Duplicate?}:::decision
+        F2{Secondary?}:::decision
+        F3{Supplementary?}:::decision
+        F4{QC Failed?}:::decision
+        F5{Improper pair?}:::decision
+        F6{Contains indel?}:::decision
+        F7{MAPQ ≥ 20?}:::decision
+    end
+
+    Drop{{❌ Discard Read}}:::discard
+    Pass([✅ Pass to Allele Checker]):::success
+
+    Start --&gt; F1
+
+    F1 -- "Yes" --&gt; Drop
+    F1 -- "No" --&gt; F2
+
+    F2 -- "Yes" --&gt; Drop
+    F2 -- "No" --&gt; F3
+
+    F3 -- "Yes" --&gt; Drop
+    F3 -- "No" --&gt; F4
+
+    F4 -- "Yes" --&gt; Drop
+    F4 -- "No" --&gt; F5
+
+    F5 -- "Yes" --&gt; Drop
+    F5 -- "No" --&gt; F6
+
+    F6 -- "Yes" --&gt; Drop
+    F6 -- "No" --&gt; F7
+
+    F7 -- "Below 20" --&gt; Drop
+    F7 -- "Pass" --&gt; Pass
+
+    classDef process fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
+    classDef decision fill:#f39c12,color:#fff,stroke:#d68910,stroke-width:2px;
+    classDef discard fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
+    classDef success fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
 </code></pre>
 <div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
 Use mouse to pan and zoom
@@ -1318,24 +1306,22 @@ Use mouse to pan and zoom
 </button>
 </nav>
 <pre class="mermaid"><code>flowchart TD
-    Start["🧬 SNP Check\npos, REF, ALT"] --&gt; Walk["Walk CIGAR to find\nread position at\nvariant.pos"]
-    Walk --&gt; Found{"Position\nfound?"}
-    Found --&gt;|No| Neither["Neither\n(read doesn't cover)"]
-    Found --&gt;|Yes| BQ{"Base quality\n≥ min_baseq?"}
-    BQ --&gt;|No| Neither2["Neither\n(low quality)"]
-    BQ --&gt;|Yes| Compare["Compare base to\nREF and ALT\n(case-insensitive)"]
-    Compare --&gt; IsRef{"base == REF?"}
-    IsRef --&gt;|Yes| Ref["✅ REF"]
-    IsRef --&gt;|No| IsAlt{"base == ALT?"}
-    IsAlt --&gt;|Yes| Alt["🔴 ALT"]
-    IsAlt --&gt;|No| Neither3["Neither\n(third allele)"]
+    Start([🧬 SNP Check]):::start --&gt; Walk[Walk CIGAR to variant pos]
+    Walk --&gt; Found{Position found?}
+    Found --&gt;|No| Neither1([Neither]):::neither
+    Found --&gt;|Yes| BQ{Base quality ≥ min_baseq?}
+    BQ --&gt;|No| Neither2([Neither]):::neither
+    BQ --&gt;|Yes| Compare[Compare base to REF and ALT]
+    Compare --&gt; IsRef{base == REF?}
+    IsRef --&gt;|Yes| Ref([✅ REF]):::ref
+    IsRef --&gt;|No| IsAlt{base == ALT?}
+    IsAlt --&gt;|Yes| Alt([🔴 ALT]):::alt
+    IsAlt --&gt;|No| Neither3([Neither]):::neither
 
-    style Start fill:#9b59b6,color:#fff
-    style Ref fill:#27ae60,color:#fff
-    style Alt fill:#e74c3c,color:#fff
-    style Neither fill:#95a5a6,color:#fff
-    style Neither2 fill:#95a5a6,color:#fff
-    style Neither3 fill:#95a5a6,color:#fff
+    classDef start fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
+    classDef ref fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
+    classDef alt fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
+    classDef neither fill:#95a5a6,color:#fff,stroke:#7f8c8d,stroke-width:2px;
 </code></pre>
 <div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
 Use mouse to pan and zoom
@@ -1408,26 +1394,23 @@ Use mouse to pan and zoom
 </button>
 </nav>
 <pre class="mermaid"><code>flowchart TD
-    Start["🧬 Insertion Check\nanchor_pos, REF=A, ALT=ATG"] --&gt; Walk["Walk CIGAR ops\nto find match block\ncontaining anchor"]
-    Walk --&gt; Found{"Anchor\nfound in\nmatch block?"}
-    Found --&gt;|No| Neither["Neither"]
-    Found --&gt;|Yes| AtEnd{"Anchor is\nlast base of\nmatch block?"}
-    AtEnd --&gt;|No| Ref["✅ REF\n(anchor in middle\nof match = no insertion)"]
-    AtEnd --&gt;|Yes| NextOp{"Next CIGAR\nop is Ins?"}
-    NextOp --&gt;|No| Ref2["✅ REF\n(no insertion follows)"]
-    NextOp --&gt;|Yes| LenCheck{"Insertion length\n== len(ALT) - 1?"}
-    LenCheck --&gt;|No| Neither2["Neither\n(wrong length)"]
-    LenCheck --&gt;|Yes| SeqCheck{"Inserted sequence\n== ALT[1..]?"}
-    SeqCheck --&gt;|No| Neither3["Neither\n(wrong sequence)"]
-    SeqCheck --&gt;|Yes| Alt["🔴 ALT"]
+    Start([🧬 Insertion Check]):::start --&gt; Walk[Walk CIGAR to anchor pos]
+    Walk --&gt; Found{Anchor found in match block?}
+    Found --&gt;|No| Neither1([Neither]):::neither
+    Found --&gt;|Yes| AtEnd{Anchor at end of match block?}
+    AtEnd --&gt;|No| Ref1([✅ REF]):::ref
+    AtEnd --&gt;|Yes| NextOp{Next CIGAR op is Ins?}
+    NextOp --&gt;|No| Ref2([✅ REF]):::ref
+    NextOp --&gt;|Yes| LenCheck{Insertion length == expected?}
+    LenCheck --&gt;|No| Neither2([Neither]):::neither
+    LenCheck --&gt;|Yes| SeqCheck{Inserted seq matches ALT?}
+    SeqCheck --&gt;|No| Neither3([Neither]):::neither
+    SeqCheck --&gt;|Yes| Alt([🔴 ALT]):::alt
 
-    style Start fill:#9b59b6,color:#fff
-    style Ref fill:#27ae60,color:#fff
-    style Ref2 fill:#27ae60,color:#fff
-    style Alt fill:#e74c3c,color:#fff
-    style Neither fill:#95a5a6,color:#fff
-    style Neither2 fill:#95a5a6,color:#fff
-    style Neither3 fill:#95a5a6,color:#fff
+    classDef start fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
+    classDef ref fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
+    classDef alt fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
+    classDef neither fill:#95a5a6,color:#fff,stroke:#7f8c8d,stroke-width:2px;
 </code></pre>
 <div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
 Use mouse to pan and zoom
@@ -1507,23 +1490,21 @@ Use mouse to pan and zoom
 </button>
 </nav>
 <pre class="mermaid"><code>flowchart TD
-    Start["🧬 Deletion Check\nanchor_pos, REF=ACG, ALT=A"] --&gt; Walk["Walk CIGAR ops\nto find match block\ncontaining anchor"]
-    Walk --&gt; Found{"Anchor\nfound in\nmatch block?"}
-    Found --&gt;|No| Neither["Neither"]
-    Found --&gt;|Yes| AtEnd{"Anchor is\nlast base of\nmatch block?"}
-    AtEnd --&gt;|No| Ref["✅ REF\n(anchor in middle\nof match = no deletion)"]
-    AtEnd --&gt;|Yes| NextOp{"Next CIGAR\nop is Del?"}
-    NextOp --&gt;|No| Ref2["✅ REF\n(no deletion follows)"]
-    NextOp --&gt;|Yes| LenCheck{"Deletion length\n== len(REF) - 1?"}
-    LenCheck --&gt;|No| Neither2["Neither\n(wrong length)"]
-    LenCheck --&gt;|Yes| Alt["🔴 ALT"]
+    Start([🧬 Deletion Check]):::start --&gt; Walk[Walk CIGAR to anchor pos]
+    Walk --&gt; Found{Anchor found in match block?}
+    Found --&gt;|No| Neither1([Neither]):::neither
+    Found --&gt;|Yes| AtEnd{Anchor at end of match block?}
+    AtEnd --&gt;|No| Ref1([✅ REF]):::ref
+    AtEnd --&gt;|Yes| NextOp{Next CIGAR op is Del?}
+    NextOp --&gt;|No| Ref2([✅ REF]):::ref
+    NextOp --&gt;|Yes| LenCheck{Deletion length == expected?}
+    LenCheck --&gt;|No| Neither2([Neither]):::neither
+    LenCheck --&gt;|Yes| Alt([🔴 ALT]):::alt
 
-    style Start fill:#9b59b6,color:#fff
-    style Ref fill:#27ae60,color:#fff
-    style Ref2 fill:#27ae60,color:#fff
-    style Alt fill:#e74c3c,color:#fff
-    style Neither fill:#95a5a6,color:#fff
-    style Neither2 fill:#95a5a6,color:#fff
+    classDef start fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
+    classDef ref fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
+    classDef alt fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
+    classDef neither fill:#95a5a6,color:#fff,stroke:#7f8c8d,stroke-width:2px;
 </code></pre>
 <div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
 Use mouse to pan and zoom
@@ -1599,32 +1580,37 @@ Use mouse to pan and zoom
 </button>
 </nav>
 <pre class="mermaid"><code>flowchart TD
-    Start["🧬 MNP Check\npos, REF=AT, ALT=CG"] --&gt; Find["Find read position\nof first base"]
-    Find --&gt; Found{"Position\nfound?"}
-    Found --&gt;|No| Neither["Neither"]
-    Found --&gt;|Yes| Cover{"Read covers\nentire MNP\nregion?"}
-    Cover --&gt;|No| Neither2["Neither"]
-    Cover --&gt;|Yes| Loop["For each position\nin MNP region:"]
-    Loop --&gt; BQ{"Base quality\n≥ min_baseq?"}
-    BQ --&gt;|No| Neither3["Neither\n(any low-quality base\nfails entire MNP)"]
-    BQ --&gt;|Yes| Track["Compare to REF[i]\nand ALT[i]"]
-    Track --&gt; More{"More\npositions?"}
-    More --&gt;|Yes| Loop
-    More --&gt;|No| Contig{"Contiguity check:\nno indels within\nMNP region?"}
-    Contig --&gt;|"Indel found"| Neither4["Neither"]
-    Contig --&gt;|"Contiguous"| Final{"All bases\nmatch?"}
-    Final --&gt;|"All match ALT"| Alt["🔴 ALT"]
-    Final --&gt;|"All match REF"| Ref["✅ REF"]
-    Final --&gt;|"Mixed"| Neither5["Neither\n(partial match)"]
+    Start([🧬 MNP Check]):::start --&gt; Find[Find read position of first base]
+    Find --&gt; Found{Position found?}
+    Found --&gt;|No| Neither1([Neither]):::neither
+    Found --&gt;|Yes| Cover{Read covers entire MNP region?}
+    Cover --&gt;|No| Neither2([Neither]):::neither
+    Cover --&gt;|Yes| Loop[For each position in MNP region]
 
-    style Start fill:#9b59b6,color:#fff
-    style Ref fill:#27ae60,color:#fff
-    style Alt fill:#e74c3c,color:#fff
-    style Neither fill:#95a5a6,color:#fff
-    style Neither2 fill:#95a5a6,color:#fff
-    style Neither3 fill:#95a5a6,color:#fff
-    style Neither4 fill:#95a5a6,color:#fff
-    style Neither5 fill:#95a5a6,color:#fff
+    subgraph PerBase [Per-Base Validation]
+        direction TB
+        BQ{Base quality ≥ min_baseq?}
+        Track[Compare base to REF and ALT]
+        More{More positions?}
+    end
+
+    Loop --&gt; BQ
+    BQ --&gt;|No| Neither3([Neither]):::neither
+    BQ --&gt;|Yes| Track
+    Track --&gt; More
+    More --&gt;|Yes| BQ
+    More --&gt;|No| Contig{No indels within MNP region?}
+
+    Contig --&gt;|Indel found| Neither4([Neither]):::neither
+    Contig --&gt;|Contiguous| Final{All bases match?}
+    Final --&gt;|All match ALT| Alt([🔴 ALT]):::alt
+    Final --&gt;|All match REF| Ref([✅ REF]):::ref
+    Final --&gt;|Mixed| Neither5([Neither]):::neither
+
+    classDef start fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
+    classDef ref fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
+    classDef alt fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
+    classDef neither fill:#95a5a6,color:#fff,stroke:#7f8c8d,stroke-width:2px;
 </code></pre>
 <div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
 Use mouse to pan and zoom
@@ -1706,51 +1692,51 @@ Use mouse to pan and zoom
 </button>
 </nav>
 <pre class="mermaid"><code>flowchart TD
-    Start["🧬 Complex Check\npos=10, REF=ACG, ALT=TT"] --&gt; Region["Define genomic region\n[pos, pos + len(REF))\n= [10, 13)"]
-    Region --&gt; Init["Initialize:\n• reconstructed_seq = []\n• min_qual = 255"]
-    Init --&gt; Walk["Walk each CIGAR op"]
-    Walk --&gt; OpType{"CIGAR op\ntype?"}
+    Start([🧬 Complex Check]):::start --&gt; Region[Define genomic region]:::info
+    Region --&gt; Init[Init reconstructed seq + min qual]
 
-    OpType --&gt;|"M / = / X\n(Match)"| Match["Does op overlap\nwith [10, 13)?"]
-    Match --&gt;|Yes| AppendM["Append overlapping\nbases from read.\nTrack min quality."]
-    Match --&gt;|No| Next["Next CIGAR op"]
-    AppendM --&gt; Next
+    subgraph CIGARWalk [CIGAR Walk]
+        direction TB
+        Walk[Walk each CIGAR op]
+        OpType{CIGAR op type?}
+        Walk --&gt; OpType
+        OpType --&gt;|"M / = / X"| Match[Append overlapping bases]
+        OpType --&gt;|"I"| InsCheck[Append inserted bases]
+        OpType --&gt;|"D / N"| AdvRef[Advance ref_pos only]
+        OpType --&gt;|"S"| AdvRead[Advance read_pos only]
+        OpType --&gt;|"H / P"| Skip[No action]
+        Match --&gt; Next[Next op]
+        InsCheck --&gt; Next
+        AdvRef --&gt; Next
+        AdvRead --&gt; Next
+        Skip --&gt; Next
+        Next --&gt; More{More CIGAR ops?}
+        More --&gt;|Yes| Walk
+    end
 
-    OpType --&gt;|"I (Insertion)"| InsCheck["Is ref_pos within\n[10, 13]?"]
-    InsCheck --&gt;|Yes| AppendI["Append inserted\nbases from read"]
-    InsCheck --&gt;|No| Next
-    AppendI --&gt; Next
+    Init --&gt; Walk
+    More --&gt;|No| Compare
 
-    OpType --&gt;|"D / N\n(Del/Skip)"| AdvRef["Advance ref_pos\nonly (no bases\nappended)"]
-    AdvRef --&gt; Next
+    subgraph Classify [Allele Classification]
+        direction TB
+        Compare[Compare reconstructed seq]
+        Compare --&gt; CmpAlt{Matches ALT?}
+        CmpAlt --&gt;|Yes| QualA{Quality ≥ min_baseq?}
+        CmpAlt --&gt;|No| CmpRef{Matches REF?}
+        CmpRef --&gt;|Yes| QualR{Quality ≥ min_baseq?}
+        CmpRef --&gt;|No| Neither3([Neither]):::neither
+    end
 
-    OpType --&gt;|"S (Soft clip)"| AdvRead["Advance read_pos\nonly"]
-    AdvRead --&gt; Next
+    QualA --&gt;|Yes| Alt([🔴 ALT]):::alt
+    QualA --&gt;|No| Neither1([Neither]):::neither
+    QualR --&gt;|Yes| Ref([✅ REF]):::ref
+    QualR --&gt;|No| Neither2([Neither]):::neither
 
-    OpType --&gt;|"H / P\n(Hard/Pad)"| Next
-
-    Next --&gt; More{"More\nCIGAR ops?"}
-    More --&gt;|Yes| Walk
-    More --&gt;|No| Compare["Compare\nreconstructed\nsequence"]
-
-    Compare --&gt; CmpAlt{"reconstructed\n== ALT?"}
-    CmpAlt --&gt;|Yes| QualA{"min_qual\n≥ min_baseq?"}
-    QualA --&gt;|Yes| Alt["🔴 ALT"]
-    QualA --&gt;|No| Neither["Neither\n(low quality)"]
-
-    CmpAlt --&gt;|No| CmpRef{"reconstructed\n== REF?"}
-    CmpRef --&gt;|Yes| QualR{"min_qual\n≥ min_baseq?"}
-    QualR --&gt;|Yes| Ref["✅ REF"]
-    QualR --&gt;|No| Neither2["Neither\n(low quality)"]
-    CmpRef --&gt;|No| Neither3["Neither\n(no match)"]
-
-    style Start fill:#9b59b6,color:#fff
-    style Region fill:#3498db,color:#fff
-    style Ref fill:#27ae60,color:#fff
-    style Alt fill:#e74c3c,color:#fff
-    style Neither fill:#95a5a6,color:#fff
-    style Neither2 fill:#95a5a6,color:#fff
-    style Neither3 fill:#95a5a6,color:#fff
+    classDef start fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
+    classDef info fill:#3498db,color:#fff,stroke:#2471a3,stroke-width:2px;
+    classDef ref fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
+    classDef alt fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
+    classDef neither fill:#95a5a6,color:#fff,stroke:#7f8c8d,stroke-width:2px;
 </code></pre>
 <div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
 Use mouse to pan and zoom
@@ -1832,21 +1818,21 @@ Use mouse to pan and zoom
 </button>
 </nav>
 <pre class="mermaid"><code>flowchart TD
-    subgraph ReadLevel["📖 Read-Level Counting"]
-        R1["Read 1 (fwd) → ALT"]
-        R2["Read 2 (rev) → ALT"]
-        R3["Read 3 (fwd) → REF"]
-        R4["Read 4 (rev) → REF"]
-        R5["Read 5 (fwd) → ALT"]
-        R6["Read 6 (rev) → REF"]
+    subgraph ReadLevel [📖 Read-Level Counting]
+        R1[Read 1 fwd → ALT]:::altread
+        R2[Read 2 rev → ALT]:::altread
+        R3[Read 3 fwd → REF]:::refread
+        R4[Read 4 rev → REF]:::refread
+        R5[Read 5 fwd → ALT]:::altread
+        R6[Read 6 rev → REF]:::refread
     end
 
-    subgraph FragLevel["🧬 Fragment-Level Counting"]
+    subgraph FragLevel [🧬 Fragment-Level Counting]
         direction TB
-        F1["Fragment A\nR1+R2 → ALT\norientation: fwd (R1)"]
-        F2["Fragment B\nR3+R4 → REF\norientation: fwd (R3)"]
-        F3["Fragment C\nR5 only → ALT\norientation: fwd"]
-        F4["Fragment D\nR6 only → REF\norientation: rev"]
+        F1[Fragment A: R1+R2 → ALT]:::altfrag
+        F2[Fragment B: R3+R4 → REF]:::reffrag
+        F3[Fragment C: R5 only → ALT]:::altfrag
+        F4[Fragment D: R6 only → REF]:::reffrag
     end
 
     R1 --&gt; F1
@@ -1856,9 +1842,9 @@ Use mouse to pan and zoom
     R5 --&gt; F3
     R6 --&gt; F4
 
-    subgraph Results["📊 Final Counts"]
-        ReadCounts["Read Level:\nDP=6, RD=3, AD=3\nDP_fwd=3, DP_rev=3"]
-        FragCounts["Fragment Level:\nDPF=4, RDF=2, ADF=2\nRDF_fwd=1, RDF_rev=1"]
+    subgraph Results [📊 Final Counts]
+        ReadCounts[Reads: DP=6  RD=3  AD=3]
+        FragCounts[Fragments: DPF=4  RDF=2  ADF=2]
     end
 
     F1 --&gt; FragCounts
@@ -1866,9 +1852,10 @@ Use mouse to pan and zoom
     F3 --&gt; FragCounts
     F4 --&gt; FragCounts
 
-    style ReadLevel fill:#3498db15,stroke:#3498db
-    style FragLevel fill:#9b59b615,stroke:#9b59b6
-    style Results fill:#27ae6015,stroke:#27ae60
+    classDef altread fill:#e74c3c15,stroke:#e74c3c;
+    classDef refread fill:#27ae6015,stroke:#27ae60;
+    classDef altfrag fill:#9b59b615,stroke:#9b59b6;
+    classDef reffrag fill:#27ae6015,stroke:#27ae60;
 </code></pre>
 <div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
 Use mouse to pan and zoom
@@ -1929,18 +1916,18 @@ Use mouse to pan and zoom
 </button>
 </nav>
 <pre class="mermaid"><code>flowchart TD
-    Start["For each read passing filters:"] --&gt; Track["Track by fragment name (QNAME):\n• Which allele(s) each read supports\n• Orientation of each read"]
-    Track --&gt; Done["After all reads processed:"]
-    Done --&gt; ForEach["For each unique fragment:"]
-    ForEach --&gt; HasBoth{"Both reads\npresent?"}
-    HasBoth --&gt;|Yes| Orient1["Orientation = Read 1's direction\n(forward or reverse)"]
-    HasBoth --&gt;|No| Orient2["Orientation = single read's direction"]
+    Start([For each read passing filters]):::start
+    Start --&gt; Track[Track by QNAME]
+    Track --&gt; Done[After all reads processed]
+    Done --&gt; ForEach[For each unique fragment]
+    ForEach --&gt; HasBoth{Both reads present?}
+    HasBoth --&gt;|Yes| Orient1[Orientation = Read 1 direction]
+    HasBoth --&gt;|No| Orient2[Orientation = single read direction]
     Orient1 --&gt; Allele
     Orient2 --&gt; Allele
-    Allele["Check alleles:\n• has_ref? → increment RDF\n• has_alt? → increment ADF\n• Always increment DPF"]
-    Allele --&gt; Strand["Update strand-specific\ncounts based on\nfragment orientation"]
+    Allele[Update RDF / ADF / DPF counts] --&gt; Strand[Update strand-specific counts]
 
-    style Start fill:#3498db,color:#fff
+    classDef start fill:#3498db,color:#fff,stroke:#2471a3,stroke-width:2px;
 </code></pre>
 <div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
 Use mouse to pan and zoom
@@ -2000,23 +1987,24 @@ Use mouse to pan and zoom
 </button>
 </nav>
 <pre class="mermaid"><code>flowchart LR
-    subgraph Table["2×2 Contingency Table"]
+    subgraph Table [2×2 Contingency Table]
         direction TB
-        Header["| · | Forward | Reverse |"]
-        RefRow["| REF | a (RD_fwd) | b (RD_rev) |"]
-        AltRow["| ALT | c (AD_fwd) | d (AD_rev) |"]
+        Header["| · | Fwd | Rev |"]
+        RefRow["| REF | a | b |"]
+        AltRow["| ALT | c | d |"]
     end
 
-    Table --&gt; Fisher["Fisher's Exact\nTest"]
-    Fisher --&gt; Pval["SB_pval\n(p-value)"]
-    Fisher --&gt; OR["SB_OR\n(odds ratio)"]
+    Table --&gt; Fisher([Fisher Exact Test]):::test
+    Fisher --&gt; Pval[SB_pval]
+    Fisher --&gt; OR[SB_OR]
 
-    Pval --&gt; Interpret{"p &lt; 0.05?"}
-    Interpret --&gt;|Yes| Bias["⚠️ Possible\nstrand bias"]
-    Interpret --&gt;|No| NoBias["✅ No evidence\nof strand bias"]
+    Pval --&gt; Interpret{p &lt; 0.05?}
+    Interpret --&gt;|Yes| Bias{{⚠️ Possible Strand Bias}}:::warn
+    Interpret --&gt;|No| NoBias([✅ No Strand Bias]):::pass
 
-    style Bias fill:#e74c3c,color:#fff
-    style NoBias fill:#27ae60,color:#fff
+    classDef test fill:#3498db,color:#fff,stroke:#2471a3,stroke-width:2px;
+    classDef warn fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
+    classDef pass fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
 </code></pre>
 <div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
 Use mouse to pan and zoom
@@ -2049,119 +2037,9 @@ Use mouse to pan and zoom
 <p>If a variant has <code>AD_fwd=15, AD_rev=1</code>, that's suspicious — almost all ALT-supporting reads are on the forward strand. Fisher's test would yield a low p-value, flagging this as a potential artifact rather than a true variant.</p>
 </div>
 <hr>
-<h2 id="full-pipeline-end-to-end-example">Full Pipeline: End-to-End Example<a class="headerlink" href="#full-pipeline-end-to-end-example" title="Permanent link">¶</a></h2>
-<p>Here's how a single variant is processed through the complete pipeline:</p>
-<div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
-<nav class="panzoom-nav">
-<button class="panzoom-info panzoom-button">
-<svg class="panzoom-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M464 256A208 208 0 1 0 48 256a208 208 0 1 0 416 0zM0 256a256 256 0 1 1 512 0A256 256 0 1 1 0 256zm169.8-90.7c7.9-22.3 29.1-37.3 52.8-37.3l58.3 0c34.9 0 63.1 28.3 63.1 63.1c0 22.6-12.1 43.5-31.7 54.8L280 264.4c-.2 13-10.9 23.6-24 23.6c-13.3 0-24-10.7-24-24l0-13.5c0-8.6 4.6-16.5 12.1-20.8l44.3-25.4c4.7-2.7 7.6-7.7 7.6-13.1c0-8.4-6.8-15.1-15.1-15.1l-58.3 0c-3.4 0-6.4 2.1-7.5 5.3l-.4 1.2c-4.4 12.5-18.2 19-30.6 14.6s-19-18.2-14.6-30.6l.4-1.2zM224 352a32 32 0 1 1 64 0 32 32 0 1 1 -64 0z"></path>
-</svg>
-</button><button class="panzoom-reset panzoom-button">
-<svg class="panzoom-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M125.7 160l50.3 0c17.7 0 32 14.3 32 32s-14.3 32-32 32L48 224c-17.7 0-32-14.3-32-32L16 64c0-17.7 14.3-32 32-32s32 14.3 32 32l0 51.2L97.6 97.6c87.5-87.5 229.3-87.5 316.8 0s87.5 229.3 0 316.8s-229.3 87.5-316.8 0c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0c62.5 62.5 163.8 62.5 226.3 0s62.5-163.8 0-226.3s-163.8-62.5-226.3 0L125.7 160z"></path>
-</svg>
-</button><button class="panzoom-max panzoom-button">
-<svg class="panzoom-icon" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M32 32C14.3 32 0 46.3 0 64l0 96c0 17.7 14.3 32 32 32s32-14.3 32-32l0-64 64 0c17.7 0 32-14.3 32-32s-14.3-32-32-32L32 32zM64 352c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-64 0 0-64zM320 32c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0 0 64c0 17.7 14.3 32 32 32s32-14.3 32-32l0-96c0-17.7-14.3-32-32-32l-96 0zM448 352c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 64-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l96 0c17.7 0 32-14.3 32-32l0-96z"></path>
-</svg>
-</button><button class="panzoom-min panzoom-button panzoom-hidden">
-<svg class="panzoom-icon" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M160 64c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 64-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l96 0c17.7 0 32-14.3 32-32l0-96zM32 320c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0 0 64c0 17.7 14.3 32 32 32s32-14.3 32-32l0-96c0-17.7-14.3-32-32-32l-96 0zM352 64c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-64 0 0-64zM320 320c-17.7 0-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32s32-14.3 32-32l0-64 64 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-96 0z"></path>
-</svg>
-</button>
-</nav>
-<pre class="mermaid"><code>sequenceDiagram
-    participant CLI as CLI (Python)
-    participant Pipeline as Pipeline
-    participant Reader as VCF/MAF Reader
-    participant Kernel as Coordinate Kernel
-    participant Rust as Rust Engine
-    participant BAM as BAM File
-
-    CLI-&gt;&gt;Pipeline: run(config)
-    Pipeline-&gt;&gt;Reader: load variants
-    Reader-&gt;&gt;Kernel: normalize coordinates
-    Kernel--&gt;&gt;Reader: 0-based Variant objects
-    Reader--&gt;&gt;Pipeline: List[Variant]
-
-    loop For each BAM sample
-        Pipeline-&gt;&gt;Rust: count_bam(bam, variants, filters)
-        loop For each variant (parallel via Rayon)
-            Rust-&gt;&gt;BAM: fetch(chrom, pos, pos+1)
-            BAM--&gt;&gt;Rust: Iterator of reads
-            loop For each read
-                Note over Rust: Apply filter cascade
-                Note over Rust: Dispatch to type checker
-                Note over Rust: Update read + fragment counts
-            end
-            Note over Rust: Compute Fisher strand bias
-        end
-        Rust--&gt;&gt;Pipeline: Vec[BaseCounts]
-    end
-
-    Pipeline-&gt;&gt;Pipeline: Write output (VCF/MAF)
-</code></pre>
-<div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
-Use mouse to pan and zoom
-</div>
-</div>
-<hr>
-<h2 id="comparison-with-original-gbcms">Comparison with Original <abbr title="Get Base Count Multi Sample - Multi-BAM variant counting tool">GBCMS</abbr><a class="headerlink" href="#comparison-with-original-gbcms" title="Permanent link">¶</a></h2>
-<table>
-<thead>
-<tr>
-<th style="text-align: left;">Feature</th>
-<th style="text-align: left;">Original <abbr title="Get Base Count Multi Sample - Multi-BAM variant counting tool">GBCMS</abbr></th>
-<th style="text-align: left;">py-gbcms</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align: left;">Counting algorithm</td>
-<td style="text-align: left;">Region-based chunking, position matching</td>
-<td style="text-align: left;">Per-variant CIGAR traversal</td>
-</tr>
-<tr>
-<td style="text-align: left;">Complex variants</td>
-<td style="text-align: left;">Optional via <code>--generic_counting</code></td>
-<td style="text-align: left;">Always uses haplotype reconstruction</td>
-</tr>
-<tr>
-<td style="text-align: left;">MNP handling</td>
-<td style="text-align: left;">Not explicit</td>
-<td style="text-align: left;">Dedicated <code>check_mnp</code> with contiguity check</td>
-</tr>
-<tr>
-<td style="text-align: left;">Fragment counting</td>
-<td style="text-align: left;">Optional (<code>--fragment_count</code>)</td>
-<td style="text-align: left;">Always computed</td>
-</tr>
-<tr>
-<td style="text-align: left;">Positive strand counts</td>
-<td style="text-align: left;">Optional (<code>--positive_count</code>)</td>
-<td style="text-align: left;">Always computed</td>
-</tr>
-<tr>
-<td style="text-align: left;">Strand bias</td>
-<td style="text-align: left;">Not computed</td>
-<td style="text-align: left;">Fisher's exact test (read + fragment level)</td>
-</tr>
-<tr>
-<td style="text-align: left;">Fractional depth</td>
-<td style="text-align: left;"><code>--fragment_fractional_weight</code></td>
-<td style="text-align: left;">Not implemented</td>
-</tr>
-<tr>
-<td style="text-align: left;">Parallelism</td>
-<td style="text-align: left;">OpenMP block-based</td>
-<td style="text-align: left;">Rayon per-variant</td>
-</tr>
-</tbody>
-</table>
 <h2 id="related">Related<a class="headerlink" href="#related" title="Permanent link">¶</a></h2>
 <ul>
-<li><a href="../architecture/">Architecture</a> — System design overview</li>
+<li><a href="../architecture/">Architecture</a> — System design, full pipeline diagram, and comparison with original <abbr title="Get Base Count Multi Sample - Multi-BAM variant counting tool">GBCMS</abbr></li>
 <li><a href="../input-formats/">Input Formats</a> — <abbr title="Variant Call Format - Standard variant call file format">VCF</abbr> and <abbr title="Mutation Annotation Format - Standard mutation annotation file format">MAF</abbr> specifications</li>
 <li><a href="../glossary/">Glossary</a> — Term definitions</li>
 <li><a href="../../cli/run/"><abbr title="Command Line Interface - Terminal-based program interface">CLI</abbr> Run Command</a> — All parameter options</li>
@@ -2173,7 +2051,7 @@ Use mouse to pan and zoom
 <span class="md-icon" title="Last update">
 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
 </span>
-<span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 10, 2026 04:01:20 UTC"><span class="timeago" datetime="2026-02-10T04:01:20+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 10, 2026 04:01:20 UTC">2026-02-10</span>
+<span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 10, 2026 05:30:24 UTC"><span class="timeago" datetime="2026-02-10T05:30:24+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 10, 2026 05:30:24 UTC">2026-02-10</span>
 </span>
 <span class="md-source-file__fact">
 <span class="md-icon" title="Created">
