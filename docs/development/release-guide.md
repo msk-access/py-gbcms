@@ -22,6 +22,9 @@ All these files must be updated with the new version:
 | `src/gbcms/__init__.py` | Line 11 | `__version__ = "X.Y.Z"` |
 | `rust/Cargo.toml` | Line 3 | `version = "X.Y.Z"` |
 | `nextflow/modules/local/gbcms/run/main.nf` | Line 7 | `container "ghcr.io/msk-access/py-gbcms:X.Y.Z"` |
+| `docs/getting-started/installation.md` | Multiple | Docker/Singularity pull/run/exec commands (8×) |
+| `docs/getting-started/quickstart.md` | Docker section | `ghcr.io/msk-access/py-gbcms:X.Y.Z` (1×) |
+| `docs/development/developer-guide.md` | Git-flow diagram | Release branch labels (3×) |
 | `CHANGELOG.md` | Top section | `## [X.Y.Z] - YYYY-MM-DD` |
 
 ---
