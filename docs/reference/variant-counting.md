@@ -216,6 +216,29 @@ Read 3 (other): CIGAR = 5M 1I 5M
 !!! tip "Why anchor-based?"
     In VCF format, insertions are represented as `REF=A, ALT=ATG` where the first base `A` is the anchor — it's not part of the inserted sequence. py-gbcms uses this anchor to locate where the insertion should occur in the CIGAR string.
 
+!!! info "MAF → VCF Anchor Conversion"
+    MAF format represents indels differently — using `-` dashes instead of an anchor base. py-gbcms automatically converts MAF indels to VCF-style anchor-based representation at input time, which requires a **reference FASTA** (`--fasta`).
+
+    **Insertion** (e.g., insert `TG` after chr1:100):
+
+    | | MAF | VCF (internal) |
+    |:--|:--|:--|
+    | Position | `Start_Position=100` (anchor) | `POS=100` |
+    | REF | `-` | `A` (fetched from FASTA) |
+    | ALT | `TG` | `ATG` (anchor + inserted seq) |
+
+    **Deletion** (e.g., delete `CG` at chr1:101–102):
+
+    | | MAF | VCF (internal) |
+    |:--|:--|:--|
+    | Position | `Start_Position=101` (first deleted base) | `POS=100` (anchor = base before) |
+    | REF | `CG` | `ACG` (anchor + deleted seq) |
+    | ALT | `-` | `A` (anchor only) |
+
+    Note that for **deletions**, MAF `Start_Position` points to the *first deleted base*, not the anchor. py-gbcms shifts back by one position and fetches the preceding base from the FASTA as the anchor.
+
+    See [Input Formats](input-formats.md#maf-indel-normalization) for full details.
+
 ---
 
 ### Deletion
