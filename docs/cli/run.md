@@ -30,7 +30,7 @@ gbcms run [OPTIONS] --variants <FILE> --bam <NAME:PATH>... --fasta <FILE>
 | Option | Default | Description |
 |:-------|:--------|:------------|
 | `--min-mapq` | `20` | Minimum MAPQ |
-| `--min-baseq` | `0` | Minimum BASEQ |
+| `--min-baseq` | `20` | Minimum BASEQ |
 | `--filter-duplicates` | `true` | Filter duplicate reads |
 | `--filter-secondary` | `false` | Filter secondary alignments |
 | `--filter-supplementary` | `false` | Filter supplementary alignments |

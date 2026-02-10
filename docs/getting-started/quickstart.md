@@ -128,7 +128,7 @@ gbcms run --help
 | `--output-dir` | Required | Output directory |
 | `--format` | vcf | Output format (vcf/maf) |
 | `--min-mapq` | 20 | Minimum mapping quality |
-| `--min-baseq` | 0 | Minimum base quality |
+| `--min-baseq` | 20 | Minimum base quality |
 | `--threads` | 1 | Number of threads |
 
 ---

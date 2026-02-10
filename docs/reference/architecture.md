@@ -193,6 +193,7 @@ sequenceDiagram
 | Feature | Original GBCMS | py-gbcms |
 |:--------|:---------------|:---------|
 | Counting algorithm | Region-based chunking, position matching | Per-variant CIGAR traversal |
+| Indel detection | Exact position match only | **Windowed scan** (±5bp) with 3-layer safeguards: sequence identity, closest match, reference context validation |
 | Complex variants | Optional via `--generic_counting` | Always uses haplotype reconstruction |
 | Complex quality handling | Exact match only (no quality awareness) | **Masked comparison** — bases below `--min-baseq` are masked out, ambiguity detection prevents false positives |
 | Base quality filtering | No base quality threshold | Default `--min-baseq 20` (Phred Q20) |
