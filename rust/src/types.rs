@@ -13,17 +13,28 @@ pub struct Variant {
     pub alt_allele: String,
     #[pyo3(get, set)]
     pub variant_type: String, // "SNP", "INSERTION", "DELETION", "COMPLEX"
+    /// Reference sequence around the variant for windowed indel detection.
+    /// Covers [ref_context_start, ref_context_start + len) in genomic coords.
+    /// Used by Safeguard 3 to verify shifted indels are biologically valid.
+    #[pyo3(get, set)]
+    pub ref_context: Option<String>,
+    /// Genomic start position (0-based) of the ref_context string.
+    #[pyo3(get, set)]
+    pub ref_context_start: i64,
 }
 
 #[pymethods]
 impl Variant {
     #[new]
+    #[pyo3(signature = (chrom, pos, ref_allele, alt_allele, variant_type, ref_context=None, ref_context_start=0))]
     pub fn new(
         chrom: String,
         pos: i64,
         ref_allele: String,
         alt_allele: String,
         variant_type: String,
+        ref_context: Option<String>,
+        ref_context_start: i64,
     ) -> Self {
         Variant {
             chrom,
@@ -31,6 +42,8 @@ impl Variant {
             ref_allele,
             alt_allele,
             variant_type,
+            ref_context,
+            ref_context_start,
         }
     }
 }

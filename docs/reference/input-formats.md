@@ -96,6 +96,25 @@ Delete `CG` at chr1:101–102 (where the reference base at position 100 is `A`):
 !!! note "Position Shift for Deletions"
     For insertions, `Start_Position` already points to the anchor base. For deletions, `Start_Position` points to the *first deleted base*, so py-gbcms shifts back by one position to find the anchor.
 
+## Variant Left-Normalization
+
+py-gbcms uses **windowed indel detection** (±5bp) to handle cases where aligners place indels at different positions in repetitive regions. For this to work correctly, input variants should be **left-aligned** (left-normalized).
+
+!!! important "Left-Align Your Variants"
+    Inconsistently normalized variants reduce the effectiveness of windowed indel detection. While the ±5bp window will catch most aligner-shifted indels, left-alignment ensures the anchor position is consistent with standard conventions.
+
+### VCF Normalization
+
+Use `bcftools norm` to left-align and normalize VCF variants:
+
+```bash
+bcftools norm -f reference.fa -o normalized.vcf input.vcf
+```
+
+### MAF Normalization
+
+MAF files are automatically converted to VCF-style anchor-based coordinates by py-gbcms (see above). Ensure your MAF variants are already left-aligned before input — most variant annotation pipelines (e.g., `vcf2maf`) produce left-aligned output by default.
+
 ## Reference FASTA
 
 - Must have corresponding `.fai` index

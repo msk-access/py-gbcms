@@ -190,10 +190,11 @@ fn count_single_variant(
         anyhow::anyhow!("Chromosome not found in BAM: {}", variant.chrom)
     })?;
 
-    // Fetch region. Add buffer for indels.
-    // Variant pos is 0-based.
-    let start = variant.pos;
-    let end = variant.pos + 1; // Fetch at least one base (anchor)
+    // Fetch region around the variant. For windowed indel detection (±5bp),
+    // we expand the window so that reads with shifted indels are also retrieved.
+    let window_pad: i64 = 5;
+    let start = (variant.pos - window_pad).max(0);
+    let end = variant.pos + (variant.ref_allele.len() as i64) + window_pad;
 
     bam.fetch((tid, start, end)).context("Failed to fetch region")?;
 
@@ -598,56 +599,128 @@ fn check_snp(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool) 
     (base_upper == ref_char, base_upper == alt_char)
 }
 
+/// Check if a read supports an insertion variant.
+///
+/// Uses a single CIGAR walk with two detection strategies:
+/// 1. **Strict match (fast path):** Insertion immediately after the anchor base.
+///    Returns ALT immediately if length + sequence match.
+/// 2. **Windowed scan (fallback):** Any insertion within ±5bp of the anchor,
+///    validated by three safeguards:
+///    - S1: Inserted sequence matches expected ALT bases exactly
+///    - S2: Closest match wins (minimum |shift_pos - anchor_pos|)
+///    - S3: Reference base at shifted anchor matches original anchor base
+///          (via variant.ref_context)
 fn check_insertion(record: &Record, variant: &Variant) -> (bool, bool) {
-    // For insertion, variant.pos is the anchor base.
-    // We check if there is an insertion AFTER this base.
-    // VCF: REF=A, ALT=AT. Insertion of T.
-
-    // Re-implement with index access for lookahead
     let cigar_view = record.cigar();
     let mut ref_pos = record.pos();
-    let mut read_pos = 0;
+    let mut read_pos: usize = 0;
+
+    let anchor_pos = variant.pos;
+    let expected_ins_len = variant.alt_allele.len() - 1; // VCF ALT includes anchor
+    let expected_ins_seq = &variant.alt_allele.as_bytes()[1..]; // ALT without anchor
+    let original_anchor_base = variant.ref_allele.as_bytes()[0].to_ascii_uppercase();
+
+    // Windowed scan parameters
+    let window: i64 = 5;
+    let window_start = (anchor_pos - window).max(0);
+    let window_end = anchor_pos + window;
+
+    // State tracked across the CIGAR walk
+    let mut found_ref_coverage = false;
+    let mut best_windowed_match: Option<u64> = None; // distance of best windowed match
 
     for (i, op) in cigar_view.iter().enumerate() {
         match op {
             Cigar::Match(len) | Cigar::Equal(len) | Cigar::Diff(len) => {
                 let len_i64 = *len as i64;
+                let block_end = ref_pos + len_i64;
 
-                // Check if this block contains the anchor
-                if variant.pos >= ref_pos && variant.pos < ref_pos + len_i64 {
-                    // Found anchor block.
-                    // Is anchor the last base?
-                    if variant.pos == ref_pos + len_i64 - 1 {
-                        // Anchor is at end of match. Check next op.
+                // --- Strict fast path: anchor at end of this block ---
+                if anchor_pos >= ref_pos && anchor_pos < block_end {
+                    if anchor_pos == block_end - 1 {
+                        // Anchor is the last base of this match block.
+                        // Check if next op is an insertion with matching length + sequence.
                         if let Some(Cigar::Ins(ins_len)) = cigar_view.get(i + 1) {
-                            // Found insertion!
-                            // Check length and sequence
                             let ins_len_usize = *ins_len as usize;
-                            let expected_ins_len = variant.alt_allele.len() - 1; // VCF ALT includes anchor
-
                             if ins_len_usize == expected_ins_len {
-                                // Check sequence
-                                // Read pos at start of Ins is current read_pos + len of match
                                 let ins_start = read_pos + *len as usize;
-                                let ins_seq = &record.seq().as_bytes()
-                                    [ins_start..ins_start + ins_len_usize];
-
-                                // Expected: ALT without anchor
-                                let expected_seq = &variant.alt_allele.as_bytes()[1..];
-
-                                if ins_seq == expected_seq {
-                                    return (false, true); // ALT
+                                if ins_start + ins_len_usize <= record.seq().len() {
+                                    let ins_seq = &record.seq().as_bytes()
+                                        [ins_start..ins_start + ins_len_usize];
+                                    if ins_seq == expected_ins_seq {
+                                        debug!(
+                                            "check_insertion: strict match at pos {}",
+                                            anchor_pos
+                                        );
+                                        return (false, true); // ALT — strict match
+                                    }
                                 }
                             }
                         }
-                        // If no insertion follows, it's REF
-                        return (true, false);
+                        // Anchor at end but no matching insertion → REF coverage
+                        found_ref_coverage = true;
                     } else {
-                        // Anchor is in middle of match -> REF
-                        return (true, false);
+                        // Anchor in middle of match block → read covers anchor without insertion
+                        found_ref_coverage = true;
                     }
                 }
-                ref_pos += len_i64;
+
+                // --- Windowed scan: check if any Ins after this block is within window ---
+                if let Some(Cigar::Ins(ins_len)) = cigar_view.get(i + 1) {
+                    let ins_ref_pos = block_end; // genomic position where insertion occurs
+                    if ins_ref_pos >= window_start && ins_ref_pos <= window_end
+                        && ins_ref_pos != anchor_pos + 1 // skip strict position (already handled)
+                    {
+                        let ins_len_usize = *ins_len as usize;
+                        // Safeguard 1: sequence identity — length and bases must match
+                        if ins_len_usize == expected_ins_len {
+                            let ins_start = read_pos + *len as usize;
+                            if ins_start + ins_len_usize <= record.seq().len() {
+                                let ins_seq = &record.seq().as_bytes()
+                                    [ins_start..ins_start + ins_len_usize];
+                                if ins_seq == expected_ins_seq {
+                                    // Safeguard 3: verify anchor base at shifted position
+                                    // The base before the insertion (ins_ref_pos - 1) should
+                                    // match the original anchor base
+                                    let shifted_anchor_pos = ins_ref_pos - 1;
+                                    let anchor_ok = match &variant.ref_context {
+                                        Some(ctx) => {
+                                            let ctx_offset = (shifted_anchor_pos
+                                                - variant.ref_context_start)
+                                                as usize;
+                                            if ctx_offset < ctx.len() {
+                                                ctx.as_bytes()[ctx_offset].to_ascii_uppercase()
+                                                    == original_anchor_base
+                                            } else {
+                                                false // offset out of bounds
+                                            }
+                                        }
+                                        None => true, // no ref_context → skip check
+                                    };
+
+                                    if anchor_ok {
+                                        // Safeguard 2: track closest match
+                                        let distance =
+                                            (ins_ref_pos - (anchor_pos + 1)).unsigned_abs();
+                                        if best_windowed_match
+                                            .map_or(true, |prev| distance < prev)
+                                        {
+                                            best_windowed_match = Some(distance);
+                                        }
+                                    } else {
+                                        debug!(
+                                            "check_insertion: S3 reject at shifted pos {} \
+                                             (anchor base mismatch)",
+                                            shifted_anchor_pos
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                ref_pos = block_end;
                 read_pos += *len as usize;
             }
             Cigar::Ins(len) => {
@@ -663,37 +736,125 @@ fn check_insertion(record: &Record, variant: &Variant) -> (bool, bool) {
         }
     }
 
-    (false, false)
+    // Evaluate results after full CIGAR walk
+    if best_windowed_match.is_some() {
+        debug!(
+            "check_insertion: windowed match for variant at pos {}",
+            anchor_pos
+        );
+        return (false, true); // ALT — windowed match
+    }
+    if found_ref_coverage {
+        return (true, false); // REF — read covers anchor without matching insertion
+    }
+    (false, false) // Read does not cover the variant region
 }
 
+/// Check if a read supports a deletion variant.
+///
+/// Uses the same single-walk strategy as check_insertion:
+/// 1. **Strict match (fast path):** Deletion immediately after anchor, length matches.
+/// 2. **Windowed scan (fallback):** Any deletion within ±5bp, validated by:
+///    - S1: Deletion length matches expected
+///    - S2: Closest match wins
+///    - S3: Reference bases at shifted position match expected deleted sequence
+///          (via variant.ref_context)
 fn check_deletion(record: &Record, variant: &Variant) -> (bool, bool) {
-    // Deletion: VCF REF=AT, ALT=A. Deletion of T.
-    // Anchor is A.
-
     let cigar_view = record.cigar();
     let mut ref_pos = record.pos();
+
+    let anchor_pos = variant.pos;
+    let expected_del_len = variant.ref_allele.len() - 1; // REF without anchor
+    // The expected deleted bases (REF without the anchor base)
+    let expected_del_seq = &variant.ref_allele.as_bytes()[1..];
+
+    // Windowed scan parameters
+    let window: i64 = 5;
+    let window_start = (anchor_pos - window).max(0);
+    let window_end = anchor_pos + window;
+
+    let mut found_ref_coverage = false;
+    let mut best_windowed_match: Option<u64> = None;
 
     for (i, op) in cigar_view.iter().enumerate() {
         match op {
             Cigar::Match(len) | Cigar::Equal(len) | Cigar::Diff(len) => {
                 let len_i64 = *len as i64;
+                let block_end = ref_pos + len_i64;
 
-                if variant.pos >= ref_pos && variant.pos < ref_pos + len_i64 {
-                    if variant.pos == ref_pos + len_i64 - 1 {
-                        // Anchor at end of match. Check next op.
+                // --- Strict fast path ---
+                if anchor_pos >= ref_pos && anchor_pos < block_end {
+                    if anchor_pos == block_end - 1 {
+                        // Anchor at end of match. Check if next op is a deletion.
                         if let Some(Cigar::Del(del_len)) = cigar_view.get(i + 1) {
-                            // Found deletion!
-                            let expected_del_len = variant.ref_allele.len() - 1;
                             if *del_len as usize == expected_del_len {
-                                return (false, true); // ALT
+                                debug!(
+                                    "check_deletion: strict match at pos {}",
+                                    anchor_pos
+                                );
+                                return (false, true); // ALT — strict match
                             }
                         }
-                        return (true, false); // REF
+                        found_ref_coverage = true;
                     } else {
-                        return (true, false); // REF
+                        // Anchor in middle of match → REF coverage
+                        found_ref_coverage = true;
                     }
                 }
-                ref_pos += len_i64;
+
+                // --- Windowed scan: check for Del after this block within window ---
+                if let Some(Cigar::Del(del_len)) = cigar_view.get(i + 1) {
+                    let del_ref_pos = block_end; // genomic position where deletion starts
+                    if del_ref_pos >= window_start && del_ref_pos <= window_end
+                        && del_ref_pos != anchor_pos + 1 // skip strict position
+                    {
+                        let del_len_usize = *del_len as usize;
+                        // Safeguard 1: deletion length matches
+                        if del_len_usize == expected_del_len {
+                            // Safeguard 3: verify the deleted reference bases match
+                            let del_ok = match &variant.ref_context {
+                                Some(ctx) => {
+                                    let ctx_bytes = ctx.as_bytes();
+                                    let ctx_offset =
+                                        (del_ref_pos - variant.ref_context_start) as usize;
+                                    if ctx_offset + del_len_usize <= ctx_bytes.len() {
+                                        let ref_at_shift = &ctx_bytes
+                                            [ctx_offset..ctx_offset + del_len_usize];
+                                        // Compare case-insensitively
+                                        ref_at_shift.iter().zip(expected_del_seq.iter()).all(
+                                            |(a, b)| {
+                                                a.to_ascii_uppercase()
+                                                    == b.to_ascii_uppercase()
+                                            },
+                                        )
+                                    } else {
+                                        false // offset out of bounds
+                                    }
+                                }
+                                None => true, // no ref_context → skip check
+                            };
+
+                            if del_ok {
+                                // Safeguard 2: track closest match
+                                let distance =
+                                    (del_ref_pos - (anchor_pos + 1)).unsigned_abs();
+                                if best_windowed_match
+                                    .map_or(true, |prev| distance < prev)
+                                {
+                                    best_windowed_match = Some(distance);
+                                }
+                            } else {
+                                debug!(
+                                    "check_deletion: S3 reject at shifted pos {} \
+                                     (deleted bases mismatch)",
+                                    del_ref_pos
+                                );
+                            }
+                        }
+                    }
+                }
+
+                ref_pos = block_end;
             }
             Cigar::Del(len) | Cigar::RefSkip(len) => {
                 ref_pos += *len as i64;
@@ -702,7 +863,18 @@ fn check_deletion(record: &Record, variant: &Variant) -> (bool, bool) {
         }
     }
 
-    (false, false)
+    // Evaluate results after full CIGAR walk
+    if best_windowed_match.is_some() {
+        debug!(
+            "check_deletion: windowed match for variant at pos {}",
+            anchor_pos
+        );
+        return (false, true); // ALT — windowed match
+    }
+    if found_ref_coverage {
+        return (true, false); // REF
+    }
+    (false, false) // Read does not cover the variant region
 }
 
 fn check_mnp(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool) {
@@ -760,7 +932,6 @@ fn check_mnp(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool) 
 
     // If contiguous, end - start should be len - 1
     if end_read_pos - start_read_pos != len - 1 {
-        // println!("MNP Debug: Indel detected");
         return (false, false); // Indel detected within MNP
     }
 
