@@ -49,7 +49,7 @@ workflow {
     //
     Channel
         .fromPath(params.input)
-        .splitCsv(header:true, sep:',')
+        .splitCsv(header:true, sep:',', quote:'"')
         .map { row ->
             def meta = [:]
             meta.id = row.sample
