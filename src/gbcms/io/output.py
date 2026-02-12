@@ -236,7 +236,7 @@ class MafWriter(OutputWriter):
             row = dict(variant.metadata)
         else:
             # VCF→MAF: build row from internal representation
-            row: dict[str, str] = dict.fromkeys(self.fieldnames, "")
+            row = dict.fromkeys(self.fieldnames, "")
 
             # Convert internal coordinates to GDC MAF format
             maf_coords = CoordinateKernel.internal_to_maf(variant)
