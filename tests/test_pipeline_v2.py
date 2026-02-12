@@ -65,7 +65,8 @@ def test_pipeline_v2(tmp_path):
         lines = f.readlines()
         assert len(lines) > 1  # Header + Data
         header = lines[0].strip().split("\t")
-        assert "t_ref_count" in header
-        assert "t_vaf_fragment" in header
-        assert "t_ref_count_forward" in header
-        assert "t_alt_count_reverse" in header
+        # Default prefix is '' so columns are unprefixed
+        assert "ref_count" in header
+        assert "vaf_fragment" in header
+        assert "ref_count_forward" in header
+        assert "alt_count_reverse" in header

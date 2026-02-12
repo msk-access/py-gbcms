@@ -67,6 +67,24 @@ def run(
     output_suffix: str = typer.Option(
         "", "--suffix", "-S", help="Suffix to append to output filename (e.g. '.genotyped')"
     ),
+    column_prefix: str = typer.Option(
+        "",
+        "--column-prefix",
+        help=(
+            "Prefix for gbcms count columns in MAF output. "
+            "Default: no prefix (e.g., 'ref_count'). "
+            "Use 't_' for legacy compatibility (e.g., 't_ref_count')."
+        ),
+    ),
+    preserve_barcode: bool = typer.Option(
+        False,
+        "--preserve-barcode",
+        help=(
+            "Preserve original Tumor_Sample_Barcode from input MAF "
+            "instead of overriding with BAM sample name. "
+            "Only applies to MAF→MAF output."
+        ),
+    ),
     # Quality thresholds
     min_mapq: int = typer.Option(20, "--min-mapq", help="Minimum mapping quality"),
     min_baseq: int = typer.Option(20, "--min-baseq", help="Minimum base quality"),
@@ -113,6 +131,8 @@ def run(
             directory=output_dir,
             format=output_format,
             suffix=output_suffix,
+            column_prefix=column_prefix,
+            preserve_barcode=preserve_barcode,
         )
 
         quality_config = QualityThresholds(

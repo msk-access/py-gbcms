@@ -17,6 +17,8 @@ Complete reference for all pipeline parameters.
 | `--outdir` | `results` | Output directory |
 | `--format` | `vcf` | Output format (`vcf` or `maf`) |
 | `--suffix` | `''` | Suffix for output filenames |
+| `--column_prefix` | `''` | Prefix for gbcms count columns in MAF output |
+| `--preserve_barcode` | `false` | Keep original Tumor_Sample_Barcode from input MAF |
 
 ## Filtering Options
 
@@ -30,6 +32,7 @@ Complete reference for all pipeline parameters.
 | `--filter_qc_failed` | `false` | Filter QC failed reads |
 | `--filter_improper_pair` | `false` | Filter improperly paired reads |
 | `--filter_indel` | `false` | Filter reads with indels |
+| `--filter_by_sample` | `false` | Filter multi-sample MAF by `Tumor_Sample_Barcode` ([details](samplesheet.md#multi-sample-maf-filtering)) |
 
 ## Resource Limits
 

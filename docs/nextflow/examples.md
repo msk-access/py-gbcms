@@ -53,6 +53,30 @@ nextflow run nextflow/main.nf \
     -profile docker
 ```
 
+## Multi-Sample MAF Filtering
+
+Filter a multi-sample MAF so each BAM only processes its own variants:
+
+```bash
+nextflow run nextflow/main.nf \
+    --input samplesheet.csv \
+    --variants multi_sample.maf \
+    --fasta reference.fa \
+    --format maf \
+    --filter_by_sample \
+    -profile docker
+```
+
+With patient-level filtering via `tsb` column in samplesheet:
+
+```csv
+sample,bam,tsb
+patient_A,/path/to/A.bam,P-0012345
+patient_B,/path/to/B.bam,"P-0067890-T01,P-0067890-T02"
+```
+
+See [Samplesheet — Multi-Sample MAF Filtering](samplesheet.md#multi-sample-maf-filtering) for details.
+
 ## Resume Failed Run
 
 ```bash

@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-02-12
+
+### ✨ Added
+- **`--preserve-barcode` flag**: Keeps original `Tumor_Sample_Barcode` from input MAF instead of overriding with BAM sample name (MAF→MAF workflows)
+- **`--column-prefix` parameter**: Controls prefix for gbcms count columns in MAF output (default: none; use `--column-prefix t_` for legacy compatibility) ⚠️
+- **`CoordinateKernel`**: Centralized MAF↔internal 0-based coordinate conversion with variant-type-aware logic for SNP, insertion, deletion, and complex variants
+- **Nextflow `FILTER_MAF` module**: Per-sample MAF variant filtering by `Tumor_Sample_Barcode` supporting exact match, regex, and multi-select (comma-separated) modes
+- **Nextflow `PIPELINE_SUMMARY` module**: Aggregated per-sample filtering statistics with formatted console output
+- **Nextflow `--filter_by_sample` parameter** and samplesheet `tsb` column for multi-sample MAF workflows
+- **Nextflow documentation**: Samplesheet `tsb` column guide, `--filter_by_sample` parameter reference, multi-sample MAF filtering examples
+
+### 🔧 Fixed
+- **Fragment quality extraction** (critical): All variant-type handlers (`check_insertion`, `check_deletion`, `check_mnp`, `check_complex`) now return actual `base_qual` from CIGAR walk instead of 0 — fixes systematic ALT undercount for indels in fragment-level consensus
+- **FILTER_MAF heredoc conflict**: Restructured script from Python shebang to `python3 << 'PYEOF'` pattern, resolving `SyntaxError` from bash syntax in Python context
+- **FILTER_MAF string quoting**: Changed to single-quoted Python strings for Nextflow variable interpolation to prevent CSV-parsed double-quote conflicts
+- **`splitCsv` quote handling**: Added `quote:'"'` parameter for correct RFC 4180 parsing of comma-separated TSB values within quoted CSV fields
+- **mypy `no-redef` error**: Removed redundant type annotation in `output.py` else branch
+
+### 🔄 Changed
+- **MAF output column prefix default**: Changed from `t_` to empty string (no prefix). Use `--column-prefix t_` for legacy `t_ref_count` / `t_alt_count` style columns ⚠️
+- **`MafWriter` refactored**: MAF→MAF path preserves all original columns verbatim; VCF→MAF path builds row from GDC fieldnames with `CoordinateKernel` coordinate conversion
+- **Nextflow `GBCMS_RUN` input**: Variants bundled into sample tuple `(meta, bam, bai, variants)` instead of separate channel
+- **Nextflow `GBCMS` workflow**: Simplified to 2-channel interface (`ch_samples`, `ch_fasta`) from 3 channels
+- **Nextflow config**: Added `column_prefix`, `preserve_barcode`, `filter_by_sample` parameters
+
 ## [2.4.0] - 2026-02-10
 
 ### ✨ Added

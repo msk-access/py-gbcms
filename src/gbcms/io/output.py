@@ -6,12 +6,16 @@ to output files, handling format-specific columns and headers.
 """
 
 import csv
+import logging
 from pathlib import Path
 from typing import Any
 
+from ..core.kernel import CoordinateKernel
 from ..models.core import Variant
 
 __all__ = ["OutputWriter", "MafWriter", "VcfWriter"]
+
+logger = logging.getLogger(__name__)
 
 
 class OutputWriter:
@@ -25,242 +29,243 @@ class OutputWriter:
 
 
 class MafWriter(OutputWriter):
-    """Writes results to a MAF-like file (Fillout format)."""
+    """
+    Writes results to a MAF-like file (Fillout format).
 
-    def __init__(self, path: Path):
+    Supports two output strategies based on input format:
+    - MAF→MAF: Preserves all original MAF columns, appends gbcms count columns.
+      Original positional/allele/type columns are NEVER overwritten.
+    - VCF→MAF: Generates GDC-compliant MAF coordinates from internal VCF-style
+      representation using CoordinateKernel.internal_to_maf().
+
+    Count column names are controlled by the column_prefix parameter:
+    - Default (empty): 'ref_count', 'alt_count', 'total_count', etc.
+    - Legacy ('t_'):   't_ref_count', 't_alt_count', 't_total_count', etc.
+    """
+
+    # Default MAF columns for VCF→MAF output (minimal GDC-compatible set)
+    _DEFAULT_MAF_HEADERS = [
+        "Hugo_Symbol",
+        "Chromosome",
+        "Start_Position",
+        "End_Position",
+        "Strand",
+        "Variant_Classification",
+        "Variant_Type",
+        "Reference_Allele",
+        "Tumor_Seq_Allele1",
+        "Tumor_Seq_Allele2",
+        "Tumor_Sample_Barcode",
+        "Matched_Norm_Sample_Barcode",
+    ]
+
+    def __init__(self, path: Path, column_prefix: str = "", preserve_barcode: bool = False):
+        """
+        Initialize MafWriter.
+
+        Args:
+            path: Output file path.
+            column_prefix: Prefix for gbcms count columns (e.g., '', 't_', 'gbcms_').
+            preserve_barcode: If True, keep original Tumor_Sample_Barcode from
+                input MAF. If False (default), override with BAM sample name.
+                Only applies to MAF→MAF; VCF→MAF always uses BAM name.
+        """
         self.path = path
+        self.column_prefix = column_prefix
+        self.preserve_barcode = preserve_barcode
         self.file = open(path, "w")
         self.writer: csv.DictWriter | None = None
         self._headers_written = False
+        logger.debug(
+            "MafWriter initialized: path=%s, column_prefix='%s', preserve_barcode=%s",
+            path,
+            column_prefix,
+            preserve_barcode,
+        )
 
-    def _init_writer(self):
-        # Standard GDC MAF columns (plus our custom ones)
-        # Based on GDC MAF Format v1.0.0
-        self.fieldnames = [
-            "Hugo_Symbol",
-            "Entrez_Gene_Id",
-            "Center",
-            "NCBI_Build",
-            "Chromosome",
-            "Start_Position",
-            "End_Position",
-            "Strand",
-            "Variant_Classification",
-            "Variant_Type",
-            "Reference_Allele",
-            "Tumor_Seq_Allele1",
-            "Tumor_Seq_Allele2",
-            "dbSNP_RS",
-            "dbSNP_Val_Status",
-            "Tumor_Sample_Barcode",
-            "Matched_Norm_Sample_Barcode",
-            "Match_Norm_Seq_Allele1",
-            "Match_Norm_Seq_Allele2",
-            "Tumor_Validation_Allele1",
-            "Tumor_Validation_Allele2",
-            "Match_Norm_Validation_Allele1",
-            "Match_Norm_Validation_Allele2",
-            "Verification_Status",
-            "Validation_Status",
-            "Mutation_Status",
-            "Sequencing_Phase",
-            "Sequence_Source",
-            "Validation_Method",
-            "Score",
-            "BAM_File",
-            "Sequencer",
-            "Tumor_Sample_UUID",
-            "Matched_Norm_Sample_UUID",
-            "HGVSc",
-            "HGVSp",
-            "HGVSp_Short",
-            "Transcript_ID",
-            "Exon_Number",
-            "t_depth",
-            "t_ref_count",
-            "t_alt_count",
-            "n_depth",
-            "n_ref_count",
-            "n_alt_count",
-            "all_effects",
-            "Allele",
-            "Gene",
-            "Feature",
-            "Feature_type",
-            "Consequence",
-            "cDNA_position",
-            "CDS_position",
-            "Protein_position",
-            "Amino_acids",
-            "Codons",
-            "Existing_variation",
-            "DISTANCE",
-            "STRAND",
-            "FLAGS",
-            "SYMBOL",
-            "SYMBOL_SOURCE",
-            "HGNC_ID",
-            "BIOTYPE",
-            "CANONICAL",
-            "CCDS",
-            "ENSP",
-            "SWISSPROT",
-            "TREMBL",
-            "UNIPARC",
-            "RefSeq",
-            "SIFT",
-            "PolyPhen",
-            "EXON",
-            "INTRON",
-            "DOMAINS",
-            "GMAF",
-            "AFR_MAF",
-            "AMR_MAF",
-            "ASN_MAF",
-            "EUR_MAF",
-            "AA_MAF",
-            "EA_MAF",
-            "CLIN_SIG",
-            "SOMATIC",
-            "PUBMED",
-            "MOTIF_NAME",
-            "MOTIF_POS",
-            "HIGH_INF_POS",
-            "MOTIF_SCORE_CHANGE",
-            "IMPACT",
-            "PICK",
-            "VARIANT_CLASS",
-            "TSL",
-            "HGVS_OFFSET",
-            "PHENO",
-            "MINIMISED",
-            "ExAC_AF",
-            "ExAC_AF_AFR",
-            "ExAC_AF_AMR",
-            "ExAC_AF_EAS",
-            "ExAC_AF_FIN",
-            "ExAC_AF_NFE",
-            "ExAC_AF_OTH",
-            "ExAC_AF_SAS",
-            "GENE_PHENO",
-            "FILTER",
-            "flanking_bps",
-            "vcf_id",
-            "vcf_qual",
-            "gnomAD_AF",
-            "gnomAD_AFR_AF",
-            "gnomAD_AMR_AF",
-            "gnomAD_ASJ_AF",
-            "gnomAD_EAS_AF",
-            "gnomAD_FIN_AF",
-            "gnomAD_NFE_AF",
-            "gnomAD_OTH_AF",
-            "gnomAD_SAS_AF",
-            "vcf_pos",
-            "vcf_region",
-            # Custom columns
-            "t_total_count",
-            "t_vaf",
-            "t_ref_count_fragment",
-            "t_alt_count_fragment",
-            "t_total_count_fragment",
-            "t_vaf_fragment",
+    def _gbcms_column_names(self) -> list[str]:
+        """
+        Build the list of gbcms-generated count column names with the configured prefix.
+
+        Returns:
+            Ordered list of gbcms column names.
+        """
+        p = self.column_prefix
+        return [
+            # Core counts
+            f"{p}ref_count",
+            f"{p}alt_count",
+            f"{p}total_count",
+            f"{p}vaf",
+            # Fragment counts
+            f"{p}ref_count_fragment",
+            f"{p}alt_count_fragment",
+            f"{p}total_count_fragment",
+            f"{p}vaf_fragment",
+            # Strand bias (unprefixed — always unique)
             "strand_bias_p_value",
             "strand_bias_odds_ratio",
             "fragment_strand_bias_p_value",
             "fragment_strand_bias_odds_ratio",
             # Strand counts
-            "t_ref_count_forward",
-            "t_ref_count_reverse",
-            "t_alt_count_forward",
-            "t_alt_count_reverse",
-            "t_ref_count_fragment_forward",
-            "t_ref_count_fragment_reverse",
-            "t_alt_count_fragment_forward",
-            "t_alt_count_fragment_reverse",
+            f"{p}ref_count_forward",
+            f"{p}ref_count_reverse",
+            f"{p}alt_count_forward",
+            f"{p}alt_count_reverse",
+            f"{p}ref_count_fragment_forward",
+            f"{p}ref_count_fragment_reverse",
+            f"{p}alt_count_fragment_forward",
+            f"{p}alt_count_fragment_reverse",
         ]
+
+    def _init_writer(self, original_headers: list[str]) -> None:
+        """
+        Initialize the CSV writer with dynamically constructed headers.
+
+        Header order: original MAF columns first, then gbcms columns appended.
+        Duplicate column names (already present in original) are skipped.
+
+        Args:
+            original_headers: Column names from the input MAF (or defaults for VCF→MAF).
+        """
+        gbcms_cols = self._gbcms_column_names()
+        existing = set(original_headers)
+
+        # Only append gbcms columns not already in the original headers
+        new_cols = [c for c in gbcms_cols if c not in existing]
+        self.fieldnames = list(original_headers) + new_cols
+
         self.writer = csv.DictWriter(
-            self.file, fieldnames=self.fieldnames, delimiter="\t", extrasaction="ignore"
+            self.file,
+            fieldnames=self.fieldnames,
+            delimiter="\t",
+            extrasaction="ignore",
         )
         self.writer.writeheader()
         self._headers_written = True
 
-    def write(self, variant: Variant, counts: Any, sample_name: str = "TUMOR"):
+        logger.debug(
+            "MafWriter headers: %d original + %d gbcms = %d total columns",
+            len(original_headers),
+            len(new_cols),
+            len(self.fieldnames),
+        )
+
+    def _populate_gbcms_counts(self, counts: Any) -> dict[str, str]:
+        """
+        Build the gbcms count columns dictionary with the configured prefix.
+
+        Calculates VAF values and formats all count data as strings.
+
+        Args:
+            counts: BaseCounts object from the Rust engine.
+
+        Returns:
+            Dictionary mapping prefixed column names to string values.
+        """
+        p = self.column_prefix
+
+        # Calculate VAFs with zero-division protection
+        total_reads = counts.rd + counts.ad
+        vaf = counts.ad / total_reads if total_reads > 0 else 0.0
+
+        total_frags = counts.rdf + counts.adf
+        vaf_frag = counts.adf / total_frags if total_frags > 0 else 0.0
+
+        return {
+            # Core counts
+            f"{p}ref_count": str(counts.rd),
+            f"{p}alt_count": str(counts.ad),
+            f"{p}total_count": str(counts.dp),
+            f"{p}vaf": f"{vaf:.4f}",
+            # Fragment counts
+            f"{p}ref_count_fragment": str(counts.rdf),
+            f"{p}alt_count_fragment": str(counts.adf),
+            f"{p}total_count_fragment": str(counts.dpf),
+            f"{p}vaf_fragment": f"{vaf_frag:.4f}",
+            # Strand bias (unprefixed)
+            "strand_bias_p_value": f"{counts.sb_pval:.4e}",
+            "strand_bias_odds_ratio": f"{counts.sb_or:.4f}",
+            "fragment_strand_bias_p_value": f"{counts.fsb_pval:.4e}",
+            "fragment_strand_bias_odds_ratio": f"{counts.fsb_or:.4f}",
+            # Strand counts
+            f"{p}ref_count_forward": str(counts.rd_fwd),
+            f"{p}ref_count_reverse": str(counts.rd_rev),
+            f"{p}alt_count_forward": str(counts.ad_fwd),
+            f"{p}alt_count_reverse": str(counts.ad_rev),
+            f"{p}ref_count_fragment_forward": str(counts.rdf_fwd),
+            f"{p}ref_count_fragment_reverse": str(counts.rdf_rev),
+            f"{p}alt_count_fragment_forward": str(counts.adf_fwd),
+            f"{p}alt_count_fragment_reverse": str(counts.adf_rev),
+        }
+
+    def write(self, variant: Variant, counts: Any, sample_name: str = "TUMOR") -> None:
+        """
+        Write a single variant row to the MAF output.
+
+        Two output strategies:
+        - MAF→MAF (variant.metadata populated): Pass through all original columns,
+          append gbcms count columns. Original values are NEVER overwritten.
+        - VCF→MAF (no metadata): Generate GDC-compliant MAF coordinates from
+          internal representation using CoordinateKernel.internal_to_maf().
+
+        Args:
+            variant: Normalized Variant with optional metadata from input MAF.
+            counts: BaseCounts object from the Rust engine.
+            sample_name: Sample name for Tumor_Sample_Barcode column.
+        """
+        # Initialize writer on first variant (headers depend on input format)
         if not self._headers_written:
-            self._init_writer()
+            if variant.metadata:
+                # MAF→MAF: use original input headers
+                self._init_writer(list(variant.metadata.keys()))
+            else:
+                # VCF→MAF: use default GDC MAF headers + VCF-origin fields
+                vcf_headers = self._DEFAULT_MAF_HEADERS + [
+                    "vcf_id",
+                    "vcf_pos",
+                    "vcf_region",
+                ]
+                self._init_writer(vcf_headers)
 
         assert self.writer is not None
 
-        # Calculate VAFs
-        total = counts.rd + counts.ad
-        vaf = counts.ad / total if total > 0 else 0.0
-
-        total_frag = counts.rdf + counts.adf
-        vaf_frag = counts.adf / total_frag if total_frag > 0 else 0.0
-
-        # MAF Coordinates (1-based)
-        start_pos = variant.pos + 1
-        end_pos = start_pos
-
-        if variant.variant_type == "DELETION":
-            end_pos = start_pos + len(variant.ref) - 1
-        elif variant.variant_type == "INSERTION":
-            # MAF for insertion: Start and End are the same (anchor), or Start=Anchor, End=Anchor+1?
-            # GDC: Start_Position is the last base of the reference allele (anchor).
-            # End_Position is Start_Position + 1.
-            # Let's follow GDC convention if possible, or stick to VCF-like anchor.
-            # For now, let's keep it simple: Start=End=Anchor for Ins?
-            # Actually, standard MAF usually has Start=End for insertions (between bases).
-            end_pos = start_pos + 1  # To indicate range?
-
-        # Populate row with defaults for missing fields, starting with metadata
-        row = dict.fromkeys(self.fieldnames, "")
+        # Build the output row based on input format
         if variant.metadata:
-            row.update(variant.metadata)
+            # MAF→MAF: start with ALL original metadata (preserves every column)
+            row = dict(variant.metadata)
+        else:
+            # VCF→MAF: build row from internal representation
+            row = dict.fromkeys(self.fieldnames, "")
 
-        # Fill known fields
-        row.update(
-            {
-                "Chromosome": variant.chrom,
-                "Start_Position": str(start_pos),
-                "End_Position": str(end_pos),
-                "Reference_Allele": variant.ref,
-                "Tumor_Seq_Allele2": variant.alt,
-                "Tumor_Sample_Barcode": sample_name,
-                "Variant_Type": variant.variant_type,
-                "t_ref_count": str(counts.rd),
-                "t_alt_count": str(counts.ad),
-                "t_total_count": str(counts.dp),
-                "t_vaf": f"{vaf:.4f}",
-                "t_ref_count_fragment": str(counts.rdf),
-                "t_alt_count_fragment": str(counts.adf),
-                "t_total_count_fragment": str(counts.dpf),
-                "t_vaf_fragment": f"{vaf_frag:.4f}",
-                "strand_bias_p_value": f"{counts.sb_pval:.4e}",
-                "strand_bias_odds_ratio": f"{counts.sb_or:.4f}",
-                "fragment_strand_bias_p_value": f"{counts.fsb_pval:.4e}",
-                "fragment_strand_bias_odds_ratio": f"{counts.fsb_or:.4f}",
-                "vcf_region": f"{variant.chrom}:{start_pos}-{end_pos}",  # Simple region string
-                "vcf_pos": str(start_pos),
-                # Strand counts
-                "t_ref_count_forward": str(counts.rd_fwd),
-                "t_ref_count_reverse": str(counts.rd_rev),
-                "t_alt_count_forward": str(counts.ad_fwd),
-                "t_alt_count_reverse": str(counts.ad_rev),
-                "t_ref_count_fragment_forward": str(counts.rdf_fwd),
-                "t_ref_count_fragment_reverse": str(counts.rdf_rev),
-                "t_alt_count_fragment_forward": str(counts.adf_fwd),
-                "t_alt_count_fragment_reverse": str(counts.adf_rev),
-            }
-        )
+            # Convert internal coordinates to GDC MAF format
+            maf_coords = CoordinateKernel.internal_to_maf(variant)
+            row.update(maf_coords)
+            row["Chromosome"] = variant.chrom
 
-        if variant.original_id:
-            row["vcf_id"] = variant.original_id
+            # VCF-origin tracking fields
+            vcf_pos = variant.pos + 1
+            row["vcf_pos"] = str(vcf_pos)
+            row["vcf_region"] = f"{variant.chrom}:{vcf_pos}"
+            if variant.original_id:
+                row["vcf_id"] = variant.original_id
+
+        # Set sample barcode:
+        # - VCF→MAF: always use BAM sample name (no barcode in VCF)
+        # - MAF→MAF + preserve_barcode: keep original from input metadata
+        # - MAF→MAF + no preserve_barcode: override with BAM sample name
+        if not (variant.metadata and self.preserve_barcode):
+            row["Tumor_Sample_Barcode"] = sample_name
+
+        # Append gbcms count columns (both paths, never overwrites originals)
+        row.update(self._populate_gbcms_counts(counts))
 
         self.writer.writerow(row)
 
-    def close(self):
+    def close(self) -> None:
+        """Close the output file."""
         self.file.close()
+        logger.debug("MafWriter closed: %s", self.path)
 
 
 class VcfWriter(OutputWriter):
