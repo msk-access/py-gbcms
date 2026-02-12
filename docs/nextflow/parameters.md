@@ -17,6 +17,8 @@ Complete reference for all pipeline parameters.
 | `--outdir` | `results` | Output directory |
 | `--format` | `vcf` | Output format (`vcf` or `maf`) |
 | `--suffix` | `''` | Suffix for output filenames |
+| `--column_prefix` | `''` | Prefix for gbcms count columns in MAF output |
+| `--preserve_barcode` | `false` | Keep original Tumor_Sample_Barcode from input MAF |
 
 ## Filtering Options
 

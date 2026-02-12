@@ -140,7 +140,7 @@ flowchart TB
     GbcmsConfig --> ReadFilters[Read Filters]
     GbcmsConfig --> QualityThresholds[Quality Thresholds]
     
-    OutputConfig --> D1[output_dir, format, suffix]
+    OutputConfig --> D1[output_dir, format, suffix, column_prefix]
     ReadFilters --> D2[exclude_secondary, exclude_duplicates]
     QualityThresholds --> D3["min_mapq, min_baseq, fragment_qual_threshold"]
 ```

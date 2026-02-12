@@ -23,6 +23,8 @@ gbcms run [OPTIONS] --variants <FILE> --bam <NAME:PATH>... --fasta <FILE>
 | `--output-dir` | `.` | Output directory |
 | `--format` | `vcf` | Output format (`vcf` or `maf`) |
 | `--suffix` | `''` | Suffix for output filenames |
+| `--column-prefix` | `''` | Prefix for gbcms count columns in MAF output |
+| `--preserve-barcode` | `false` | Keep original Tumor_Sample_Barcode from input MAF |
 | `--threads` | `1` | Number of threads |
 
 ## Filtering Options

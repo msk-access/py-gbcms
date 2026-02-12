@@ -284,7 +284,11 @@ class Pipeline:
         if self.config.output.format == OutputFormat.VCF:
             writer = VcfWriter(output_path, sample_name=sample_name)
         else:
-            writer = MafWriter(output_path)
+            writer = MafWriter(
+                output_path,
+                column_prefix=self.config.output.column_prefix,
+                preserve_barcode=self.config.output.preserve_barcode,
+            )
 
         for v, counts in zip(variants, counts_list, strict=True):
             writer.write(v, counts, sample_name=sample_name)

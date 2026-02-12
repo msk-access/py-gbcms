@@ -111,6 +111,7 @@ def test_vcf_output(tmp_path, mock_variant, mock_counts):
 
 
 def test_maf_output(tmp_path, mock_variant, mock_counts):
+    """Test VCF→MAF output with strand counts and GDC coordinate conversion."""
     output_path = tmp_path / "test.maf"
     writer = MafWriter(output_path)
     writer.write(mock_variant, mock_counts)
@@ -122,22 +123,29 @@ def test_maf_output(tmp_path, mock_variant, mock_counts):
         reader = csv.DictReader(f, delimiter="\t")
         row = next(reader)
 
-    # Check standard fields
-    assert row["t_ref_count"] == "15"
-    assert row["t_alt_count"] == "5"
-    assert row["t_total_count"] == "20"
+    # VCF→MAF coordinate conversion (SNP at 0-based pos=100 → 1-based pos=101)
+    assert row["Start_Position"] == "101"
+    assert row["End_Position"] == "101"
+    assert row["Variant_Type"] == "SNP"
+    assert row["Reference_Allele"] == "A"
+    assert row["Tumor_Seq_Allele2"] == "T"
+
+    # Check standard count fields (default: no prefix)
+    assert row["ref_count"] == "15"
+    assert row["alt_count"] == "5"
+    assert row["total_count"] == "20"
 
     # Check VAF
-    assert float(row["t_vaf"]) == 0.2500
-    assert float(row["t_vaf_fragment"]) == 0.3000
+    assert float(row["vaf"]) == 0.2500
+    assert float(row["vaf_fragment"]) == 0.3000
 
-    # Check new strand count fields
-    assert row["t_ref_count_forward"] == "10"
-    assert row["t_ref_count_reverse"] == "5"
-    assert row["t_alt_count_forward"] == "2"
-    assert row["t_alt_count_reverse"] == "3"
+    # Check strand count fields (default: no prefix)
+    assert row["ref_count_forward"] == "10"
+    assert row["ref_count_reverse"] == "5"
+    assert row["alt_count_forward"] == "2"
+    assert row["alt_count_reverse"] == "3"
 
-    assert row["t_ref_count_fragment_forward"] == "4"
-    assert row["t_ref_count_fragment_reverse"] == "3"
-    assert row["t_alt_count_fragment_forward"] == "1"
-    assert row["t_alt_count_fragment_reverse"] == "2"
+    assert row["ref_count_fragment_forward"] == "4"
+    assert row["ref_count_fragment_reverse"] == "3"
+    assert row["alt_count_fragment_forward"] == "1"
+    assert row["alt_count_fragment_reverse"] == "2"

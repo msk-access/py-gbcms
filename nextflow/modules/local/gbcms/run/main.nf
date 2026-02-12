@@ -26,6 +26,13 @@ process GBCMS_RUN {
     // Use per-sample suffix from meta, fallback to global params.suffix
     def suffix = meta.suffix ?: params.suffix
     def suffix_arg = suffix ? "--suffix ${suffix}" : ""
+
+    // Column prefix for MAF output count columns
+    def col_prefix = params.column_prefix ?: ''
+    def col_prefix_arg = col_prefix ? "--column-prefix ${col_prefix}" : ""
+
+    // Preserve original Tumor_Sample_Barcode from input MAF
+    def preserve_barcode_arg = params.preserve_barcode ? "--preserve-barcode" : ""
     
     // Construct filter arguments
     def filters = ""
@@ -44,6 +51,8 @@ process GBCMS_RUN {
         --output-dir . \\
         --format ${format} \\
         ${suffix_arg} \\
+        ${col_prefix_arg} \\
+        ${preserve_barcode_arg} \\
         --threads ${task.cpus} \\
         --min-mapq ${params.min_mapq} \\
         --min-baseq ${params.min_baseq} \\
