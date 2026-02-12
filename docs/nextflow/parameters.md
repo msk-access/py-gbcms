@@ -32,6 +32,7 @@ Complete reference for all pipeline parameters.
 | `--filter_qc_failed` | `false` | Filter QC failed reads |
 | `--filter_improper_pair` | `false` | Filter improperly paired reads |
 | `--filter_indel` | `false` | Filter reads with indels |
+| `--filter_by_sample` | `false` | Filter multi-sample MAF by `Tumor_Sample_Barcode` ([details](samplesheet.md#multi-sample-maf-filtering)) |
 
 ## Resource Limits
 

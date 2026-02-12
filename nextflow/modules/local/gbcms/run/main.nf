@@ -7,8 +7,7 @@ process GBCMS_RUN {
     container "ghcr.io/msk-access/py-gbcms:2.4.0"
 
     input:
-    tuple val(meta), path(bam), path(bai)
-    path variants
+    tuple val(meta), path(bam), path(bai), path(variants)
     tuple path(fasta), path(fai)
 
     output:

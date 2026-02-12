@@ -14,9 +14,8 @@ include { GBCMS_RUN } from '../modules/local/gbcms/run/main'
 
 workflow GBCMS {
     take:
-    ch_samplesheet // channel: [ val(meta), [ bam, bai ] ]
-    ch_variants    // channel: [ path(variants) ]
-    ch_fasta       // channel: [ path(fasta), path(fai) ]
+    ch_samples  // channel: [ val(meta), path(bam), path(bai), path(variants) ]
+    ch_fasta    // channel: [ path(fasta), path(fai) ]
 
     main:
     
@@ -26,8 +25,7 @@ workflow GBCMS {
     // MODULE: Run gbcms
     //
     GBCMS_RUN (
-        ch_samplesheet,
-        ch_variants,
+        ch_samples,
         ch_fasta
     )
     ch_versions = ch_versions.mix(GBCMS_RUN.out.versions)

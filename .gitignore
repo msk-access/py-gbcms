@@ -85,6 +85,7 @@ target/
 .nextflow.log*
 work/
 test_results*/
+test_rwd/
 test_samplesheet*.csv
 
 # Documentation
