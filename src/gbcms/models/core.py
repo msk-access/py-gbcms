@@ -133,6 +133,22 @@ class OutputConfig(BaseModel):
     directory: Path = Field(description="Directory to write output files")
     format: OutputFormat = Field(default=OutputFormat.VCF, description="Output format (vcf or maf)")
     suffix: str = Field(default="", description="Suffix to append to output filename")
+    column_prefix: str = Field(
+        default="",
+        description=(
+            "Prefix for gbcms count columns in MAF output. "
+            "Default: no prefix (e.g., 'ref_count'). "
+            "Use 't_' for legacy compatibility (e.g., 't_ref_count')."
+        ),
+    )
+    preserve_barcode: bool = Field(
+        default=False,
+        description=(
+            "When True, preserve the original Tumor_Sample_Barcode from "
+            "input MAF instead of overriding with the BAM sample name. "
+            "Only applies to MAF→MAF output; VCF→MAF always uses BAM name."
+        ),
+    )
 
     @field_validator("directory")
     @classmethod

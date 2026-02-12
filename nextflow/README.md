@@ -74,6 +74,8 @@ nextflow run nextflow/main.nf \
 | `--outdir` | Output directory | `results` |
 | `--format` | Output format (`vcf` or `maf`) | `vcf` |
 | `--suffix` | Suffix to append to output filenames | `''` (empty) |
+| `--column_prefix` | Prefix for gbcms count columns in MAF output | `''` (empty) |
+| `--preserve_barcode` | Keep original Tumor_Sample_Barcode from input MAF | `false` |
 | `--min_mapq` | Minimum mapping quality | `20` |
 | `--min_baseq` | Minimum base quality | `20` |
 | `--filter_duplicates` | Filter duplicate reads | `true` |

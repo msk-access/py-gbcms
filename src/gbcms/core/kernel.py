@@ -119,6 +119,106 @@ class CoordinateKernel:
         return Variant(chrom=norm_chrom, pos=internal_pos, ref=ref, alt=alt, variant_type=vtype)
 
     @staticmethod
+    def _gdc_variant_type(variant: Variant) -> str:
+        """
+        Map internal variant type to GDC MAF TCGAv2 Variant_Type.
+
+        GDC standard defines: SNP, DNP, TNP, ONP, INS, DEL.
+        COMPLEX variants are mapped based on allele length comparison:
+        - ref > alt → DEL (net deletion)
+        - alt > ref → INS (net insertion)
+        - equal length: DNP (len=2), TNP (len=3), ONP (len>3)
+
+        Reference: https://docs.gdc.cancer.gov/Encyclopedia/pages/Mutation_Annotation_Format_TCGAv2/
+
+        Args:
+            variant: Internal normalized Variant.
+
+        Returns:
+            GDC-compliant Variant_Type string.
+        """
+        if variant.variant_type == VariantType.SNP:
+            return "SNP"
+        elif variant.variant_type == VariantType.INSERTION:
+            return "INS"
+        elif variant.variant_type == VariantType.DELETION:
+            return "DEL"
+        else:  # COMPLEX — infer from allele lengths
+            ref_len = len(variant.ref)
+            alt_len = len(variant.alt)
+            if ref_len > alt_len:
+                return "DEL"  # net deletion
+            elif alt_len > ref_len:
+                return "INS"  # net insertion
+            elif ref_len == 2:
+                return "DNP"  # di-nucleotide polymorphism
+            elif ref_len == 3:
+                return "TNP"  # tri-nucleotide polymorphism
+            else:
+                return "ONP"  # oligo-nucleotide polymorphism
+
+    @staticmethod
+    def internal_to_maf(variant: Variant) -> dict[str, str]:
+        """
+        Convert internal 0-based VCF-style variant to GDC MAF coordinates.
+
+        This is the reverse of maf_to_internal() / vcf_to_internal().
+        Produces MAF-compliant fields following GDC MAF TCGAv2 specification:
+        - Start_Position / End_Position are 1-based inclusive
+        - Deletions: REF = deleted bases (no anchor), ALT = '-'
+        - Insertions: REF = '-', ALT = inserted bases (no anchor)
+        - SNP/DNP/TNP/ONP: alleles as-is
+
+        GDC validation rules this satisfies:
+        - DEL: End - Start + 1 == len(Reference_Allele), len(ref) >= len(alt)
+        - INS: End - Start == 1, len(ref) <= len(alt)
+        - SNP/DNP/TNP/ONP: alleles don't contain '-'
+
+        Args:
+            variant: Internal normalized Variant (0-based, VCF-style alleles).
+
+        Returns:
+            Dictionary with MAF coordinate fields:
+            Start_Position, End_Position, Reference_Allele,
+            Tumor_Seq_Allele2, Variant_Type (all as strings).
+        """
+        pos_1based = variant.pos + 1
+        vtype = CoordinateKernel._gdc_variant_type(variant)
+
+        if variant.variant_type == VariantType.DELETION:
+            # VCF: POS=10, REF=AT, ALT=A → strip anchor base
+            # MAF: Start=11 (first deleted base), End=11, REF=T, ALT=-
+            maf_ref = variant.ref[1:]  # strip anchor base
+            return {
+                "Start_Position": str(pos_1based + 1),
+                "End_Position": str(pos_1based + len(variant.ref) - 1),
+                "Reference_Allele": maf_ref,
+                "Tumor_Seq_Allele2": "-",
+                "Variant_Type": vtype,
+            }
+        elif variant.variant_type == VariantType.INSERTION:
+            # VCF: POS=10, REF=A, ALT=AT → strip anchor base
+            # MAF: Start=10 (anchor), End=11, REF=-, ALT=T
+            maf_alt = variant.alt[1:]  # strip anchor base
+            return {
+                "Start_Position": str(pos_1based),
+                "End_Position": str(pos_1based + 1),
+                "Reference_Allele": "-",
+                "Tumor_Seq_Allele2": maf_alt,
+                "Variant_Type": vtype,
+            }
+        else:
+            # SNP, COMPLEX (DNP/TNP/ONP/DEL/INS by GDC label)
+            # Coordinates span the reference allele, alleles written as-is
+            return {
+                "Start_Position": str(pos_1based),
+                "End_Position": str(pos_1based + len(variant.ref) - 1),
+                "Reference_Allele": variant.ref,
+                "Tumor_Seq_Allele2": variant.alt,
+                "Variant_Type": vtype,
+            }
+
+    @staticmethod
     def normalize_chromosome(chrom: str) -> str:
         """
         Normalize chromosome name (remove 'chr' prefix).

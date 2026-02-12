@@ -1,5 +1,10 @@
 """
 Test preservation of MAF input columns in output.
+
+Verifies that MafWriter in MAF→MAF mode:
+1. Preserves ALL original input columns (positional, allele, type, extras).
+2. Appends gbcms count columns with configurable prefix.
+3. Never overwrites original values.
 """
 
 import csv
@@ -8,7 +13,7 @@ from gbcms.io.input import MafReader
 from gbcms.io.output import MafWriter
 
 
-# Mock counts object
+# Mock counts object matching Rust BaseCounts interface
 class MockCounts:
     def __init__(self):
         self.dp = 100
@@ -34,7 +39,8 @@ class MockCounts:
 
 
 def test_maf_column_preservation(tmp_path):
-    # 1. Create a dummy MAF input with some metadata columns
+    """Original MAF columns must be preserved in output, including extras."""
+    # 1. Create a dummy MAF input with standard + extra columns
     input_maf = tmp_path / "input.maf"
     with open(input_maf, "w") as f:
         writer = csv.DictWriter(
@@ -47,6 +53,7 @@ def test_maf_column_preservation(tmp_path):
                 "Tumor_Seq_Allele2",
                 "Hugo_Symbol",
                 "Entrez_Gene_Id",
+                "Variant_Type",
                 "Extra_Column",
             ],
             delimiter="\t",
@@ -61,7 +68,8 @@ def test_maf_column_preservation(tmp_path):
                 "Tumor_Seq_Allele2": "T",
                 "Hugo_Symbol": "TP53",
                 "Entrez_Gene_Id": "7157",
-                "Extra_Column": "ShouldBeIgnored",
+                "Variant_Type": "SNP",
+                "Extra_Column": "custom_value",
             }
         )
 
@@ -74,25 +82,133 @@ def test_maf_column_preservation(tmp_path):
     # Verify metadata was captured
     assert variant.metadata["Hugo_Symbol"] == "TP53"
     assert variant.metadata["Entrez_Gene_Id"] == "7157"
-    assert variant.metadata["Extra_Column"] == "ShouldBeIgnored"
+    assert variant.metadata["Extra_Column"] == "custom_value"
 
-    # 3. Write the MAF
+    # 3. Write the MAF (default: no prefix)
     output_maf = tmp_path / "output.maf"
-    writer = MafWriter(output_maf)
-    writer.write(variant, MockCounts())
-    writer.close()
+    maf_writer = MafWriter(output_maf)
+    maf_writer.write(variant, MockCounts())
+    maf_writer.close()
 
     # 4. Verify output
     with open(output_maf) as f:
-        reader = csv.DictReader(f, delimiter="\t")
-        row = next(reader)
+        csv_reader = csv.DictReader(f, delimiter="\t")
+        row = next(csv_reader)
 
-        # Check preserved fields
+        # Original columns preserved exactly
         assert row["Hugo_Symbol"] == "TP53"
         assert row["Entrez_Gene_Id"] == "7157"
+        assert row["Start_Position"] == "100", "Original Start_Position must be preserved"
+        assert row["End_Position"] == "100", "Original End_Position must be preserved"
+        assert row["Reference_Allele"] == "A", "Original Reference_Allele must be preserved"
+        assert row["Tumor_Seq_Allele2"] == "T", "Original Tumor_Seq_Allele2 must be preserved"
+        assert row["Variant_Type"] == "SNP", "Original Variant_Type must be preserved"
 
-        # Check that calculated fields are present
+        # Extra input columns must be preserved
+        assert row["Extra_Column"] == "custom_value", "Extra input columns must survive"
+
+        # gbcms count columns appended (no prefix by default)
+        assert row["total_count"] == "100"
+        assert row["ref_count"] == "80"
+        assert row["alt_count"] == "20"
+
+
+def test_maf_column_prefix(tmp_path):
+    """Verify --column-prefix controls count column names."""
+    input_maf = tmp_path / "input.maf"
+    with open(input_maf, "w") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                "Chromosome",
+                "Start_Position",
+                "End_Position",
+                "Reference_Allele",
+                "Tumor_Seq_Allele2",
+            ],
+            delimiter="\t",
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "Chromosome": "chr1",
+                "Start_Position": "100",
+                "End_Position": "100",
+                "Reference_Allele": "A",
+                "Tumor_Seq_Allele2": "T",
+            }
+        )
+
+    reader = MafReader(input_maf)
+    variants = list(reader)
+    variant = variants[0]
+
+    # Test with 't_' prefix (legacy compat)
+    output_maf = tmp_path / "output_legacy.maf"
+    maf_writer = MafWriter(output_maf, column_prefix="t_")
+    maf_writer.write(variant, MockCounts())
+    maf_writer.close()
+
+    with open(output_maf) as f:
+        csv_reader = csv.DictReader(f, delimiter="\t")
+        row = next(csv_reader)
+        assert row["t_ref_count"] == "80"
+        assert row["t_alt_count"] == "20"
         assert row["t_total_count"] == "100"
+        assert "ref_count" not in row, "Unprefixed columns should not appear"
 
-        # Check that extra column is NOT present (since it's not in fieldnames and we used ignore)
-        assert "Extra_Column" not in row
+
+def test_maf_preserve_barcode(tmp_path):
+    """Verify --preserve-barcode controls Tumor_Sample_Barcode handling."""
+    input_maf = tmp_path / "input.maf"
+    with open(input_maf, "w") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                "Chromosome",
+                "Start_Position",
+                "End_Position",
+                "Reference_Allele",
+                "Tumor_Seq_Allele2",
+                "Tumor_Sample_Barcode",
+            ],
+            delimiter="\t",
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "Chromosome": "chr1",
+                "Start_Position": "100",
+                "End_Position": "100",
+                "Reference_Allele": "A",
+                "Tumor_Seq_Allele2": "T",
+                "Tumor_Sample_Barcode": "C-XULUC7-L001-d01",
+            }
+        )
+
+    reader = MafReader(input_maf)
+    variant = list(reader)[0]
+
+    # Default: BAM sample name overrides original barcode
+    out_default = tmp_path / "out_default.maf"
+    w1 = MafWriter(out_default)
+    w1.write(variant, MockCounts(), sample_name="Plasma_CtDNA")
+    w1.close()
+
+    with open(out_default) as f:
+        row = next(csv.DictReader(f, delimiter="\t"))
+        assert (
+            row["Tumor_Sample_Barcode"] == "Plasma_CtDNA"
+        ), "Default should override barcode with BAM name"
+
+    # --preserve-barcode: original barcode preserved
+    out_preserve = tmp_path / "out_preserve.maf"
+    w2 = MafWriter(out_preserve, preserve_barcode=True)
+    w2.write(variant, MockCounts(), sample_name="Plasma_CtDNA")
+    w2.close()
+
+    with open(out_preserve) as f:
+        row = next(csv.DictReader(f, delimiter="\t"))
+        assert (
+            row["Tumor_Sample_Barcode"] == "C-XULUC7-L001-d01"
+        ), "preserve_barcode=True should keep original barcode"
