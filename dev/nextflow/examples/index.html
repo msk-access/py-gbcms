@@ -75,7 +75,7 @@
             body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
             body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
         </style><meta name="panzoom-theme" content="material">
-<meta name="panzoom-data" content='{"selectors": [".d2", ".mermaid"], "initial_zoom_level": 1.0}'> </head>
+<meta name="panzoom-data" content='{"selectors": [".mermaid", ".d2"], "initial_zoom_level": 1.0}'> </head>
   
   
     
@@ -803,6 +803,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#multi-sample-maf-filtering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-Sample MAF Filtering
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#resume-failed-run" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1458,6 +1469,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#multi-sample-maf-filtering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-Sample MAF Filtering
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#resume-failed-run" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1597,22 +1619,38 @@
 <a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span>--filter_qc_failed<span class="w"> </span><span class="nb">true</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span>-profile<span class="w"> </span>docker
 </code></pre></div>
-<h2 id="resume-failed-run">Resume Failed Run<a class="headerlink" href="#resume-failed-run" title="Permanent link">¶</a></h2>
+<h2 id="multi-sample-maf-filtering">Multi-Sample <abbr title="Mutation Annotation Format - Standard mutation annotation file format">MAF</abbr> Filtering<a class="headerlink" href="#multi-sample-maf-filtering" title="Permanent link">¶</a></h2>
+<p>Filter a multi-sample <abbr title="Mutation Annotation Format - Standard mutation annotation file format">MAF</abbr> so each <abbr title="Binary Alignment Map - Compressed sequence alignment file format">BAM</abbr> only processes its own variants:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>nextflow<span class="w"> </span>run<span class="w"> </span>nextflow/main.nf<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span>--input<span class="w"> </span>samplesheet.csv<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span>--variants<span class="w"> </span>variants.vcf<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span>--variants<span class="w"> </span>multi_sample.maf<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span>--fasta<span class="w"> </span>reference.fa<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span>-profile<span class="w"> </span>docker<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span>-resume
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span>--format<span class="w"> </span>maf<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span>--filter_by_sample<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span>-profile<span class="w"> </span>docker
+</code></pre></div>
+<p>With patient-level filtering via <code>tsb</code> column in samplesheet:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>sample,bam,tsb
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>patient_A,/path/to/A.bam,P-0012345
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>patient_B,/path/to/B.bam,"P-0067890-T01,P-0067890-T02"
+</code></pre></div>
+<p>See <a href="../samplesheet/#multi-sample-maf-filtering">Samplesheet — Multi-Sample <abbr title="Mutation Annotation Format - Standard mutation annotation file format">MAF</abbr> Filtering</a> for details.</p>
+<h2 id="resume-failed-run">Resume Failed Run<a class="headerlink" href="#resume-failed-run" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>nextflow<span class="w"> </span>run<span class="w"> </span>nextflow/main.nf<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span>--input<span class="w"> </span>samplesheet.csv<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span>--variants<span class="w"> </span>variants.vcf<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span>--fasta<span class="w"> </span>reference.fa<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span>-profile<span class="w"> </span>docker<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">    </span>-resume
 </code></pre></div>
 <h2 id="custom-resource-limits">Custom Resource Limits<a class="headerlink" href="#custom-resource-limits" title="Permanent link">¶</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>nextflow<span class="w"> </span>run<span class="w"> </span>nextflow/main.nf<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span>--input<span class="w"> </span>samplesheet.csv<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span>--variants<span class="w"> </span>variants.vcf<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span>--fasta<span class="w"> </span>reference.fa<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span>--max_cpus<span class="w"> </span><span class="m">8</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span>--max_memory<span class="w"> </span><span class="m">32</span>.GB<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">    </span>-profile<span class="w"> </span>docker
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>nextflow<span class="w"> </span>run<span class="w"> </span>nextflow/main.nf<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">    </span>--input<span class="w"> </span>samplesheet.csv<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span>--variants<span class="w"> </span>variants.vcf<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span>--fasta<span class="w"> </span>reference.fa<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">    </span>--max_cpus<span class="w"> </span><span class="m">8</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">    </span>--max_memory<span class="w"> </span><span class="m">32</span>.GB<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">    </span>-profile<span class="w"> </span>docker
 </code></pre></div>
 <h2 id="related">Related<a class="headerlink" href="#related" title="Permanent link">¶</a></h2>
 <ul>
@@ -1644,7 +1682,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 6, 2026 16:48:48 UTC"><span class="timeago" datetime="2026-02-06T16:48:48+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 6, 2026 16:48:48 UTC">2026-02-06</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 12, 2026 02:47:13 UTC"><span class="timeago" datetime="2026-02-12T02:47:13+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 12, 2026 02:47:13 UTC">2026-02-12</span>
   </span>
 
     
