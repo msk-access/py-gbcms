@@ -29,18 +29,38 @@ class BaseCounts:
     dp: int
     rd: int
     ad: int
+    dp_fwd: int
     rd_fwd: int
-    rd_rev: int
     ad_fwd: int
+    dp_rev: int
+    rd_rev: int
     ad_rev: int
-    dp_fragment: int
-    rd_fragment: int
-    ad_fragment: int
-    sb_pvalue: float
+    dpf: int
+    rdf: int
+    adf: int
+    rdf_fwd: int
+    rdf_rev: int
+    adf_fwd: int
+    adf_rev: int
+    sb_pval: float
+    sb_or: float
+    fsb_pval: float
+    fsb_or: float
+    used_decomposed: bool
+
+class PreparedVariant:
+    variant: Variant
+    validation_status: str
+    was_normalized: bool
+    original_pos: int
+    original_ref: str
+    original_alt: str
+    decomposed_variant: Variant | None
 
 def count_bam(
     bam_path: str,
     variants: list[Variant],
+    decomposed: list[Variant | None],
     min_mapq: int = 20,
     min_baseq: int = 20,
     filter_duplicates: bool = True,
@@ -52,3 +72,10 @@ def count_bam(
     threads: int = 1,
     fragment_qual_threshold: int = 10,
 ) -> list[BaseCounts]: ...
+def prepare_variants(
+    variants: list[Variant],
+    fasta_path: str,
+    context_padding: int,
+    is_maf: bool,
+    threads: int = 1,
+) -> list[PreparedVariant]: ...

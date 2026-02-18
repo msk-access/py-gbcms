@@ -76,16 +76,19 @@ Guide for contributing to py-gbcms.
 flowchart LR
     subgraph Python["src/gbcms/"]
         CLI[cli.py] --> Pipeline[pipeline.py]
+        CLI --> Normalize[normalize.py]
         Pipeline --> IO[io/]
         Pipeline --> Models[models/]
     end
     
     subgraph Rust["rust/src/"]
         Lib[lib.rs] --> Count[counting.rs]
+        Lib --> Norm[normalize.rs]
         Count --> Stats[stats.rs]
     end
     
     Pipeline --> Rust
+    Normalize --> Rust
 ```
 
 ---

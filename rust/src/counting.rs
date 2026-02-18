@@ -100,13 +100,19 @@ fn hash_qname(qname: &[u8]) -> u64 {
 }
 
 /// Count bases for a list of variants in a BAM file.
+///
+/// When `decomposed` is provided (same length as `variants`), variants with
+/// a `Some(decomposed_variant)` are counted twice — once with the original
+/// allele and once with the corrected allele. The result with the higher
+/// `ad` (alt_count) is returned, with `used_decomposed` set accordingly.
 #[allow(clippy::too_many_arguments)]
 #[pyfunction]
-#[pyo3(signature = (bam_path, variants, min_mapq, min_baseq, filter_duplicates, filter_secondary, filter_supplementary, filter_qc_failed, filter_improper_pair, filter_indel, threads, fragment_qual_threshold=10))]
+#[pyo3(signature = (bam_path, variants, decomposed, min_mapq, min_baseq, filter_duplicates, filter_secondary, filter_supplementary, filter_qc_failed, filter_improper_pair, filter_indel, threads, fragment_qual_threshold=10))]
 pub fn count_bam(
     py: Python<'_>,
     bam_path: String,
     variants: Vec<Variant>,
+    decomposed: Vec<Option<Variant>>,
     min_mapq: u8,
     min_baseq: u8,
     filter_duplicates: bool,
@@ -129,11 +135,14 @@ pub fn count_bam(
         .build()
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to build thread pool: {}", e)))?;
 
+    // Zip variants with their decomposed counterparts for parallel iteration
+    let paired: Vec<_> = variants.into_iter().zip(decomposed.into_iter()).collect();
+
     // Release GIL for parallel execution
     #[allow(deprecated)]
     let results: Result<Vec<BaseCounts>, anyhow::Error> = py.allow_threads(move || {
         pool.install(|| {
-            variants
+            paired
                 .par_iter()
                 .map_init(
                     || {
@@ -142,14 +151,14 @@ pub fn count_bam(
                             anyhow::anyhow!("Failed to open BAM: {}", e)
                         })
                     },
-                    |bam_result, variant| {
+                    |bam_result, (variant, decomp_opt)| {
                         // Get the reader or return error if initialization failed
                         let bam = match bam_result {
                             Ok(b) => b,
                             Err(e) => return Err(anyhow::anyhow!("BAM init failed: {}", e)),
                         };
 
-                        count_single_variant(
+                        let counts_orig = count_single_variant(
                             bam,
                             variant,
                             min_mapq,
@@ -161,7 +170,41 @@ pub fn count_bam(
                             filter_improper_pair,
                             filter_indel,
                             fragment_qual_threshold,
-                        )
+                        )?;
+
+                        // Dual-count: if a decomposed variant exists, count it too
+                        // and return whichever has the higher alt_count.
+                        if let Some(decomp) = decomp_opt {
+                            let counts_decomp = count_single_variant(
+                                bam,
+                                decomp,
+                                min_mapq,
+                                min_baseq,
+                                filter_duplicates,
+                                filter_secondary,
+                                filter_supplementary,
+                                filter_qc_failed,
+                                filter_improper_pair,
+                                filter_indel,
+                                fragment_qual_threshold,
+                            )?;
+
+                            if counts_decomp.ad > counts_orig.ad {
+                                debug!(
+                                    "Homopolymer decomp: corrected allele wins \
+                                     (ad={} vs orig ad={}) for {}:{} {}→{}",
+                                    counts_decomp.ad, counts_orig.ad,
+                                    variant.chrom, variant.pos + 1,
+                                    variant.ref_allele, decomp.alt_allele,
+                                );
+                                return Ok(BaseCounts {
+                                    used_decomposed: true,
+                                    ..counts_decomp
+                                });
+                            }
+                        }
+
+                        Ok(counts_orig)
                     },
                 )
                 .collect()
@@ -379,7 +422,7 @@ fn check_allele_with_qual<F: Fn(u8, u8) -> i32>(
 
     match variant_type.as_str() {
         "SNP" => check_snp(record, variant, min_baseq),
-        "INSERTION" => check_insertion(record, variant, min_baseq),
+        "INSERTION" => check_insertion(record, variant, min_baseq, alt_aligner, ref_aligner),
         "DELETION" => check_deletion(record, variant, min_baseq, alt_aligner, ref_aligner),
         "MNP" => {
             debug!("Dispatching to check_mnp");
@@ -1086,7 +1129,17 @@ fn check_snp(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool, 
 ///    - S2: Closest match wins (minimum |shift_pos - anchor_pos|)
 ///    - S3: Reference base at shifted anchor matches original anchor base
 ///      (via variant.ref_context)
-fn check_insertion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool, u8) {
+/// 4. **Phase 3 haplotype fallback:** When a length-matching insertion exists
+///    nearby but fails the sequence check (e.g., same biological event
+///    represented differently by caller vs aligner), falls back to
+///    check_complex for Smith-Waterman haplotype comparison.
+fn check_insertion<F: Fn(u8, u8) -> i32>(
+    record: &Record,
+    variant: &Variant,
+    min_baseq: u8,
+    alt_aligner: &mut Aligner<F>,
+    ref_aligner: &mut Aligner<F>,
+) -> (bool, bool, u8) {
     let cigar_view = record.cigar();
     let quals = record.qual();
     let mut ref_pos = record.pos();
@@ -1106,6 +1159,7 @@ fn check_insertion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, 
     let mut found_ref_coverage = false;
     let mut anchor_read_pos: Option<usize> = None; // read position of anchor base
     let mut best_windowed_match: Option<u64> = None; // distance of best windowed match
+    let mut has_nearby_length_match = false; // length-matching Ins found but seq check failed
 
     for (i, op) in cigar_view.iter().enumerate() {
         match op {
@@ -1193,21 +1247,19 @@ fn check_insertion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, 
                         && ins_ref_pos != anchor_pos + 1 // skip strict position (already handled)
                     {
                         let ins_len_usize = *ins_len as usize;
-                        // Safeguard 1: sequence identity — length and bases must match
+                        // Safeguard 1: length must match
                         if ins_len_usize == expected_ins_len {
                             let ins_start = read_pos + *len as usize;
                             if ins_start + ins_len_usize <= record.seq().len() {
                                 let ins_seq = &record.seq().as_bytes()
                                     [ins_start..ins_start + ins_len_usize];
-                                // P1-1: Quality-aware fuzzy match
+                                // Quality-aware fuzzy match for inserted bases
                                 let ins_quals = &quals[ins_start..ins_start + ins_len_usize];
                                 let (mismatches, reliable) = masked_single_compare(
                                     ins_seq, ins_quals, expected_ins_seq, min_baseq
                                 );
                                 if reliable > 0 && mismatches == 0 {
                                     // Safeguard 3: verify anchor base at shifted position
-                                    // The base before the insertion (ins_ref_pos - 1) should
-                                    // match the original anchor base
                                     let shifted_anchor_pos = ins_ref_pos - 1;
                                     let anchor_ok = match &variant.ref_context {
                                         Some(ctx) => {
@@ -1218,9 +1270,6 @@ fn check_insertion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, 
                                                 ctx.as_bytes()[ctx_offset].to_ascii_uppercase()
                                                     == original_anchor_base
                                             } else {
-                                                // P2-1: Permissive on OOB — a false negative
-                                                // (rejecting valid shifted indel) is worse than
-                                                // a false positive (caught by sequence match).
                                                 debug!(
                                                     "ref_context offset {} out of bounds (len={}), allowing",
                                                     ctx_offset, ctx.len()
@@ -1228,7 +1277,7 @@ fn check_insertion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, 
                                                 true
                                             }
                                         }
-                                        None => true, // no ref_context → skip check
+                                        None => true,
                                     };
 
                                     if anchor_ok {
@@ -1247,6 +1296,19 @@ fn check_insertion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, 
                                             shifted_anchor_pos
                                         );
                                     }
+                                } else {
+                                    // Length matches but sequence differs — the caller
+                                    // and aligner may represent the same event
+                                    // differently (e.g., shifted insertion in a repeat).
+                                    // Track this so Phase 3 SW can arbitrate.
+                                    has_nearby_length_match = true;
+                                    debug!(
+                                        "check_insertion: windowed I({}) at pos {} seq \
+                                         mismatch (mismatches={}, reliable={}), \
+                                         flagging for Phase 3 fallback",
+                                        ins_len_usize, ins_ref_pos,
+                                        mismatches, reliable
+                                    );
                                 }
                             }
                         }
@@ -1283,6 +1345,21 @@ fn check_insertion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, 
         );
         return (false, true, anchor_qual); // ALT — windowed match
     }
+
+    // Phase 3 haplotype fallback: when a length-matching insertion exists nearby
+    // but the sequence check failed, the caller and aligner may represent the
+    // same biological event differently (e.g., FLT4 A→GGAT placed at different
+    // positions with different inserted bases). Suppress found_ref_coverage to
+    // let check_complex → Smith-Waterman arbitrate using full haplotype comparison.
+    if has_nearby_length_match && found_ref_coverage {
+        debug!(
+            "check_insertion: nearby I({}) with seq mismatch at pos {}, \
+             falling back to check_complex for Phase 3 SW",
+            expected_ins_len, anchor_pos
+        );
+        return check_complex(record, variant, min_baseq, alt_aligner, ref_aligner);
+    }
+
     if found_ref_coverage {
         return (true, false, anchor_qual); // REF — read covers anchor without matching insertion
     }

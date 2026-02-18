@@ -32,6 +32,9 @@ process GBCMS_RUN {
 
     // Preserve original Tumor_Sample_Barcode from input MAF
     def preserve_barcode_arg = params.preserve_barcode ? "--preserve-barcode" : ""
+
+    // Show normalization columns in output
+    def show_norm_arg = params.show_normalization ? "--show-normalization" : ""
     
     // Construct filter arguments
     def filters = ""
@@ -52,9 +55,12 @@ process GBCMS_RUN {
         ${suffix_arg} \\
         ${col_prefix_arg} \\
         ${preserve_barcode_arg} \\
+        ${show_norm_arg} \\
         --threads ${task.cpus} \\
         --min-mapq ${params.min_mapq} \\
         --min-baseq ${params.min_baseq} \\
+        --fragment-qual-threshold ${params.fragment_qual_threshold} \\
+        --context-padding ${params.context_padding} \\
         ${filters} \\
         ${args}
 

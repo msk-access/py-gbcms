@@ -1,0 +1,213 @@
+# Variant Normalization
+
+How py-gbcms prepares variants before counting — validation, left-alignment, and homopolymer decomposition.
+
+## Overview
+
+Before counting any reads, every variant passes through the **preparation pipeline** in `prepare_variants()`. This ensures consistent, biologically correct coordinates regardless of how the input was generated.
+
+```mermaid
+flowchart LR
+    Input([📄 Input Variant]) --> S1[MAF Anchor Resolution]
+    S1 --> S2[REF Validation]
+    S2 --> S3[Left-Alignment]
+    S3 --> S4[ref_context Fetch]
+    S4 --> S5[Homopolymer Detection]
+    S5 --> Output([✅ PreparedVariant])
+
+    classDef step fill:#3498db,color:#fff,stroke:#2471a3,stroke-width:2px;
+    class S1,S2,S3,S4,S5 step;
+```
+
+Each input variant produces **exactly one** `PreparedVariant`, even if validation fails — this guarantees output row count always matches input.
+
+---
+
+## Step 1: MAF Anchor Resolution
+
+MAF files represent indels using `-` dashes. py-gbcms converts them to VCF-style **anchor-based** coordinates, which requires fetching the anchor base from the reference FASTA.
+
+| Indel Type | MAF REF | MAF ALT | VCF REF | VCF ALT | Anchor Source |
+|:-----------|:--------|:--------|:--------|:--------|:--------------|
+| Insertion | `-` | `TG` | `A` | `ATG` | Fetch base at `Start_Position` |
+| Deletion | `CG` | `-` | `ACG` | `A` | Fetch base at `Start_Position − 1` |
+
+!!! note "When Is This Step Triggered?"
+    Only for MAF input (`is_maf=true`) when REF or ALT is `-`, or when REF and ALT have different lengths (complex indels). VCF input skips this step entirely.
+
+!!! warning "FETCH_FAILED"
+    If the anchor base cannot be fetched (e.g., chromosome not in FASTA), the variant's `validation_status` is set to `FETCH_FAILED` and it is excluded from counting.
+
+---
+
+## Step 2: REF Validation
+
+The REF allele is compared against the reference genome at the stated position. If they don't match, the variant is flagged and excluded from counting.
+
+```mermaid
+flowchart LR
+    Fetch["Fetch ref bases at pos"] --> Compare{"REF == genome?"}
+    Compare -- "Yes" --> Pass([✅ PASS]):::pass
+    Compare -- "No" --> Fail([❌ REF_MISMATCH]):::fail
+
+    classDef pass fill:#27ae60,color:#fff;
+    classDef fail fill:#e74c3c,color:#fff;
+```
+
+!!! important "Common Causes of REF_MISMATCH"
+    - Wrong reference genome version (GRCh37 vs GRCh38)
+    - Chromosome naming mismatch (`chr1` vs `1`)
+    - Variant was called against a different reference build
+    - Upstream normalization changed coordinates incorrectly
+
+---
+
+## Step 3: Left-Alignment
+
+For indels and complex variants, py-gbcms applies **bcftools-style left-alignment** to ensure consistent positioning in repetitive regions.
+
+```mermaid
+flowchart TD
+    Input["Indel: chr1:105 ACG→A<br/>(in a CGCG repeat)"]
+    Fetch["Fetch ±100bp flanking sequence"]
+    Align["Shift left through repeat"]
+    Result["chr1:101 ACG→A<br/>(leftmost position)"]
+
+    Input --> Fetch --> Align --> Result
+```
+
+| Parameter | Value | Description |
+|:----------|:------|:------------|
+| `norm_window` | 100bp | Maximum distance to search leftward (bcftools default) |
+| Trigger | `ref_len ≠ alt_len` or both >1bp | SNPs are never left-aligned |
+
+After alignment, the **variant type is re-detected** based on the new allele lengths:
+
+| Condition | Assigned Type |
+|:----------|:-------------|
+| `ref_len == 1 && alt_len == 1` | SNP |
+| `ref_len == 1 && alt_len > 1` | INSERTION |
+| `ref_len > 1 && alt_len == 1` | DELETION |
+| Otherwise | COMPLEX |
+
+!!! tip "Debugging Normalization"
+    Use `gbcms normalize` to see exactly how each variant was transformed. The output TSV shows original and normalized coordinates side by side, plus whether the variant was modified (`was_normalized=true`).
+
+---
+
+## Step 4: ref_context Fetch
+
+For indels and complex variants, a flanking reference sequence is fetched around the (possibly normalized) position. This context serves two purposes:
+
+1. **Windowed indel detection** — Safeguard 3 uses `ref_context` to verify that shifted indels delete/insert the expected reference bases
+2. **Phase 3 Smith-Waterman alignment** — the context is used to build REF and ALT haplotypes for dual-haplotype alignment
+
+| Parameter | CLI Flag | Default | Description |
+|:----------|:---------|:--------|:------------|
+| `context_padding` | `--context-padding` | 5 | Flanking bases on each side (range: 1–50) |
+
+The actual window spans: `[pos − context_padding, pos + ref_len + context_padding)`
+
+!!! tip "When to Increase Context Padding"
+    Larger values (e.g., 10–20) improve accuracy for variants in **repetitive regions** by giving the SW aligner more flanking context to discriminate REF from ALT haplotypes. The tradeoff is a small increase in memory and computation per variant.
+
+!!! note "SNPs Don't Need Context"
+    SNPs are checked by a simple single-base comparison, so `ref_context` is not fetched for them. This saves unnecessary FASTA lookups.
+
+---
+
+## Step 5: Homopolymer Decomposition Detection
+
+Some variant callers merge nearby events (e.g., a 1bp deletion + SNV in a homopolymer) into a single complex variant with an inflated deletion size. For example, `CCCCCC→T` when the reads actually show `CCCCCC→CCCCT` (a D(1) + C→T).
+
+### Detection Criteria
+
+All four conditions must be met:
+
+```mermaid
+flowchart TD
+    C1{"REF is homopolymer?<br/>(all same base, ≥3bp)"} -- Yes --> C2{"Net deletion?<br/>(ref_len > alt_len)"}
+    C2 -- Yes --> C3{"ALT last base ==<br/>next ref base after REF span?"}
+    C3 -- Yes --> C4{"ALT last base ≠<br/>homopolymer base?"}
+    C4 -- Yes --> Detected([🔍 Decomposition detected]):::detect
+
+    C1 -- No --> Skip([Skip]):::skip
+    C2 -- No --> Skip
+    C3 -- No --> Skip
+    C4 -- No --> Skip
+
+    classDef detect fill:#f39c12,color:#fff,stroke:#d68910,stroke-width:2px;
+    classDef skip fill:#95a5a6,color:#fff,stroke:#7f8c8d,stroke-width:2px;
+```
+
+### Corrected Allele Construction
+
+When detected, a **corrected ALT allele** is built by keeping most of the homopolymer intact and appending the SNV base:
+
+```
+Example:  REF = CCCCCC, ALT = T, next_ref_base = T
+
+Step 1: homopolymer base = C
+Step 2: Confirmed: alt_last (T) == next_ref_base (T), T ≠ C
+Step 3: corrected_alt = C × (ref_len - 1) + alt_last = CCCCC + T = CCCCT
+```
+
+### Dual-Counting Flow
+
+The corrected variant is stored in `PreparedVariant.decomposed_variant`. During counting, **both** the original and corrected alleles are counted independently. The result with the higher `alt_count` wins:
+
+```mermaid
+flowchart TD
+    CountOrig["count_bam(original: CCCCCC→T)"]
+    CountDecomp["count_bam(corrected: CCCCCC→CCCCT)"]
+    Compare{"corrected AD > original AD?"}
+    UseDecomp["Return corrected counts"]
+    UseOrig["Return original counts"]
+    FlagWarn["validation_status =<br/>PASS_WARN_HOMOPOLYMER_DECOMP"]
+    FlagPass["validation_status = PASS"]
+
+    CountOrig --> Compare
+    CountDecomp --> Compare
+    Compare -- "Yes" --> UseDecomp --> FlagWarn
+    Compare -- "No" --> UseOrig --> FlagPass
+```
+
+!!! info "Self-Validating"
+    The warning flag only appears when reads *actually* support the decomposed representation better. If the original variant gets more ALT support, it's used as-is with a normal `PASS` status. This makes the approach safe — it never blindly corrects variants.
+
+!!! example "Real-World: SOX2"
+    **SOX2** at chr17:181430901: `CCCCCC→T` (6bp→1bp, net −5bp).
+    Original count: **alt=3**. Corrected `CCCCCC→CCCCT` count: **alt=79**.
+    Corrected wins → `validation_status = PASS_WARN_HOMOPOLYMER_DECOMP`.
+
+---
+
+## Validation Status Reference
+
+Every `PreparedVariant` carries a `validation_status` string:
+
+| Status | Meaning | Counted? |
+|:-------|:--------|:--------:|
+| `PASS` | Validated successfully | ✅ |
+| `PASS_WARN_HOMOPOLYMER_DECOMP` | Passed, but corrected allele was used (see above) | ✅ |
+| `REF_MISMATCH` | REF allele doesn't match reference genome | ❌ |
+| `FETCH_FAILED` | Could not fetch reference region | ❌ |
+
+!!! note "Filtering Behavior"
+    The pipeline filters on `validation_status.startswith("PASS")`, so both `PASS` and `PASS_WARN_*` variants proceed to counting. `REF_MISMATCH` and `FETCH_FAILED` variants are logged as rejected.
+
+---
+
+## Limitations
+
+1. **Left-alignment only** — py-gbcms left-aligns but does not right-align. If your input is right-aligned, the windowed scan (±5bp) may still catch it, but left-alignment is recommended.
+2. **100bp normalization window** — variants shifted by more than 100bp from their left-aligned position won't be corrected. This covers virtually all real-world cases.
+3. **Homopolymer detection is conservative** — only triggers for homopolymer REF ≥3bp with a clear D(n)+SNV pattern. Other miscollapsed events are not detected.
+
+---
+
+## Related
+
+- [gbcms normalize](../cli/normalize.md) — CLI command for standalone normalization
+- [Input Formats](input-formats.md) — VCF/MAF coordinate conventions
+- [Allele Classification](allele-classification.md) — How reads are classified after normalization

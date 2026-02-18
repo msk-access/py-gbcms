@@ -2,6 +2,7 @@
 use pyo3::prelude::*;
 
 mod counting;
+mod normalize;
 mod stats;
 mod types;
 
@@ -10,7 +11,9 @@ mod types;
 fn _rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     pyo3_log::init();
     m.add_function(wrap_pyfunction!(counting::count_bam, m)?)?;
+    m.add_function(wrap_pyfunction!(normalize::prepare_variants, m)?)?;
     m.add_class::<types::Variant>()?;
     m.add_class::<types::BaseCounts>()?;
+    m.add_class::<normalize::PreparedVariant>()?;
     Ok(())
 }

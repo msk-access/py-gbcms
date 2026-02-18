@@ -192,6 +192,10 @@ class GbcmsConfig(BaseModel):
 
     # Advanced
     fragment_counting: bool = Field(default=False, description="Enable fragment-based counting")
+    show_normalization: bool = Field(
+        default=False,
+        description="Add normalization columns showing left-aligned coordinates to output.",
+    )
 
     @field_validator("variant_file", "reference_fasta")
     @classmethod
