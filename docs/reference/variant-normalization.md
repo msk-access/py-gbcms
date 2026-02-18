@@ -95,21 +95,54 @@ After alignment, the **variant type is re-detected** based on the new allele len
 
 ---
 
-## Step 4: ref_context Fetch
+## Step 4: ref_context Fetch (Adaptive)
 
 For indels and complex variants, a flanking reference sequence is fetched around the (possibly normalized) position. This context serves two purposes:
 
 1. **Windowed indel detection** — Safeguard 3 uses `ref_context` to verify that shifted indels delete/insert the expected reference bases
 2. **Phase 3 Smith-Waterman alignment** — the context is used to build REF and ALT haplotypes for dual-haplotype alignment
 
+### Adaptive Context Padding
+
+By default, py-gbcms **dynamically adjusts** the context padding based on nearby tandem repeats. This prevents ambiguous SW alignments in repetitive regions where a fixed padding might consist entirely of the repeat motif.
+
+```mermaid
+flowchart LR
+    Scan["Scan ±30bp\nfor tandem repeats"] --> Detect{"Repeat\nfound?"}
+    Detect -- "Yes (span=S)" --> Formula["padding = max(default, S/2 + 3)\ncapped at 50bp"]
+    Detect -- "No" --> Default["padding = default (5bp)"]
+    Formula --> Fetch["Fetch ref_context"]
+    Default --> Fetch
+```
+
 | Parameter | CLI Flag | Default | Description |
 |:----------|:---------|:--------|:------------|
-| `context_padding` | `--context-padding` | 5 | Flanking bases on each side (range: 1–50) |
+| `context_padding` | `--context-padding` | 5 | Minimum flanking bases on each side (range: 1–50) |
+| `adaptive_context` | `--adaptive-context` | ✅ enabled | Dynamically increase padding in repeat regions |
 
-The actual window spans: `[pos − context_padding, pos + ref_len + context_padding)`
+#### Example: Poly-A Insertion
 
-!!! tip "When to Increase Context Padding"
-    Larger values (e.g., 10–20) improve accuracy for variants in **repetitive regions** by giving the SW aligner more flanking context to discriminate REF from ALT haplotypes. The tradeoff is a small increase in memory and computation per variant.
+```
+Variant: chr7:100 A→AAAAAAAAAAAAA (12bp poly-A insertion)
+Flanking: ...AAAAAAAAAA[variant]AAAAAAAAAA...
+
+Detected: homopolymer span=20bp → padding = max(5, 20/2+3) = 13bp
+
+Fixed padding=5:     AAAAA + REF/ALT + AAAAA  (all A's — ambiguous)
+Adaptive padding=13: GCTTAAAAA... + REF/ALT + ...AAAAATTGAC  (anchored)
+```
+
+#### Supported Repeat Types
+
+| Type | Example | Motif Size | Detection Range |
+|:-----|:--------|:----------:|:---------------:|
+| Homopolymer | `AAAAAAA` | 1bp | ≥2 copies |
+| Dinucleotide | `CACACACA` | 2bp | ≥2 copies |
+| Trinucleotide | `CAGCAGCAG` | 3bp | ≥2 copies |
+| Up to hexanucleotide | `GGCCCCGGCCCC` | 4–6bp | ≥2 copies |
+
+!!! tip "Disabling Adaptive Context"
+    Use `--no-adaptive-context` to fall back to fixed padding. This may be useful for strict reproducibility against older versions.
 
 !!! note "SNPs Don't Need Context"
     SNPs are checked by a simple single-base comparison, so `ref_context` is not fetched for them. This saves unnecessary FASTA lookups.

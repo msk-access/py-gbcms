@@ -6,7 +6,6 @@ Provides Pydantic models for variants, configuration, and core data structures.
 
 from .core import (
     GbcmsConfig,
-    GenomicInterval,
     OutputConfig,
     OutputFormat,
     QualityThresholds,
@@ -17,7 +16,6 @@ from .core import (
 
 __all__ = [
     "GbcmsConfig",
-    "GenomicInterval",
     "OutputConfig",
     "OutputFormat",
     "QualityThresholds",

@@ -101,9 +101,15 @@ def run(
         5,
         "--context-padding",
         help=(
-            "Flanking reference bases around indel/complex variants for "
-            "haplotype construction and Smith-Waterman alignment (1-50)."
+            "Minimum flanking reference bases around indel/complex variants for "
+            "haplotype construction and SW alignment (1-50). "
+            "Auto-increased in repeat regions when --adaptive-context is enabled."
         ),
+    ),
+    adaptive_context: bool = typer.Option(
+        True,
+        "--adaptive-context/--no-adaptive-context",
+        help="Dynamically increase context padding in tandem repeat regions.",
     ),
     # Read filters
     filter_duplicates: bool = typer.Option(True, help="Filter duplicate reads"),
@@ -154,6 +160,7 @@ def run(
             min_base_quality=min_baseq,
             fragment_qual_threshold=fragment_qual_threshold,
             context_padding=context_padding,
+            adaptive_context=adaptive_context,
         )
 
         filter_config = ReadFilters(

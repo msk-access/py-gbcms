@@ -78,4 +78,5 @@ def prepare_variants(
     context_padding: int,
     is_maf: bool,
     threads: int = 1,
+    adaptive_context: bool = True,
 ) -> list[PreparedVariant]: ...

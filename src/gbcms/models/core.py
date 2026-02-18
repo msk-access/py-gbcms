@@ -23,7 +23,6 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 __all__ = [
     "VariantType",
-    "GenomicInterval",
     "Variant",
     "OutputFormat",
     "ReadFilters",
@@ -42,24 +41,6 @@ class VariantType(StrEnum):
     COMPLEX = "COMPLEX"
 
 
-class GenomicInterval(BaseModel):
-    """
-    Represents a 0-based, half-open genomic interval [start, end).
-
-    This is the canonical internal representation for all coordinates.
-    """
-
-    chrom: str
-    start: int = Field(ge=0, description="0-based start position (inclusive)")
-    end: int = Field(ge=0, description="0-based end position (exclusive)")
-
-    @model_validator(mode="after")
-    def validate_interval(self) -> "GenomicInterval":
-        if self.end < self.start:
-            raise ValueError(f"End position ({self.end}) must be >= start position ({self.start})")
-        return self
-
-
 class Variant(BaseModel):
     """Normalized representation of a genomic variant."""
 
@@ -74,11 +55,6 @@ class Variant(BaseModel):
     metadata: dict[str, str] = Field(
         default_factory=dict, description="Original input metadata/columns"
     )
-
-    @property
-    def interval(self) -> GenomicInterval:
-        """Get the genomic interval covered by this variant."""
-        return GenomicInterval(chrom=self.chrom, start=self.pos, end=self.pos + len(self.ref))
 
 
 class OutputFormat(StrEnum):
@@ -136,6 +112,14 @@ class QualityThresholds(BaseModel):
             "regions at minimal computational cost."
         ),
     )
+    adaptive_context: bool = Field(
+        default=True,
+        description=(
+            "Dynamically increase context padding in tandem repeat regions. "
+            "When enabled, the effective padding is max(context_padding, "
+            "repeat_span/2 + 3), capped at 50bp."
+        ),
+    )
 
 
 class OutputConfig(BaseModel):
@@ -191,7 +175,6 @@ class GbcmsConfig(BaseModel):
     threads: int = Field(default=1, ge=1, description="Number of threads")
 
     # Advanced
-    fragment_counting: bool = Field(default=False, description="Enable fragment-based counting")
     show_normalization: bool = Field(
         default=False,
         description="Add normalization columns showing left-aligned coordinates to output.",

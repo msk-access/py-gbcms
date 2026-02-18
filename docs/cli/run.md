@@ -26,7 +26,8 @@ gbcms run [OPTIONS] --variants <FILE> --bam <NAME:PATH>... --fasta <FILE>
 | `--column-prefix` | `''` | Prefix for gbcms count columns in MAF output |
 | `--preserve-barcode` | `false` | Keep original Tumor_Sample_Barcode from input MAF |
 | `--show-normalization` | `false` | Append `norm_*` columns showing left-aligned coordinates |
-| `--context-padding` | `5` | Flanking reference bases for haplotype construction (1-50) |
+| `--context-padding` | `5` | Minimum flanking bases for haplotype construction (auto-increased in repeats) |
+| `--adaptive-context` | `true` | Dynamically increase context padding in [tandem repeat regions](../reference/variant-normalization.md#adaptive-context-padding) |
 | `--threads` | `1` | Number of threads |
 
 ## Filtering Options

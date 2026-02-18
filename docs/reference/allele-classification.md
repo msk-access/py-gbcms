@@ -487,7 +487,7 @@ When Phase 2 fails, the engine expands to the full `ref_context` window and perf
 
 ## Limitations
 
-1. **±5bp windowed scan** — Indels shifted by more than 5bp from their expected position won't be detected by the CIGAR-based check. Phase 3 SW can catch some of these via `ref_context`, but only if the read shows evidence (indels/clips) near the variant.
+1. **Windowed scan range** — Indels shifted beyond the context padding from their expected position won't be detected by the CIGAR-based check. Phase 3 SW can catch some of these via `ref_context`, but only if the read shows evidence (indels/clips) near the variant. [Adaptive context padding](variant-normalization.md#adaptive-context-padding) (enabled by default) automatically increases the window in repeat regions where shifted indels are most common.
 
 2. **Score margin ≥ 2** — The SW margin is fixed at 2 points (using `>=`). Very short variants in highly repetitive regions may produce ambiguous scores.
 

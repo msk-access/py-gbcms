@@ -133,6 +133,7 @@ class Pipeline:
             self.config.quality.context_padding,
             is_maf,
             self.config.threads,
+            self.config.quality.adaptive_context,
         )
 
         # Split into valid (for counting) and all (for output)
