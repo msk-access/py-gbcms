@@ -4,7 +4,7 @@ process GBCMS_RUN {
 
     publishDir "${params.outdir}/gbcms", mode: params.publish_dir_mode
 
-    container "ghcr.io/msk-access/py-gbcms:2.5.0"
+    container "ghcr.io/msk-access/py-gbcms:2.6.0"
 
     input:
     tuple val(meta), path(bam), path(bai), path(variants)
