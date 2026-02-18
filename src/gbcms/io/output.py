@@ -59,7 +59,13 @@ class MafWriter(OutputWriter):
         "Matched_Norm_Sample_Barcode",
     ]
 
-    def __init__(self, path: Path, column_prefix: str = "", preserve_barcode: bool = False):
+    def __init__(
+        self,
+        path: Path,
+        column_prefix: str = "",
+        preserve_barcode: bool = False,
+        show_normalization: bool = False,
+    ):
         """
         Initialize MafWriter.
 
@@ -69,18 +75,23 @@ class MafWriter(OutputWriter):
             preserve_barcode: If True, keep original Tumor_Sample_Barcode from
                 input MAF. If False (default), override with BAM sample name.
                 Only applies to MAF→MAF; VCF→MAF always uses BAM name.
+            show_normalization: If True, append norm_* columns showing
+                left-aligned coordinates in the output.
         """
         self.path = path
         self.column_prefix = column_prefix
         self.preserve_barcode = preserve_barcode
+        self.show_normalization = show_normalization
         self.file = open(path, "w")
         self.writer: csv.DictWriter | None = None
         self._headers_written = False
         logger.debug(
-            "MafWriter initialized: path=%s, column_prefix='%s', preserve_barcode=%s",
+            "MafWriter initialized: path=%s, column_prefix='%s', "
+            "preserve_barcode=%s, show_normalization=%s",
             path,
             column_prefix,
             preserve_barcode,
+            show_normalization,
         )
 
     def _gbcms_column_names(self) -> list[str]:
@@ -91,7 +102,9 @@ class MafWriter(OutputWriter):
             Ordered list of gbcms column names.
         """
         p = self.column_prefix
-        return [
+        cols = [
+            # Validation status
+            "validation_status",
             # Core counts
             f"{p}ref_count",
             f"{p}alt_count",
@@ -116,6 +129,19 @@ class MafWriter(OutputWriter):
             f"{p}ref_count_fragment_reverse",
             f"{p}alt_count_fragment_forward",
             f"{p}alt_count_fragment_reverse",
+        ]
+        if self.show_normalization:
+            cols.extend(self._norm_column_names())
+        return cols
+
+    def _norm_column_names(self) -> list[str]:
+        """Normalization columns (only appended when --show-normalization)."""
+        p = self.column_prefix
+        return [
+            f"{p}norm_Start_Position",
+            f"{p}norm_End_Position",
+            f"{p}norm_Reference_Allele",
+            f"{p}norm_Tumor_Seq_Allele2",
         ]
 
     def _init_writer(self, original_headers: list[str]) -> None:
@@ -199,7 +225,14 @@ class MafWriter(OutputWriter):
             f"{p}alt_count_fragment_reverse": str(counts.adf_rev),
         }
 
-    def write(self, variant: Variant, counts: Any, sample_name: str = "TUMOR") -> None:
+    def write(
+        self,
+        variant: Variant,
+        counts: Any,
+        sample_name: str = "TUMOR",
+        validation_status: str = "PASS",
+        norm_variant: Variant | None = None,
+    ) -> None:
         """
         Write a single variant row to the MAF output.
 
@@ -213,6 +246,8 @@ class MafWriter(OutputWriter):
             variant: Normalized Variant with optional metadata from input MAF.
             counts: BaseCounts object from the Rust engine.
             sample_name: Sample name for Tumor_Sample_Barcode column.
+            validation_status: Validation status from prepare_variants().
+            norm_variant: Optional left-aligned Variant (for --show-normalization).
         """
         # Initialize writer on first variant (headers depend on input format)
         if not self._headers_written:
@@ -258,7 +293,17 @@ class MafWriter(OutputWriter):
             row["Tumor_Sample_Barcode"] = sample_name
 
         # Append gbcms count columns (both paths, never overwrites originals)
+        row["validation_status"] = validation_status
         row.update(self._populate_gbcms_counts(counts))
+
+        # Normalization columns (only when --show-normalization is enabled)
+        if self.show_normalization and norm_variant:
+            maf_norm = CoordinateKernel.internal_to_maf(norm_variant)
+            p = self.column_prefix
+            row[f"{p}norm_Start_Position"] = maf_norm["Start_Position"]
+            row[f"{p}norm_End_Position"] = maf_norm["End_Position"]
+            row[f"{p}norm_Reference_Allele"] = maf_norm["Reference_Allele"]
+            row[f"{p}norm_Tumor_Seq_Allele2"] = maf_norm["Tumor_Seq_Allele2"]
 
         self.writer.writerow(row)
 
@@ -271,9 +316,15 @@ class MafWriter(OutputWriter):
 class VcfWriter(OutputWriter):
     """Writes results to a VCF file."""
 
-    def __init__(self, path: Path, sample_name: str = "SAMPLE"):
+    def __init__(
+        self,
+        path: Path,
+        sample_name: str = "SAMPLE",
+        show_normalization: bool = False,
+    ):
         self.path = path
         self.sample_name = sample_name
+        self.show_normalization = show_normalization
         self.file = open(path, "w")
         self._headers_written = False
 
@@ -283,24 +334,44 @@ class VcfWriter(OutputWriter):
             "##fileformat=VCFv4.2",
             "##source=gbcms_v2",
             '##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">',
+            '##INFO=<ID=VS,Number=1,Type=String,Description="Validation status from prepare_variants">',
             '##INFO=<ID=SB_PVAL,Number=1,Type=Float,Description="Fisher strand bias p-value">',
             '##INFO=<ID=SB_OR,Number=1,Type=Float,Description="Fisher strand bias odds ratio">',
             '##INFO=<ID=FSB_PVAL,Number=1,Type=Float,Description="Fisher fragment strand bias p-value">',
             '##INFO=<ID=FSB_OR,Number=1,Type=Float,Description="Fisher fragment strand bias odds ratio">',
-            '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
-            '##FORMAT=<ID=AD,Number=2,Type=Integer,Description="Allelic depths for the ref and alt alleles (fwd,rev)">',
-            '##FORMAT=<ID=DP,Number=2,Type=Integer,Description="Approximate read depth (ref_total,alt_total)">',
-            '##FORMAT=<ID=RD,Number=2,Type=Integer,Description="Reference read depth (fwd,rev)">',
-            '##FORMAT=<ID=RDF,Number=2,Type=Integer,Description="Ref Fragment Count (fwd,rev)">',
-            '##FORMAT=<ID=ADF,Number=2,Type=Integer,Description="Alt Fragment Count (fwd,rev)">',
-            '##FORMAT=<ID=VAF,Number=1,Type=Float,Description="Variant Allele Fraction (read level)">',
-            '##FORMAT=<ID=FAF,Number=1,Type=Float,Description="Variant Allele Fraction (fragment level)">',
-            f"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{self.sample_name}",
         ]
+        if self.show_normalization:
+            headers.extend(
+                [
+                    '##INFO=<ID=NORM_POS,Number=1,Type=Integer,Description="Left-aligned VCF position (1-based)">',
+                    '##INFO=<ID=NORM_REF,Number=1,Type=String,Description="Left-aligned REF allele">',
+                    '##INFO=<ID=NORM_ALT,Number=1,Type=String,Description="Left-aligned ALT allele">',
+                ]
+            )
+        headers.extend(
+            [
+                '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
+                '##FORMAT=<ID=AD,Number=2,Type=Integer,Description="Allelic depths for the ref and alt alleles (fwd,rev)">',
+                '##FORMAT=<ID=DP,Number=2,Type=Integer,Description="Approximate read depth (ref_total,alt_total)">',
+                '##FORMAT=<ID=RD,Number=2,Type=Integer,Description="Reference read depth (fwd,rev)">',
+                '##FORMAT=<ID=RDF,Number=2,Type=Integer,Description="Ref Fragment Count (fwd,rev)">',
+                '##FORMAT=<ID=ADF,Number=2,Type=Integer,Description="Alt Fragment Count (fwd,rev)">',
+                '##FORMAT=<ID=VAF,Number=1,Type=Float,Description="Variant Allele Fraction (read level)">',
+                '##FORMAT=<ID=FAF,Number=1,Type=Float,Description="Variant Allele Fraction (fragment level)">',
+                f"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{self.sample_name}",
+            ]
+        )
         self.file.write("\n".join(headers) + "\n")
         self._headers_written = True
 
-    def write(self, variant: Variant, counts: Any, sample_name: str = "SAMPLE"):
+    def write(
+        self,
+        variant: Variant,
+        counts: Any,
+        sample_name: str = "SAMPLE",
+        validation_status: str = "PASS",
+        norm_variant: Variant | None = None,
+    ):
         if not self._headers_written:
             self._write_header()
 
@@ -308,29 +379,32 @@ class VcfWriter(OutputWriter):
         pos = variant.pos + 1
 
         # INFO fields
-        info = f"DP={counts.dp};SB_PVAL={counts.sb_pval:.4e};SB_OR={counts.sb_or:.4f};FSB_PVAL={counts.fsb_pval:.4e};FSB_OR={counts.fsb_or:.4f}"
+        info_parts = [
+            f"DP={counts.dp}",
+            f"VS={validation_status}",
+            f"SB_PVAL={counts.sb_pval:.4e}",
+            f"SB_OR={counts.sb_or:.4f}",
+            f"FSB_PVAL={counts.fsb_pval:.4e}",
+            f"FSB_OR={counts.fsb_or:.4f}",
+        ]
+        if self.show_normalization and norm_variant:
+            info_parts.extend(
+                [
+                    f"NORM_POS={norm_variant.pos + 1}",
+                    f"NORM_REF={norm_variant.ref}",
+                    f"NORM_ALT={norm_variant.alt}",
+                ]
+            )
+        info = ";".join(info_parts)
 
         # FORMAT fields
-        # GT: Simple 0/1 if alt > 0? Or ./1?
-        # Let's assume 0/1 if we have alt counts, else 0/0
         gt = "0/1" if counts.ad > 0 else "0/0"
-
-        # DP: ref_total,alt_total
         dp = f"{counts.rd},{counts.ad}"
-
-        # RD: ref_fwd,ref_rev
         rd = f"{counts.rd_fwd},{counts.rd_rev}"
-
-        # AD: alt_fwd,alt_rev
         ad = f"{counts.ad_fwd},{counts.ad_rev}"
-
-        # RDF: ref_frag_fwd,ref_frag_rev
         rdf = f"{counts.rdf_fwd},{counts.rdf_rev}"
-
-        # ADF: alt_frag_fwd,alt_frag_rev
         adf = f"{counts.adf_fwd},{counts.adf_rev}"
 
-        # VAF calculations
         total_reads = counts.rd + counts.ad
         vaf = counts.ad / total_reads if total_reads > 0 else 0.0
 

@@ -24,9 +24,11 @@ pytest tests/test_accuracy.py -v
 | Accuracy | `test_accuracy.py` | SNP, indel, complex variant counting |
 | Shifted Indels | `test_shifted_indels.py` | Windowed indel detection (±5bp), 3-layer safeguards |
 | Complex Masking | `test_fuzzy_complex.py` | Quality-aware masked comparison, ambiguity detection |
+| Fragment Consensus | `test_fragment_consensus.py` | Quality-weighted R1/R2 conflict resolution |
+| Normalization | `test_normalization.py` | Left-alignment, REF validation, homopolymer detection |
 | CLI | `test_cli_sample_id.py` | Command-line parsing |
 | Filters | `test_filters.py` | Read filtering logic |
-| MAF | `test_maf_*.py` | MAF column preservation |
+| MAF | `test_maf_*.py` | MAF column preservation, reader |
 | Pipeline | `test_pipeline_v2.py` | End-to-end workflow |
 | Strand | `test_strand_counts.py` | Strand-specific counts |
 
@@ -39,12 +41,14 @@ tests/
 ├── test_accuracy.py           # Variant type accuracy
 ├── test_cli_sample_id.py      # CLI argument parsing
 ├── test_filters.py            # Read filtering
+├── test_fragment_consensus.py # Fragment-level quality consensus
 ├── test_fuzzy_complex.py      # Quality-aware masked complex matching
-├── test_maf_preservation.py
-├── test_maf_reader.py
-├── test_pipeline_v2.py
+├── test_maf_preservation.py   # MAF column preservation
+├── test_maf_reader.py         # MAF input parsing
+├── test_normalization.py      # Left-alignment, REF validation
+├── test_pipeline_v2.py        # End-to-end pipeline
 ├── test_shifted_indels.py     # Windowed indel detection (±5bp)
-└── test_strand_counts.py
+└── test_strand_counts.py      # Strand-specific counts
 ```
 
 ---

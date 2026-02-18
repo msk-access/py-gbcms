@@ -100,13 +100,19 @@ fn hash_qname(qname: &[u8]) -> u64 {
 }
 
 /// Count bases for a list of variants in a BAM file.
+///
+/// When `decomposed` is provided (same length as `variants`), variants with
+/// a `Some(decomposed_variant)` are counted twice — once with the original
+/// allele and once with the corrected allele. The result with the higher
+/// `ad` (alt_count) is returned, with `used_decomposed` set accordingly.
 #[allow(clippy::too_many_arguments)]
 #[pyfunction]
-#[pyo3(signature = (bam_path, variants, min_mapq, min_baseq, filter_duplicates, filter_secondary, filter_supplementary, filter_qc_failed, filter_improper_pair, filter_indel, threads, fragment_qual_threshold=10))]
+#[pyo3(signature = (bam_path, variants, decomposed, min_mapq, min_baseq, filter_duplicates, filter_secondary, filter_supplementary, filter_qc_failed, filter_improper_pair, filter_indel, threads, fragment_qual_threshold=10))]
 pub fn count_bam(
     py: Python<'_>,
     bam_path: String,
     variants: Vec<Variant>,
+    decomposed: Vec<Option<Variant>>,
     min_mapq: u8,
     min_baseq: u8,
     filter_duplicates: bool,
@@ -129,11 +135,14 @@ pub fn count_bam(
         .build()
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to build thread pool: {}", e)))?;
 
+    // Zip variants with their decomposed counterparts for parallel iteration
+    let paired: Vec<_> = variants.into_iter().zip(decomposed.into_iter()).collect();
+
     // Release GIL for parallel execution
     #[allow(deprecated)]
     let results: Result<Vec<BaseCounts>, anyhow::Error> = py.allow_threads(move || {
         pool.install(|| {
-            variants
+            paired
                 .par_iter()
                 .map_init(
                     || {
@@ -142,14 +151,14 @@ pub fn count_bam(
                             anyhow::anyhow!("Failed to open BAM: {}", e)
                         })
                     },
-                    |bam_result, variant| {
+                    |bam_result, (variant, decomp_opt)| {
                         // Get the reader or return error if initialization failed
                         let bam = match bam_result {
                             Ok(b) => b,
                             Err(e) => return Err(anyhow::anyhow!("BAM init failed: {}", e)),
                         };
 
-                        count_single_variant(
+                        let counts_orig = count_single_variant(
                             bam,
                             variant,
                             min_mapq,
@@ -161,7 +170,41 @@ pub fn count_bam(
                             filter_improper_pair,
                             filter_indel,
                             fragment_qual_threshold,
-                        )
+                        )?;
+
+                        // Dual-count: if a decomposed variant exists, count it too
+                        // and return whichever has the higher alt_count.
+                        if let Some(decomp) = decomp_opt {
+                            let counts_decomp = count_single_variant(
+                                bam,
+                                decomp,
+                                min_mapq,
+                                min_baseq,
+                                filter_duplicates,
+                                filter_secondary,
+                                filter_supplementary,
+                                filter_qc_failed,
+                                filter_improper_pair,
+                                filter_indel,
+                                fragment_qual_threshold,
+                            )?;
+
+                            if counts_decomp.ad > counts_orig.ad {
+                                debug!(
+                                    "Homopolymer decomp: corrected allele wins \
+                                     (ad={} vs orig ad={}) for {}:{} {}→{}",
+                                    counts_decomp.ad, counts_orig.ad,
+                                    variant.chrom, variant.pos + 1,
+                                    variant.ref_allele, decomp.alt_allele,
+                                );
+                                return Ok(BaseCounts {
+                                    used_decomposed: true,
+                                    ..counts_decomp
+                                });
+                            }
+                        }
+
+                        Ok(counts_orig)
                     },
                 )
                 .collect()
@@ -379,7 +422,7 @@ fn check_allele_with_qual<F: Fn(u8, u8) -> i32>(
 
     match variant_type.as_str() {
         "SNP" => check_snp(record, variant, min_baseq),
-        "INSERTION" => check_insertion(record, variant, min_baseq),
+        "INSERTION" => check_insertion(record, variant, min_baseq, alt_aligner, ref_aligner),
         "DELETION" => check_deletion(record, variant, min_baseq, alt_aligner, ref_aligner),
         "MNP" => {
             debug!("Dispatching to check_mnp");
@@ -830,7 +873,19 @@ fn check_complex<F: Fn(u8, u8) -> i32>(
     let matches_alt_len = recon_len == alt_bytes.len();
     let matches_ref_len = recon_len == ref_bytes.len();
 
-    if matches_alt_len && matches_ref_len {
+    // Guard: pathologically short reconstruction for large-REF variants.
+    // When a large region (e.g. 1024bp deletion) produces a tiny reconstruction
+    // (e.g. 1bp), direct Phase 2 comparison is unreliable — a 1bp recon would
+    // trivially match a 1bp ALT allele, causing overcounting.
+    // Skip to Phase 3 (Smith-Waterman alignment) which uses full haplotype context.
+    let ref_len = ref_bytes.len();
+    if ref_len > 50 && recon_len > 0 && recon_len < ref_len / 10 {
+        debug!(
+            "check_complex: recon_len={} is <10% of ref_len={} — \
+             skipping Phase 2 (unreliable direct comparison)",
+            recon_len, ref_len
+        );
+    } else if matches_alt_len && matches_ref_len {
         // Case A: Equal-length REF and ALT — need simultaneous check + ambiguity detection
         let (mismatches_alt, mismatches_ref, reliable_count) =
             masked_dual_compare(&reconstructed_seq, &quals_per_base, alt_bytes, ref_bytes, min_baseq);
@@ -1074,7 +1129,17 @@ fn check_snp(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool, 
 ///    - S2: Closest match wins (minimum |shift_pos - anchor_pos|)
 ///    - S3: Reference base at shifted anchor matches original anchor base
 ///      (via variant.ref_context)
-fn check_insertion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool, u8) {
+/// 4. **Phase 3 haplotype fallback:** When a length-matching insertion exists
+///    nearby but fails the sequence check (e.g., same biological event
+///    represented differently by caller vs aligner), falls back to
+///    check_complex for Smith-Waterman haplotype comparison.
+fn check_insertion<F: Fn(u8, u8) -> i32>(
+    record: &Record,
+    variant: &Variant,
+    min_baseq: u8,
+    alt_aligner: &mut Aligner<F>,
+    ref_aligner: &mut Aligner<F>,
+) -> (bool, bool, u8) {
     let cigar_view = record.cigar();
     let quals = record.qual();
     let mut ref_pos = record.pos();
@@ -1094,6 +1159,7 @@ fn check_insertion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, 
     let mut found_ref_coverage = false;
     let mut anchor_read_pos: Option<usize> = None; // read position of anchor base
     let mut best_windowed_match: Option<u64> = None; // distance of best windowed match
+    let mut has_nearby_length_match = false; // length-matching Ins found but seq check failed
 
     for (i, op) in cigar_view.iter().enumerate() {
         match op {
@@ -1181,21 +1247,19 @@ fn check_insertion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, 
                         && ins_ref_pos != anchor_pos + 1 // skip strict position (already handled)
                     {
                         let ins_len_usize = *ins_len as usize;
-                        // Safeguard 1: sequence identity — length and bases must match
+                        // Safeguard 1: length must match
                         if ins_len_usize == expected_ins_len {
                             let ins_start = read_pos + *len as usize;
                             if ins_start + ins_len_usize <= record.seq().len() {
                                 let ins_seq = &record.seq().as_bytes()
                                     [ins_start..ins_start + ins_len_usize];
-                                // P1-1: Quality-aware fuzzy match
+                                // Quality-aware fuzzy match for inserted bases
                                 let ins_quals = &quals[ins_start..ins_start + ins_len_usize];
                                 let (mismatches, reliable) = masked_single_compare(
                                     ins_seq, ins_quals, expected_ins_seq, min_baseq
                                 );
                                 if reliable > 0 && mismatches == 0 {
                                     // Safeguard 3: verify anchor base at shifted position
-                                    // The base before the insertion (ins_ref_pos - 1) should
-                                    // match the original anchor base
                                     let shifted_anchor_pos = ins_ref_pos - 1;
                                     let anchor_ok = match &variant.ref_context {
                                         Some(ctx) => {
@@ -1206,9 +1270,6 @@ fn check_insertion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, 
                                                 ctx.as_bytes()[ctx_offset].to_ascii_uppercase()
                                                     == original_anchor_base
                                             } else {
-                                                // P2-1: Permissive on OOB — a false negative
-                                                // (rejecting valid shifted indel) is worse than
-                                                // a false positive (caught by sequence match).
                                                 debug!(
                                                     "ref_context offset {} out of bounds (len={}), allowing",
                                                     ctx_offset, ctx.len()
@@ -1216,7 +1277,7 @@ fn check_insertion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, 
                                                 true
                                             }
                                         }
-                                        None => true, // no ref_context → skip check
+                                        None => true,
                                     };
 
                                     if anchor_ok {
@@ -1235,6 +1296,19 @@ fn check_insertion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, 
                                             shifted_anchor_pos
                                         );
                                     }
+                                } else {
+                                    // Length matches but sequence differs — the caller
+                                    // and aligner may represent the same event
+                                    // differently (e.g., shifted insertion in a repeat).
+                                    // Track this so Phase 3 SW can arbitrate.
+                                    has_nearby_length_match = true;
+                                    debug!(
+                                        "check_insertion: windowed I({}) at pos {} seq \
+                                         mismatch (mismatches={}, reliable={}), \
+                                         flagging for Phase 3 fallback",
+                                        ins_len_usize, ins_ref_pos,
+                                        mismatches, reliable
+                                    );
                                 }
                             }
                         }
@@ -1271,6 +1345,21 @@ fn check_insertion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, 
         );
         return (false, true, anchor_qual); // ALT — windowed match
     }
+
+    // Phase 3 haplotype fallback: when a length-matching insertion exists nearby
+    // but the sequence check failed, the caller and aligner may represent the
+    // same biological event differently (e.g., FLT4 A→GGAT placed at different
+    // positions with different inserted bases). Suppress found_ref_coverage to
+    // let check_complex → Smith-Waterman arbitrate using full haplotype comparison.
+    if has_nearby_length_match && found_ref_coverage {
+        debug!(
+            "check_insertion: nearby I({}) with seq mismatch at pos {}, \
+             falling back to check_complex for Phase 3 SW",
+            expected_ins_len, anchor_pos
+        );
+        return check_complex(record, variant, min_baseq, alt_aligner, ref_aligner);
+    }
+
     if found_ref_coverage {
         return (true, false, anchor_qual); // REF — read covers anchor without matching insertion
     }
@@ -1317,6 +1406,7 @@ fn check_deletion<F: Fn(u8, u8) -> i32>(
     let mut found_ref_coverage = false;
     let mut anchor_read_pos: Option<usize> = None; // read position of anchor base
     let mut best_windowed_match: Option<u64> = None;
+    let mut has_large_cigar_del = false; // tracks if read carries a large deletion
 
     for (i, op) in cigar_view.iter().enumerate() {
         match op {
@@ -1345,11 +1435,51 @@ fn check_deletion<F: Fn(u8, u8) -> i32>(
                                 return (false, true, qual); // ALT — strict match
                             } else {
                                 // P0-3: D found at anchor but wrong length.
-                                // Fall back to check_complex for haplotype comparison.
+                                // Use SV-caller-style reciprocal overlap matching:
+                                // aligners often report slightly different breakpoints
+                                // for the same large deletion, producing different
+                                // CIGAR D lengths. If both start at the same anchor
+                                // and share ≥50% reciprocal overlap, treat as the
+                                // same biological event.
+                                // Precedent: SURVIVOR uses ≥50% overlap, BEDTools
+                                // uses configurable reciprocal overlap for SV matching.
+                                let found_del_len = *del_len as usize;
+                                let min_del = expected_del_len.min(found_del_len);
+                                let max_del = expected_del_len.max(found_del_len);
+                                let reciprocal_overlap =
+                                    min_del as f64 / max_del as f64;
+
+                                if expected_del_len >= 50 && reciprocal_overlap >= 0.5 {
+                                    // Large deletion with significant overlap → ALT
+                                    let arp = anchor_read_pos.unwrap_or(0);
+                                    let qual = if arp < quals.len() {
+                                        quals[arp]
+                                    } else {
+                                        0
+                                    };
+                                    debug!(
+                                        "check_deletion: tolerant match D({}) ≈ D({}) \
+                                         at pos {} (reciprocal_overlap={:.2}, \
+                                         threshold=0.50, anchor_qual={})",
+                                        found_del_len,
+                                        expected_del_len,
+                                        anchor_pos,
+                                        reciprocal_overlap,
+                                        qual
+                                    );
+                                    return (false, true, qual); // ALT — tolerant match
+                                }
+
+                                // Small deletion or low overlap: fall back to
+                                // check_complex for haplotype-based comparison.
                                 debug!(
                                     "check_deletion: D({}) at anchor {} but expected D({}), \
+                                     reciprocal_overlap={:.2} (below 0.50 or del<50bp), \
                                      falling back to check_complex",
-                                    del_len, anchor_pos, expected_del_len
+                                    found_del_len,
+                                    anchor_pos,
+                                    expected_del_len,
+                                    reciprocal_overlap
                                 );
                                 return check_complex(record, variant, min_baseq, alt_aligner, ref_aligner);
                             }
@@ -1368,35 +1498,65 @@ fn check_deletion<F: Fn(u8, u8) -> i32>(
                         && del_ref_pos != anchor_pos + 1 // skip strict position
                     {
                         let del_len_usize = *del_len as usize;
-                        // Safeguard 1: deletion length matches
-                        if del_len_usize == expected_del_len {
+
+                        // Safeguard 1: deletion length check.
+                        // Accept exact matches, OR for large deletions (≥50bp),
+                        // accept reciprocal overlap ≥50% (same logic as Fix 1
+                        // on the strict path). Aligners often report slightly
+                        // different breakpoints for the same biological event.
+                        let length_ok = if del_len_usize == expected_del_len {
+                            true
+                        } else if expected_del_len >= 50 {
+                            let min_del = expected_del_len.min(del_len_usize);
+                            let max_del = expected_del_len.max(del_len_usize);
+                            let overlap = min_del as f64 / max_del as f64;
+                            if overlap >= 0.5 {
+                                debug!(
+                                    "check_deletion: windowed tolerant match \
+                                     D({}) ≈ D({}) at pos {} (overlap={:.2})",
+                                    del_len_usize, expected_del_len,
+                                    del_ref_pos, overlap
+                                );
+                                // Track that this read carries a large deletion
+                                has_large_cigar_del = true;
+                                true
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        };
+
+                        if length_ok {
                             // Safeguard 3: verify the deleted reference bases match
-                            let del_ok = match &variant.ref_context {
-                                Some(ctx) => {
-                                    let ctx_bytes = ctx.as_bytes();
-                                    let ctx_offset =
-                                        (del_ref_pos - variant.ref_context_start) as usize;
-                                    if ctx_offset + del_len_usize <= ctx_bytes.len() {
-                                        let ref_at_shift = &ctx_bytes
-                                            [ctx_offset..ctx_offset + del_len_usize];
-                                        // P1-1: Use masked_single_compare for consistency
-                                        // with INS paths. All bases are reference-quality
-                                        // so quality masking has no effect here.
-                                        let ref_quals = vec![u8::MAX; del_len_usize];
-                                        let (mismatches, reliable) = masked_single_compare(
-                                            ref_at_shift, &ref_quals, expected_del_seq, 0
-                                        );
-                                        reliable > 0 && mismatches == 0
-                                    } else {
-                                        // P2-1: Permissive on OOB
-                                        debug!(
-                                            "ref_context offset {} out of bounds (len={}), allowing",
-                                            ctx_offset, ctx_bytes.len()
-                                        );
-                                        true
+                            // (only for exact-length matches; skip for tolerant
+                            // matches where lengths differ)
+                            let del_ok = if del_len_usize != expected_del_len {
+                                true // tolerant match — length differs, skip seq check
+                            } else {
+                                match &variant.ref_context {
+                                    Some(ctx) => {
+                                        let ctx_bytes = ctx.as_bytes();
+                                        let ctx_offset =
+                                            (del_ref_pos - variant.ref_context_start) as usize;
+                                        if ctx_offset + del_len_usize <= ctx_bytes.len() {
+                                            let ref_at_shift = &ctx_bytes
+                                                [ctx_offset..ctx_offset + del_len_usize];
+                                            let ref_quals = vec![u8::MAX; del_len_usize];
+                                            let (mismatches, reliable) = masked_single_compare(
+                                                ref_at_shift, &ref_quals, expected_del_seq, 0
+                                            );
+                                            reliable > 0 && mismatches == 0
+                                        } else {
+                                            debug!(
+                                                "ref_context offset {} out of bounds (len={}), allowing",
+                                                ctx_offset, ctx_bytes.len()
+                                            );
+                                            true
+                                        }
                                     }
+                                    None => true,
                                 }
-                                None => true, // no ref_context → skip check
                             };
 
                             if del_ok {
@@ -1448,6 +1608,43 @@ fn check_deletion<F: Fn(u8, u8) -> i32>(
             anchor_pos, anchor_qual
         );
         return (false, true, anchor_qual); // ALT — windowed match
+    }
+
+    // Fix 3: Interior REF guard for large deletions.
+    //
+    // For large deletions (≥50bp), reads that start *inside* the expected
+    // deletion span are reference reads — they align to sequence that would
+    // be absent in the ALT allele. These reads won't cover the anchor
+    // (found_ref_coverage == false) and have no matching deletion CIGAR,
+    // so without this guard they fall back to check_complex → Phase 3
+    // Smith-Waterman alignment.
+    //
+    // In Phase 3, the REF haplotype (e.g. 1044bp for a 1023bp deletion)
+    // far exceeds the read length (~100bp), causing semiglobal alignment
+    // to penalize it with gaps. The short ALT haplotype (~21bp) fits
+    // easily, producing a higher score → false ALT call.
+    //
+    // Fix: detect reads starting inside the deletion span and classify
+    // them as REF directly. Only applied for large deletions (≥50bp)
+    // where the semiglobal alignment length mismatch is significant.
+    let read_start = record.pos();
+    let del_region_end = anchor_pos + expected_del_len as i64;
+
+    if expected_del_len >= 50
+        && read_start > anchor_pos
+        && read_start < del_region_end
+        && !found_ref_coverage
+        && !has_large_cigar_del  // exclude reads carrying the actual deletion
+    {
+        debug!(
+            "check_deletion: read at pos {} starts inside deletion span \
+             [{}, {}), calling REF (interior read, del_len={})",
+            read_start,
+            anchor_pos + 1,
+            del_region_end,
+            expected_del_len
+        );
+        return (true, false, anchor_qual);
     }
 
     // P0-3: Haplotype fallback — when strict/windowed CIGAR matching found no

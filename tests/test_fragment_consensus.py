@@ -188,6 +188,7 @@ def test_fragment_consensus_no_double_counting(fragment_consensus_bam):
     results = count_bam(
         bam_path=fragment_consensus_bam,
         variants=[variant],
+        decomposed=[None],
         min_mapq=0,
         min_baseq=0,
         filter_duplicates=True,
@@ -234,6 +235,7 @@ def test_fragment_consensus_quality_tiebreaker(fragment_consensus_bam):
     results = count_bam(
         bam_path=fragment_consensus_bam,
         variants=[variant],
+        decomposed=[None],
         min_mapq=0,
         min_baseq=0,
         filter_duplicates=True,

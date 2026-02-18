@@ -10,7 +10,7 @@
     
     !!! info "System Requirements"
         PyPI wheels require **glibc 2.34+** (Ubuntu 22.04+, RHEL 9+, Debian 12+).
-        For older systems, see [Legacy Linux](#legacy-linux-rhel-8).
+        For older systems, see [Legacy Linux](#legacy-linux-rhel-8-hpc).
 
 === "Docker"
     ```bash
@@ -135,7 +135,7 @@ sudo usermod -aG docker $USER && newgrp docker
 ```
 
 ### glibc Version Error
-If you see `GLIBC_2.34 not found`, use the [Legacy Linux](#legacy-linux-rhel-8) instructions.
+If you see `GLIBC_2.34 not found`, use the [Legacy Linux](#legacy-linux-rhel-8-hpc) instructions.
 
 ---
 

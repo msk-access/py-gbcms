@@ -137,4 +137,4 @@ gbcms run --help
 
 - **[Nextflow](../nextflow/index.md)** — Process many samples in parallel
 - **[Architecture](../reference/architecture.md)** — How it works
-- **[Variant Counting](../reference/variant-counting.md)** — How each variant type is counted
+- **[Allele Classification](../reference/allele-classification.md)** — How each variant type is counted

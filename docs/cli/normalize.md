@@ -1,0 +1,67 @@
+# gbcms normalize
+
+Left-align and validate variants without counting reads.
+
+## Synopsis
+
+```bash
+gbcms normalize --variants <FILE> --fasta <FILE> --output <FILE>
+```
+
+## Description
+
+The `normalize` subcommand applies the same variant preparation pipeline used
+by `gbcms run` — MAF anchor resolution, REF validation, and bcftools-style
+left-alignment — but **without** performing any BAM counting.  The output is a
+TSV file showing both the original and normalized coordinates for every variant.
+
+This is useful for:
+
+- **Debugging** — see exactly how each variant was transformed before counting
+- **QC** — verify which variants fail REF validation
+- **Preprocessing** — normalize a variant list before passing it to other tools
+
+## Required Arguments
+
+| Option | Description |
+|:-------|:------------|
+| `--variants` | VCF or MAF file with variant positions |
+| `--fasta` | Reference FASTA file (with .fai index) |
+| `--output` | Output TSV file path |
+
+## Optional Arguments
+
+| Option | Default | Description |
+|:-------|:--------|:------------|
+| `--threads` | `1` | Number of threads |
+| `--verbose` | `false` | Enable debug logging |
+
+## Output Columns
+
+| Column | Description |
+|:-------|:------------|
+| `chrom` | Chromosome |
+| `original_pos` | Original 1-based position |
+| `original_ref` | Original REF allele |
+| `original_alt` | Original ALT allele |
+| `norm_pos` | Left-aligned 1-based position |
+| `norm_ref` | Left-aligned REF allele |
+| `norm_alt` | Left-aligned ALT allele |
+| `variant_type` | SNP, INSERTION, DELETION, or COMPLEX |
+| `validation_status` | `PASS`, `PASS_WARN_HOMOPOLYMER_DECOMP`, `REF_MISMATCH`, or `FETCH_FAILED` |
+| `was_normalized` | Whether the variant was modified by left-alignment |
+
+## Example
+
+```bash
+gbcms normalize \
+    --variants mutations.maf \
+    --fasta reference.fa \
+    --output normalized.tsv \
+    --threads 4
+```
+
+## Related
+
+- [gbcms run](run.md) — Full counting pipeline (with `--show-normalization` flag)
+- [Input Formats](../reference/input-formats.md) — VCF/MAF coordinate conventions

@@ -52,6 +52,7 @@ def _count_one(bam_path, variant):
     results = count_bam(
         bam_path,
         [variant],
+        decomposed=[None],
         min_mapq=20,
         min_baseq=20,
         filter_duplicates=True,
