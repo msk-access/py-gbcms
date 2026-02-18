@@ -22,7 +22,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.2">
     
     
       
@@ -75,7 +75,7 @@
             body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
             body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
         </style><meta name="panzoom-theme" content="material">
-<meta name="panzoom-data" content='{"selectors": [".mermaid", ".d2"], "initial_zoom_level": 1.0}'> </head>
+<meta name="panzoom-data" content='{"selectors": [".d2", ".mermaid"], "initial_zoom_level": 1.0}'> </head>
   
   
     
@@ -453,6 +453,8 @@
       
         
       
+        
+      
     
     
     
@@ -524,6 +526,34 @@
     
   
     Run Command
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/normalize/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Normalize Command
   
 
     
@@ -736,10 +766,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#filtering-options" class="md-nav__link">
+  <a href="#quality-filtering-options" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Filtering Options
+        Quality &amp; Filtering Options
       
     </span>
   </a>
@@ -773,6 +803,17 @@
     <span class="md-ellipsis">
       
         Execution Profiles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced
       
     </span>
   </a>
@@ -851,6 +892,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -876,7 +923,7 @@
   <span class="md-ellipsis">
     
   
-    Reference
+    How It Works
   
 
     
@@ -892,7 +939,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Reference
+    How It Works
   
 
           </label>
@@ -933,14 +980,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/variant-counting/" class="md-nav__link">
+      <a href="../../reference/input-formats/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Variant Counting
+    Input Formats
   
 
     
@@ -961,14 +1008,98 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/input-formats/" class="md-nav__link">
+      <a href="../../reference/variant-normalization/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Input Formats
+    Variant Normalization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/read-filters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Read Filters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/allele-classification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Allele Classification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/counting-metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Counting &amp; Metrics
   
 
     
@@ -1402,10 +1533,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#filtering-options" class="md-nav__link">
+  <a href="#quality-filtering-options" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Filtering Options
+        Quality &amp; Filtering Options
       
     </span>
   </a>
@@ -1439,6 +1570,17 @@
     <span class="md-ellipsis">
       
         Execution Profiles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced
       
     </span>
   </a>
@@ -1586,7 +1728,7 @@
 </tr>
 </tbody>
 </table>
-<h2 id="filtering-options">Filtering Options<a class="headerlink" href="#filtering-options" title="Permanent link">¶</a></h2>
+<h2 id="quality-filtering-options">Quality &amp; Filtering Options<a class="headerlink" href="#quality-filtering-options" title="Permanent link">¶</a></h2>
 <table>
 <thead>
 <tr>
@@ -1599,12 +1741,27 @@
 <tr>
 <td style="text-align: left;"><code>--min_mapq</code></td>
 <td style="text-align: left;"><code>20</code></td>
-<td style="text-align: left;">Minimum <abbr title="Mapping Quality - Confidence score for read alignment">MAPQ</abbr></td>
+<td style="text-align: left;">Minimum mapping quality</td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>--min_baseq</code></td>
 <td style="text-align: left;"><code>20</code></td>
-<td style="text-align: left;">Minimum <abbr title="Base Quality - Phred-scaled base call confidence">BASEQ</abbr></td>
+<td style="text-align: left;">Minimum base quality</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>--fragment_qual_threshold</code></td>
+<td style="text-align: left;"><code>10</code></td>
+<td style="text-align: left;">Quality margin for <a href="../../reference/counting-metrics/#fragment-counting">fragment consensus</a> — when R1/R2 disagree, the higher-quality allele wins only if the difference exceeds this</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>--context_padding</code></td>
+<td style="text-align: left;"><code>5</code></td>
+<td style="text-align: left;">Minimum flanking bases for <a href="../../reference/allele-classification/#phase-3-smith-waterman-fallback">SW alignment</a> (auto-increased in repeats)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>--adaptive_context</code></td>
+<td style="text-align: left;"><code>true</code></td>
+<td style="text-align: left;">Dynamically increase context padding in <a href="../../reference/variant-normalization/#adaptive-context-padding">tandem repeat regions</a></td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>--filter_duplicates</code></td>
@@ -1640,6 +1797,11 @@
 <td style="text-align: left;"><code>--filter_by_sample</code></td>
 <td style="text-align: left;"><code>false</code></td>
 <td style="text-align: left;">Filter multi-sample <abbr title="Mutation Annotation Format - Standard mutation annotation file format">MAF</abbr> by <code>Tumor_Sample_Barcode</code> (<a href="../samplesheet/#multi-sample-maf-filtering">details</a>)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>--show_normalization</code></td>
+<td style="text-align: left;"><code>false</code></td>
+<td style="text-align: left;">Add <code>norm_*</code> columns showing left-aligned coordinates in output</td>
 </tr>
 </tbody>
 </table>
@@ -1726,6 +1888,18 @@
 </tr>
 </tbody>
 </table>
+<h2 id="advanced">Advanced<a class="headerlink" href="#advanced" title="Permanent link">¶</a></h2>
+<div class="admonition tip">
+<p class="admonition-title"><code>task.ext.args</code> — Arbitrary <abbr title="Command Line Interface - Terminal-based program interface">CLI</abbr> Arguments</p>
+<p>Any <abbr title="Command Line Interface - Terminal-based program interface">CLI</abbr> option not exposed as a Nextflow parameter can be passed via <code>task.ext.args</code> in your config:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">process</span><span class="w"> </span><span class="o">{</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span><span class="nl">withName:</span><span class="w"> </span><span class="n">GBCMS_RUN</span><span class="w"> </span><span class="o">{</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">        </span><span class="n">ext</span><span class="o">.</span><span class="na">args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'--verbose'</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="o">}</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="o">}</span>
+</code></pre></div>
+<p>See <a href="../../cli/run/"><abbr title="Command Line Interface - Terminal-based program interface">CLI</abbr> Run Reference</a> for all available options.</p>
+</div>
 <h2 id="related">Related<a class="headerlink" href="#related" title="Permanent link">¶</a></h2>
 <ul>
 <li><a href="../samplesheet/">Samplesheet</a> — Input format</li>
@@ -1756,7 +1930,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 12, 2026 02:47:13 UTC"><span class="timeago" datetime="2026-02-12T02:47:13+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 12, 2026 02:47:13 UTC">2026-02-12</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 18, 2026 22:57:45 UTC"><span class="timeago" datetime="2026-02-18T22:57:45+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 18, 2026 22:57:45 UTC">2026-02-18</span>
   </span>
 
     

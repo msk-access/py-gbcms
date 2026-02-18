@@ -3,12 +3,12 @@
 <meta content="width=device-width,initial-scale=1" name="viewport">
 <meta content="High-performance variant counting from BAM files" name="description">
 <meta content="MSK-ACCESS" name="author">
-<link href="https://msk-access.github.io/py-gbcms/dev/reference/architecture/" rel="canonical">
-<link href="../../nextflow/examples/" rel="prev">
-<link href="../input-formats/" rel="next">
+<link href="https://msk-access.github.io/py-gbcms/dev/reference/variant-normalization/" rel="canonical">
+<link href="../input-formats/" rel="prev">
+<link href="../read-filters/" rel="next">
 <link href="../../assets/images/favicon.png" rel="icon">
 <meta content="mkdocs-1.6.1, mkdocs-material-9.7.2" name="generator">
-<title>Architecture - py-gbcms</title>
+<title>Variant Normalization - py-gbcms</title>
 <link href="../../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet">
 <link href="../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet">
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
@@ -35,7 +35,7 @@
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox">
 <label class="md-overlay" for="__drawer"></label>
 <div data-md-component="skip">
-<a class="md-skip" href="#architecture">
+<a class="md-skip" href="#variant-normalization">
           Skip to content
         </a>
 </div>
@@ -61,7 +61,7 @@
 <div class="md-header__topic" data-md-component="header-topic">
 <span class="md-ellipsis">
             
-              Architecture
+              Variant Normalization
             
           </span>
 </div>
@@ -354,13 +354,37 @@
 
           </label>
 <ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../architecture/">
+<span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../input-formats/">
+<span class="md-ellipsis">
+    
+  
+    Input Formats
+  
+
+    
+  </span>
+</a>
+</li>
 <li class="md-nav__item md-nav__item--active">
 <input class="md-nav__toggle md-toggle" id="__toc" type="checkbox">
 <label class="md-nav__link md-nav__link--active" for="__toc">
 <span class="md-ellipsis">
     
   
-    Architecture
+    Variant Normalization
   
 
     
@@ -371,7 +395,7 @@
 <span class="md-ellipsis">
     
   
-    Architecture
+    Variant Normalization
   
 
     
@@ -384,56 +408,118 @@
     </label>
 <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#system-overview">
+<a class="md-nav__link" href="#overview">
 <span class="md-ellipsis">
       
-        System Overview
+        Overview
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#data-flow">
+<a class="md-nav__link" href="#step-1-maf-anchor-resolution">
 <span class="md-ellipsis">
       
-        Data Flow
+        Step 1: MAF Anchor Resolution
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#coordinate-system">
+<a class="md-nav__link" href="#step-2-ref-validation">
 <span class="md-ellipsis">
       
-        Coordinate System
+        Step 2: REF Validation
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#formulas">
+<a class="md-nav__link" href="#step-3-left-alignment">
 <span class="md-ellipsis">
       
-        Formulas
+        Step 3: Left-Alignment
       
     </span>
 </a>
-<nav aria-label="Formulas" class="md-nav">
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#step-4-ref_context-fetch-adaptive">
+<span class="md-ellipsis">
+      
+        Step 4: ref_context Fetch (Adaptive)
+      
+    </span>
+</a>
+<nav aria-label="Step 4: ref_context Fetch (Adaptive)" class="md-nav">
 <ul class="md-nav__list">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#variant-allele-frequency-vaf">
+<a class="md-nav__link" href="#adaptive-context-padding">
 <span class="md-ellipsis">
       
-        Variant Allele Frequency (VAF)
+        Adaptive Context Padding
+      
+    </span>
+</a>
+<nav aria-label="Adaptive Context Padding" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#example-poly-a-insertion">
+<span class="md-ellipsis">
+      
+        Example: Poly-A Insertion
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#strand-bias-fishers-exact-test">
+<a class="md-nav__link" href="#supported-repeat-types">
 <span class="md-ellipsis">
       
-        Strand Bias (Fisher's Exact Test)
+        Supported Repeat Types
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#step-5-homopolymer-decomposition-detection">
+<span class="md-ellipsis">
+      
+        Step 5: Homopolymer Decomposition Detection
+      
+    </span>
+</a>
+<nav aria-label="Step 5: Homopolymer Decomposition Detection" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#detection-criteria">
+<span class="md-ellipsis">
+      
+        Detection Criteria
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#corrected-allele-construction">
+<span class="md-ellipsis">
+      
+        Corrected Allele Construction
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#dual-counting-flow">
+<span class="md-ellipsis">
+      
+        Dual-Counting Flow
       
     </span>
 </a>
@@ -442,37 +528,19 @@
 </nav>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#module-structure">
+<a class="md-nav__link" href="#validation-status-reference">
 <span class="md-ellipsis">
       
-        Module Structure
+        Validation Status Reference
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#configuration">
+<a class="md-nav__link" href="#limitations">
 <span class="md-ellipsis">
       
-        Configuration
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#full-pipeline-end-to-end-example">
-<span class="md-ellipsis">
-      
-        Full Pipeline: End-to-End Example
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#comparison-with-original-gbcms">
-<span class="md-ellipsis">
-      
-        Comparison with Original GBCMS
+        Limitations
       
     </span>
 </a>
@@ -488,30 +556,6 @@
 </li>
 </ul>
 </nav>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../input-formats/">
-<span class="md-ellipsis">
-    
-  
-    Input Formats
-  
-
-    
-  </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../variant-normalization/">
-<span class="md-ellipsis">
-    
-  
-    Variant Normalization
-  
-
-    
-  </span>
-</a>
 </li>
 <li class="md-nav__item">
 <a class="md-nav__link" href="../read-filters/">
@@ -715,56 +759,118 @@
     </label>
 <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#system-overview">
+<a class="md-nav__link" href="#overview">
 <span class="md-ellipsis">
       
-        System Overview
+        Overview
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#data-flow">
+<a class="md-nav__link" href="#step-1-maf-anchor-resolution">
 <span class="md-ellipsis">
       
-        Data Flow
+        Step 1: MAF Anchor Resolution
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#coordinate-system">
+<a class="md-nav__link" href="#step-2-ref-validation">
 <span class="md-ellipsis">
       
-        Coordinate System
+        Step 2: REF Validation
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#formulas">
+<a class="md-nav__link" href="#step-3-left-alignment">
 <span class="md-ellipsis">
       
-        Formulas
+        Step 3: Left-Alignment
       
     </span>
 </a>
-<nav aria-label="Formulas" class="md-nav">
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#step-4-ref_context-fetch-adaptive">
+<span class="md-ellipsis">
+      
+        Step 4: ref_context Fetch (Adaptive)
+      
+    </span>
+</a>
+<nav aria-label="Step 4: ref_context Fetch (Adaptive)" class="md-nav">
 <ul class="md-nav__list">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#variant-allele-frequency-vaf">
+<a class="md-nav__link" href="#adaptive-context-padding">
 <span class="md-ellipsis">
       
-        Variant Allele Frequency (VAF)
+        Adaptive Context Padding
+      
+    </span>
+</a>
+<nav aria-label="Adaptive Context Padding" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#example-poly-a-insertion">
+<span class="md-ellipsis">
+      
+        Example: Poly-A Insertion
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#strand-bias-fishers-exact-test">
+<a class="md-nav__link" href="#supported-repeat-types">
 <span class="md-ellipsis">
       
-        Strand Bias (Fisher's Exact Test)
+        Supported Repeat Types
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#step-5-homopolymer-decomposition-detection">
+<span class="md-ellipsis">
+      
+        Step 5: Homopolymer Decomposition Detection
+      
+    </span>
+</a>
+<nav aria-label="Step 5: Homopolymer Decomposition Detection" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#detection-criteria">
+<span class="md-ellipsis">
+      
+        Detection Criteria
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#corrected-allele-construction">
+<span class="md-ellipsis">
+      
+        Corrected Allele Construction
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#dual-counting-flow">
+<span class="md-ellipsis">
+      
+        Dual-Counting Flow
       
     </span>
 </a>
@@ -773,37 +879,19 @@
 </nav>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#module-structure">
+<a class="md-nav__link" href="#validation-status-reference">
 <span class="md-ellipsis">
       
-        Module Structure
+        Validation Status Reference
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#configuration">
+<a class="md-nav__link" href="#limitations">
 <span class="md-ellipsis">
       
-        Configuration
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#full-pipeline-end-to-end-example">
-<span class="md-ellipsis">
-      
-        Full Pipeline: End-to-End Example
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#comparison-with-original-gbcms">
-<span class="md-ellipsis">
-      
-        Comparison with Original GBCMS
+        Limitations
       
     </span>
 </a>
@@ -833,7 +921,7 @@
 </a>
 </li>
 <li class="md-path__item">
-<a class="md-path__link" href="./">
+<a class="md-path__link" href="../architecture/">
 <span class="md-ellipsis">
     How It Works
   </span>
@@ -842,55 +930,10 @@
 </ol>
 </nav>
 <article class="md-content__inner md-typeset">
-<h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">¶</a></h1>
-<p>py-gbcms uses a hybrid Python/Rust architecture for maximum performance.</p>
-<h2 id="system-overview">System Overview<a class="headerlink" href="#system-overview" title="Permanent link">¶</a></h2>
-<div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
-<nav class="panzoom-nav">
-<button class="panzoom-info panzoom-button">
-<svg class="panzoom-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M464 256A208 208 0 1 0 48 256a208 208 0 1 0 416 0zM0 256a256 256 0 1 1 512 0A256 256 0 1 1 0 256zm169.8-90.7c7.9-22.3 29.1-37.3 52.8-37.3l58.3 0c34.9 0 63.1 28.3 63.1 63.1c0 22.6-12.1 43.5-31.7 54.8L280 264.4c-.2 13-10.9 23.6-24 23.6c-13.3 0-24-10.7-24-24l0-13.5c0-8.6 4.6-16.5 12.1-20.8l44.3-25.4c4.7-2.7 7.6-7.7 7.6-13.1c0-8.4-6.8-15.1-15.1-15.1l-58.3 0c-3.4 0-6.4 2.1-7.5 5.3l-.4 1.2c-4.4 12.5-18.2 19-30.6 14.6s-19-18.2-14.6-30.6l.4-1.2zM224 352a32 32 0 1 1 64 0 32 32 0 1 1 -64 0z"></path>
-</svg>
-</button><button class="panzoom-reset panzoom-button">
-<svg class="panzoom-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M125.7 160l50.3 0c17.7 0 32 14.3 32 32s-14.3 32-32 32L48 224c-17.7 0-32-14.3-32-32L16 64c0-17.7 14.3-32 32-32s32 14.3 32 32l0 51.2L97.6 97.6c87.5-87.5 229.3-87.5 316.8 0s87.5 229.3 0 316.8s-229.3 87.5-316.8 0c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0c62.5 62.5 163.8 62.5 226.3 0s62.5-163.8 0-226.3s-163.8-62.5-226.3 0L125.7 160z"></path>
-</svg>
-</button><button class="panzoom-max panzoom-button">
-<svg class="panzoom-icon" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M32 32C14.3 32 0 46.3 0 64l0 96c0 17.7 14.3 32 32 32s32-14.3 32-32l0-64 64 0c17.7 0 32-14.3 32-32s-14.3-32-32-32L32 32zM64 352c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-64 0 0-64zM320 32c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0 0 64c0 17.7 14.3 32 32 32s32-14.3 32-32l0-96c0-17.7-14.3-32-32-32l-96 0zM448 352c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 64-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l96 0c17.7 0 32-14.3 32-32l0-96z"></path>
-</svg>
-</button><button class="panzoom-min panzoom-button panzoom-hidden">
-<svg class="panzoom-icon" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M160 64c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 64-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l96 0c17.7 0 32-14.3 32-32l0-96zM32 320c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0 0 64c0 17.7 14.3 32 32 32s32-14.3 32-32l0-96c0-17.7-14.3-32-32-32l-96 0zM352 64c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-64 0 0-64zM320 320c-17.7 0-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32s32-14.3 32-32l0-64 64 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-96 0z"></path>
-</svg>
-</button>
-</nav>
-<pre class="mermaid"><code>flowchart TB
-    subgraph Python [🐍 Python Layer]
-        CLI[CLI - cli.py] --&gt; Pipeline[Orchestration - pipeline.py]
-        Pipeline --&gt; Reader[Input Adapters]
-        Pipeline --&gt; Writer[Output Writers]
-    end
-
-    subgraph Rust [🦀 Rust Layer]
-        Counter[count_bam - counting.rs] --&gt; CIGAR[CIGAR Parser]
-        Counter --&gt; Stats[Strand Bias - stats.rs]
-    end
-
-    Pipeline --&gt;|PyO3| Counter
-    Counter --&gt;|BaseCounts| Pipeline
-
-    classDef pythonStyle fill:#3776ab,color:#fff,stroke:#2c5f8a,stroke-width:2px;
-    classDef rustStyle fill:#dea584,color:#000,stroke:#c48a6a,stroke-width:2px;
-    class Python pythonStyle;
-    class Rust rustStyle;
-</code></pre>
-<div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
-Use mouse to pan and zoom
-</div>
-</div>
-<hr>
-<h2 id="data-flow">Data Flow<a class="headerlink" href="#data-flow" title="Permanent link">¶</a></h2>
+<h1 id="variant-normalization">Variant Normalization<a class="headerlink" href="#variant-normalization" title="Permanent link">¶</a></h1>
+<p>How py-gbcms prepares variants before counting — validation, left-alignment, and homopolymer decomposition.</p>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">¶</a></h2>
+<p>Before counting any reads, every variant passes through the <strong>preparation pipeline</strong> in <code>prepare_variants()</code>. This ensures consistent, biologically correct coordinates regardless of how the input was generated.</p>
 <div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
 <nav class="panzoom-nav">
 <button class="panzoom-info panzoom-button">
@@ -912,35 +955,65 @@ Use mouse to pan and zoom
 </button>
 </nav>
 <pre class="mermaid"><code>flowchart LR
-    subgraph Input
-        VCF[VCF/MAF]
-        BAM[BAM Files]
-        FASTA[Reference]
-    end
+    Input([📄 Input Variant]) --&gt; S1[MAF Anchor Resolution]
+    S1 --&gt; S2[REF Validation]
+    S2 --&gt; S3[Left-Alignment]
+    S3 --&gt; S4[ref_context Fetch]
+    S4 --&gt; S5[Homopolymer Detection]
+    S5 --&gt; Output([✅ PreparedVariant])
 
-    subgraph Process
-        Load[Load Variants]
-        Prepare["Prepare (validate + left-align + decomp detect)"]
-        Count[Count Reads]
-    end
-
-    subgraph Output
-        Result[VCF/MAF + Counts]
-    end
-
-    VCF --&gt; Load --&gt; Prepare
-    FASTA --&gt; Prepare
-    Prepare --&gt; Count
-    BAM --&gt; Count
-    Count --&gt; Result
+    classDef step fill:#3498db,color:#fff,stroke:#2471a3,stroke-width:2px;
+    class S1,S2,S3,S4,S5 step;
 </code></pre>
 <div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
 Use mouse to pan and zoom
 </div>
 </div>
+<p>Each input variant produces <strong>exactly one</strong> <code>PreparedVariant</code>, even if validation fails — this guarantees output row count always matches input.</p>
 <hr>
-<h2 id="coordinate-system">Coordinate System<a class="headerlink" href="#coordinate-system" title="Permanent link">¶</a></h2>
-<p>All coordinates normalized to <strong>0-based, half-open</strong> internally:</p>
+<h2 id="step-1-maf-anchor-resolution">Step 1: <abbr title="Mutation Annotation Format - Standard mutation annotation file format">MAF</abbr> Anchor Resolution<a class="headerlink" href="#step-1-maf-anchor-resolution" title="Permanent link">¶</a></h2>
+<p><abbr title="Mutation Annotation Format - Standard mutation annotation file format">MAF</abbr> files represent indels using <code>-</code> dashes. py-gbcms converts them to <abbr title="Variant Call Format - Standard variant call file format">VCF</abbr>-style <strong>anchor-based</strong> coordinates, which requires fetching the anchor base from the reference <abbr title="FASTA format - Reference genome sequence file">FASTA</abbr>.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Indel Type</th>
+<th style="text-align: left;"><abbr title="Mutation Annotation Format - Standard mutation annotation file format">MAF</abbr> REF</th>
+<th style="text-align: left;"><abbr title="Mutation Annotation Format - Standard mutation annotation file format">MAF</abbr> ALT</th>
+<th style="text-align: left;"><abbr title="Variant Call Format - Standard variant call file format">VCF</abbr> REF</th>
+<th style="text-align: left;"><abbr title="Variant Call Format - Standard variant call file format">VCF</abbr> ALT</th>
+<th style="text-align: left;">Anchor Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Insertion</td>
+<td style="text-align: left;"><code>-</code></td>
+<td style="text-align: left;"><code>TG</code></td>
+<td style="text-align: left;"><code>A</code></td>
+<td style="text-align: left;"><code>ATG</code></td>
+<td style="text-align: left;">Fetch base at <code>Start_Position</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Deletion</td>
+<td style="text-align: left;"><code>CG</code></td>
+<td style="text-align: left;"><code>-</code></td>
+<td style="text-align: left;"><code>ACG</code></td>
+<td style="text-align: left;"><code>A</code></td>
+<td style="text-align: left;">Fetch base at <code>Start_Position − 1</code></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">When Is This Step Triggered?</p>
+<p>Only for <abbr title="Mutation Annotation Format - Standard mutation annotation file format">MAF</abbr> input (<code>is_maf=true</code>) when REF or ALT is <code>-</code>, or when REF and ALT have different lengths (complex indels). <abbr title="Variant Call Format - Standard variant call file format">VCF</abbr> input skips this step entirely.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">FETCH_FAILED</p>
+<p>If the anchor base cannot be fetched (e.g., chromosome not in <abbr title="FASTA format - Reference genome sequence file">FASTA</abbr>), the variant's <code>validation_status</code> is set to <code>FETCH_FAILED</code> and it is excluded from counting.</p>
+</div>
+<hr>
+<h2 id="step-2-ref-validation">Step 2: REF Validation<a class="headerlink" href="#step-2-ref-validation" title="Permanent link">¶</a></h2>
+<p>The REF allele is compared against the reference genome at the stated position. If they don't match, the variant is flagged and excluded from counting.</p>
 <div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
 <nav class="panzoom-nav">
 <button class="panzoom-info panzoom-button">
@@ -962,10 +1035,56 @@ Use mouse to pan and zoom
 </button>
 </nav>
 <pre class="mermaid"><code>flowchart LR
-    VCF["VCF (1-based)"] --&gt;|"-1"| Internal["Internal (0-based)"]
-    MAF["MAF (1-based)"] --&gt;|"-1"| Internal
-    Internal --&gt;|"to Rust"| Rust["gbcms._rs"]
-    Rust --&gt;|"+1"| Output["Output (1-based)"]
+    Fetch["Fetch ref bases at pos"] --&gt; Compare{"REF == genome?"}
+    Compare -- "Yes" --&gt; Pass([✅ PASS]):::pass
+    Compare -- "No" --&gt; Fail([❌ REF_MISMATCH]):::fail
+
+    classDef pass fill:#27ae60,color:#fff;
+    classDef fail fill:#e74c3c,color:#fff;
+</code></pre>
+<div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
+Use mouse to pan and zoom
+</div>
+</div>
+<div class="admonition important">
+<p class="admonition-title">Common Causes of REF_MISMATCH</p>
+<ul>
+<li>Wrong reference genome version (GRCh37 vs GRCh38)</li>
+<li>Chromosome naming mismatch (<code>chr1</code> vs <code>1</code>)</li>
+<li>Variant was called against a different reference build</li>
+<li>Upstream normalization changed coordinates incorrectly</li>
+</ul>
+</div>
+<hr>
+<h2 id="step-3-left-alignment">Step 3: Left-Alignment<a class="headerlink" href="#step-3-left-alignment" title="Permanent link">¶</a></h2>
+<p>For indels and complex variants, py-gbcms applies <strong>bcftools-style left-alignment</strong> to ensure consistent positioning in repetitive regions.</p>
+<div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
+<nav class="panzoom-nav">
+<button class="panzoom-info panzoom-button">
+<svg class="panzoom-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<path d="M464 256A208 208 0 1 0 48 256a208 208 0 1 0 416 0zM0 256a256 256 0 1 1 512 0A256 256 0 1 1 0 256zm169.8-90.7c7.9-22.3 29.1-37.3 52.8-37.3l58.3 0c34.9 0 63.1 28.3 63.1 63.1c0 22.6-12.1 43.5-31.7 54.8L280 264.4c-.2 13-10.9 23.6-24 23.6c-13.3 0-24-10.7-24-24l0-13.5c0-8.6 4.6-16.5 12.1-20.8l44.3-25.4c4.7-2.7 7.6-7.7 7.6-13.1c0-8.4-6.8-15.1-15.1-15.1l-58.3 0c-3.4 0-6.4 2.1-7.5 5.3l-.4 1.2c-4.4 12.5-18.2 19-30.6 14.6s-19-18.2-14.6-30.6l.4-1.2zM224 352a32 32 0 1 1 64 0 32 32 0 1 1 -64 0z"></path>
+</svg>
+</button><button class="panzoom-reset panzoom-button">
+<svg class="panzoom-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<path d="M125.7 160l50.3 0c17.7 0 32 14.3 32 32s-14.3 32-32 32L48 224c-17.7 0-32-14.3-32-32L16 64c0-17.7 14.3-32 32-32s32 14.3 32 32l0 51.2L97.6 97.6c87.5-87.5 229.3-87.5 316.8 0s87.5 229.3 0 316.8s-229.3 87.5-316.8 0c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0c62.5 62.5 163.8 62.5 226.3 0s62.5-163.8 0-226.3s-163.8-62.5-226.3 0L125.7 160z"></path>
+</svg>
+</button><button class="panzoom-max panzoom-button">
+<svg class="panzoom-icon" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg">
+<path d="M32 32C14.3 32 0 46.3 0 64l0 96c0 17.7 14.3 32 32 32s32-14.3 32-32l0-64 64 0c17.7 0 32-14.3 32-32s-14.3-32-32-32L32 32zM64 352c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-64 0 0-64zM320 32c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0 0 64c0 17.7 14.3 32 32 32s32-14.3 32-32l0-96c0-17.7-14.3-32-32-32l-96 0zM448 352c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 64-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l96 0c17.7 0 32-14.3 32-32l0-96z"></path>
+</svg>
+</button><button class="panzoom-min panzoom-button panzoom-hidden">
+<svg class="panzoom-icon" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg">
+<path d="M160 64c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 64-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l96 0c17.7 0 32-14.3 32-32l0-96zM32 320c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0 0 64c0 17.7 14.3 32 32 32s32-14.3 32-32l0-96c0-17.7-14.3-32-32-32l-96 0zM352 64c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-64 0 0-64zM320 320c-17.7 0-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32s32-14.3 32-32l0-64 64 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-96 0z"></path>
+</svg>
+</button>
+</nav>
+<pre class="mermaid"><code>flowchart TD
+    Input["Indel: chr1:105 ACG→A<br>(in a CGCG repeat)"]
+    Fetch["Fetch ±100bp flanking sequence"]
+    Align["Shift left through repeat"]
+    Result["chr1:101 ACG→A<br>(leftmost position)"]
+
+    Input --&gt; Fetch --&gt; Align --&gt; Result
 </code></pre>
 <div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
 Use mouse to pan and zoom
@@ -974,73 +1093,178 @@ Use mouse to pan and zoom
 <table>
 <thead>
 <tr>
-<th style="text-align: left;">Format</th>
-<th style="text-align: left;">System</th>
+<th style="text-align: left;">Parameter</th>
+<th style="text-align: left;">Value</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>norm_window</code></td>
+<td style="text-align: left;">100bp</td>
+<td style="text-align: left;">Maximum distance to search leftward (bcftools default)</td>
+</tr>
+<tr>
+<td style="text-align: left;">Trigger</td>
+<td style="text-align: left;"><code>ref_len ≠ alt_len</code> or both &gt;1bp</td>
+<td style="text-align: left;">SNPs are never left-aligned</td>
+</tr>
+</tbody>
+</table>
+<p>After alignment, the <strong>variant type is re-detected</strong> based on the new allele lengths:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Condition</th>
+<th style="text-align: left;">Assigned Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>ref_len == 1 &amp;&amp; alt_len == 1</code></td>
+<td style="text-align: left;">SNP</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>ref_len == 1 &amp;&amp; alt_len &gt; 1</code></td>
+<td style="text-align: left;">INSERTION</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>ref_len &gt; 1 &amp;&amp; alt_len == 1</code></td>
+<td style="text-align: left;">DELETION</td>
+</tr>
+<tr>
+<td style="text-align: left;">Otherwise</td>
+<td style="text-align: left;">COMPLEX</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition tip">
+<p class="admonition-title">Debugging Normalization</p>
+<p>Use <code>gbcms normalize</code> to see exactly how each variant was transformed. The output <abbr title="Tab-Separated Values - Plain text tabular data format">TSV</abbr> shows original and normalized coordinates side by side, plus whether the variant was modified (<code>was_normalized=true</code>).</p>
+</div>
+<hr>
+<h2 id="step-4-ref_context-fetch-adaptive">Step 4: ref_context Fetch (Adaptive)<a class="headerlink" href="#step-4-ref_context-fetch-adaptive" title="Permanent link">¶</a></h2>
+<p>For indels and complex variants, a flanking reference sequence is fetched around the (possibly normalized) position. This context serves two purposes:</p>
+<ol>
+<li><strong>Windowed indel detection</strong> — Safeguard 3 uses <code>ref_context</code> to verify that shifted indels delete/insert the expected reference bases</li>
+<li><strong>Phase 3 Smith-Waterman alignment</strong> — the context is used to build REF and ALT haplotypes for dual-haplotype alignment</li>
+</ol>
+<h3 id="adaptive-context-padding">Adaptive Context Padding<a class="headerlink" href="#adaptive-context-padding" title="Permanent link">¶</a></h3>
+<p>By default, py-gbcms <strong>dynamically adjusts</strong> the context padding based on nearby tandem repeats. This prevents ambiguous SW alignments in repetitive regions where a fixed padding might consist entirely of the repeat motif.</p>
+<div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
+<nav class="panzoom-nav">
+<button class="panzoom-info panzoom-button">
+<svg class="panzoom-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<path d="M464 256A208 208 0 1 0 48 256a208 208 0 1 0 416 0zM0 256a256 256 0 1 1 512 0A256 256 0 1 1 0 256zm169.8-90.7c7.9-22.3 29.1-37.3 52.8-37.3l58.3 0c34.9 0 63.1 28.3 63.1 63.1c0 22.6-12.1 43.5-31.7 54.8L280 264.4c-.2 13-10.9 23.6-24 23.6c-13.3 0-24-10.7-24-24l0-13.5c0-8.6 4.6-16.5 12.1-20.8l44.3-25.4c4.7-2.7 7.6-7.7 7.6-13.1c0-8.4-6.8-15.1-15.1-15.1l-58.3 0c-3.4 0-6.4 2.1-7.5 5.3l-.4 1.2c-4.4 12.5-18.2 19-30.6 14.6s-19-18.2-14.6-30.6l.4-1.2zM224 352a32 32 0 1 1 64 0 32 32 0 1 1 -64 0z"></path>
+</svg>
+</button><button class="panzoom-reset panzoom-button">
+<svg class="panzoom-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<path d="M125.7 160l50.3 0c17.7 0 32 14.3 32 32s-14.3 32-32 32L48 224c-17.7 0-32-14.3-32-32L16 64c0-17.7 14.3-32 32-32s32 14.3 32 32l0 51.2L97.6 97.6c87.5-87.5 229.3-87.5 316.8 0s87.5 229.3 0 316.8s-229.3 87.5-316.8 0c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0c62.5 62.5 163.8 62.5 226.3 0s62.5-163.8 0-226.3s-163.8-62.5-226.3 0L125.7 160z"></path>
+</svg>
+</button><button class="panzoom-max panzoom-button">
+<svg class="panzoom-icon" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg">
+<path d="M32 32C14.3 32 0 46.3 0 64l0 96c0 17.7 14.3 32 32 32s32-14.3 32-32l0-64 64 0c17.7 0 32-14.3 32-32s-14.3-32-32-32L32 32zM64 352c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-64 0 0-64zM320 32c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0 0 64c0 17.7 14.3 32 32 32s32-14.3 32-32l0-96c0-17.7-14.3-32-32-32l-96 0zM448 352c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 64-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l96 0c17.7 0 32-14.3 32-32l0-96z"></path>
+</svg>
+</button><button class="panzoom-min panzoom-button panzoom-hidden">
+<svg class="panzoom-icon" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg">
+<path d="M160 64c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 64-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l96 0c17.7 0 32-14.3 32-32l0-96zM32 320c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0 0 64c0 17.7 14.3 32 32 32s32-14.3 32-32l0-96c0-17.7-14.3-32-32-32l-96 0zM352 64c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-64 0 0-64zM320 320c-17.7 0-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32s32-14.3 32-32l0-64 64 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-96 0z"></path>
+</svg>
+</button>
+</nav>
+<pre class="mermaid"><code>flowchart LR
+    Scan["Scan ±30bp\nfor tandem repeats"] --&gt; Detect{"Repeat\nfound?"}
+    Detect -- "Yes (span=S)" --&gt; Formula["padding = max(default, S/2 + 3)\ncapped at 50bp"]
+    Detect -- "No" --&gt; Default["padding = default (5bp)"]
+    Formula --&gt; Fetch["Fetch ref_context"]
+    Default --&gt; Fetch
+</code></pre>
+<div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
+Use mouse to pan and zoom
+</div>
+</div>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Parameter</th>
+<th style="text-align: left;"><abbr title="Command Line Interface - Terminal-based program interface">CLI</abbr> Flag</th>
+<th style="text-align: left;">Default</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>context_padding</code></td>
+<td style="text-align: left;"><code>--context-padding</code></td>
+<td style="text-align: left;">5</td>
+<td style="text-align: left;">Minimum flanking bases on each side (range: 1–50)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>adaptive_context</code></td>
+<td style="text-align: left;"><code>--adaptive-context</code></td>
+<td style="text-align: left;">✅ enabled</td>
+<td style="text-align: left;">Dynamically increase padding in repeat regions</td>
+</tr>
+</tbody>
+</table>
+<h4 id="example-poly-a-insertion">Example: Poly-A Insertion<a class="headerlink" href="#example-poly-a-insertion" title="Permanent link">¶</a></h4>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-0-1" id="__codelineno-0-1" name="__codelineno-0-1"></a>Variant: chr7:100 A→AAAAAAAAAAAAA (12bp poly-A insertion)
+<a href="#__codelineno-0-2" id="__codelineno-0-2" name="__codelineno-0-2"></a>Flanking: ...AAAAAAAAAA[variant]AAAAAAAAAA...
+<a href="#__codelineno-0-3" id="__codelineno-0-3" name="__codelineno-0-3"></a>
+<a href="#__codelineno-0-4" id="__codelineno-0-4" name="__codelineno-0-4"></a>Detected: homopolymer span=20bp → padding = max(5, 20/2+3) = 13bp
+<a href="#__codelineno-0-5" id="__codelineno-0-5" name="__codelineno-0-5"></a>
+<a href="#__codelineno-0-6" id="__codelineno-0-6" name="__codelineno-0-6"></a>Fixed padding=5:     AAAAA + REF/ALT + AAAAA  (all A's — ambiguous)
+<a href="#__codelineno-0-7" id="__codelineno-0-7" name="__codelineno-0-7"></a>Adaptive padding=13: GCTTAAAAA... + REF/ALT + ...AAAAATTGAC  (anchored)
+</code></pre></div>
+<h4 id="supported-repeat-types">Supported Repeat Types<a class="headerlink" href="#supported-repeat-types" title="Permanent link">¶</a></h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Type</th>
 <th style="text-align: left;">Example</th>
+<th style="text-align: center;">Motif Size</th>
+<th style="text-align: center;">Detection Range</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td style="text-align: left;"><abbr title="Variant Call Format - Standard variant call file format">VCF</abbr> input</td>
-<td style="text-align: left;">1-based</td>
-<td style="text-align: left;">chr1:100</td>
+<td style="text-align: left;">Homopolymer</td>
+<td style="text-align: left;"><code>AAAAAAA</code></td>
+<td style="text-align: center;">1bp</td>
+<td style="text-align: center;">≥2 copies</td>
 </tr>
 <tr>
-<td style="text-align: left;">Internal</td>
-<td style="text-align: left;">0-based</td>
-<td style="text-align: left;">chr1:99</td>
+<td style="text-align: left;">Dinucleotide</td>
+<td style="text-align: left;"><code>CACACACA</code></td>
+<td style="text-align: center;">2bp</td>
+<td style="text-align: center;">≥2 copies</td>
 </tr>
 <tr>
-<td style="text-align: left;">Output</td>
-<td style="text-align: left;">1-based</td>
-<td style="text-align: left;">chr1:100</td>
+<td style="text-align: left;">Trinucleotide</td>
+<td style="text-align: left;"><code>CAGCAGCAG</code></td>
+<td style="text-align: center;">3bp</td>
+<td style="text-align: center;">≥2 copies</td>
+</tr>
+<tr>
+<td style="text-align: left;">Up to hexanucleotide</td>
+<td style="text-align: left;"><code>GGCCCCGGCCCC</code></td>
+<td style="text-align: center;">4–6bp</td>
+<td style="text-align: center;">≥2 copies</td>
 </tr>
 </tbody>
 </table>
+<div class="admonition tip">
+<p class="admonition-title">Disabling Adaptive Context</p>
+<p>Use <code>--no-adaptive-context</code> to fall back to fixed padding. This may be useful for strict reproducibility against older versions.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">SNPs Don't Need Context</p>
+<p>SNPs are checked by a simple single-base comparison, so <code>ref_context</code> is not fetched for them. This saves unnecessary <abbr title="FASTA format - Reference genome sequence file">FASTA</abbr> lookups.</p>
+</div>
 <hr>
-<h2 id="formulas">Formulas<a class="headerlink" href="#formulas" title="Permanent link">¶</a></h2>
-<h3 id="variant-allele-frequency-vaf">Variant Allele Frequency (<abbr title="Variant Allele Frequency - Fraction of reads supporting the variant allele">VAF</abbr>)<a class="headerlink" href="#variant-allele-frequency-vaf" title="Permanent link">¶</a></h3>
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-0-1" id="__codelineno-0-1" name="__codelineno-0-1"></a>VAF = AD / (RD + AD)
-</code></pre></div>
-<p>Where:
-- <strong>AD</strong> = Alternate allele read count
-- <strong>RD</strong> = Reference allele read count</p>
-<h3 id="strand-bias-fishers-exact-test">Strand Bias (Fisher's Exact Test)<a class="headerlink" href="#strand-bias-fishers-exact-test" title="Permanent link">¶</a></h3>
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-1-1" id="__codelineno-1-1" name="__codelineno-1-1"></a>         |  Forward  Reverse  |
-<a href="#__codelineno-1-2" id="__codelineno-1-2" name="__codelineno-1-2"></a>    -----+--------------------+
-<a href="#__codelineno-1-3" id="__codelineno-1-3" name="__codelineno-1-3"></a>    Ref  |    a        b      |
-<a href="#__codelineno-1-4" id="__codelineno-1-4" name="__codelineno-1-4"></a>    Alt  |    c        d      |
-<a href="#__codelineno-1-5" id="__codelineno-1-5" name="__codelineno-1-5"></a>    -----+--------------------+
-<a href="#__codelineno-1-6" id="__codelineno-1-6" name="__codelineno-1-6"></a>
-<a href="#__codelineno-1-7" id="__codelineno-1-7" name="__codelineno-1-7"></a>    p-value = Fisher's exact test on 2×2 contingency table
-</code></pre></div>
-<p>Low p-value (&lt; 0.05) indicates potential strand bias artifact.</p>
-<hr>
-<h2 id="module-structure">Module Structure<a class="headerlink" href="#module-structure" title="Permanent link">¶</a></h2>
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-2-1" id="__codelineno-2-1" name="__codelineno-2-1"></a>src/gbcms/
-<a href="#__codelineno-2-2" id="__codelineno-2-2" name="__codelineno-2-2"></a>├── cli.py           # Typer CLI
-<a href="#__codelineno-2-3" id="__codelineno-2-3" name="__codelineno-2-3"></a>├── pipeline.py      # Orchestration
-<a href="#__codelineno-2-4" id="__codelineno-2-4" name="__codelineno-2-4"></a>├── normalize.py     # Standalone normalization workflow
-<a href="#__codelineno-2-5" id="__codelineno-2-5" name="__codelineno-2-5"></a>├── core/
-<a href="#__codelineno-2-6" id="__codelineno-2-6" name="__codelineno-2-6"></a>│   └── kernel.py    # Coordinate normalization
-<a href="#__codelineno-2-7" id="__codelineno-2-7" name="__codelineno-2-7"></a>├── io/
-<a href="#__codelineno-2-8" id="__codelineno-2-8" name="__codelineno-2-8"></a>│   ├── input.py     # VcfReader, MafReader
-<a href="#__codelineno-2-9" id="__codelineno-2-9" name="__codelineno-2-9"></a>│   └── output.py    # VcfWriter, MafWriter
-<a href="#__codelineno-2-10" id="__codelineno-2-10" name="__codelineno-2-10"></a>├── models/
-<a href="#__codelineno-2-11" id="__codelineno-2-11" name="__codelineno-2-11"></a>│   └── core.py      # Pydantic config
-<a href="#__codelineno-2-12" id="__codelineno-2-12" name="__codelineno-2-12"></a>└── utils/
-<a href="#__codelineno-2-13" id="__codelineno-2-13" name="__codelineno-2-13"></a>    └── logging.py   # Structured logging
-<a href="#__codelineno-2-14" id="__codelineno-2-14" name="__codelineno-2-14"></a>
-<a href="#__codelineno-2-15" id="__codelineno-2-15" name="__codelineno-2-15"></a>rust/src/
-<a href="#__codelineno-2-16" id="__codelineno-2-16" name="__codelineno-2-16"></a>├── lib.rs           # PyO3 module (_rs)
-<a href="#__codelineno-2-17" id="__codelineno-2-17" name="__codelineno-2-17"></a>├── counting.rs      # BAM processing, FragmentEvidence, dual-counting
-<a href="#__codelineno-2-18" id="__codelineno-2-18" name="__codelineno-2-18"></a>├── normalize.rs     # Variant preparation, left-alignment, homopolymer detection
-<a href="#__codelineno-2-19" id="__codelineno-2-19" name="__codelineno-2-19"></a>├── stats.rs         # Fisher's exact test
-<a href="#__codelineno-2-20" id="__codelineno-2-20" name="__codelineno-2-20"></a>└── types.rs         # Variant, BaseCounts
-</code></pre></div>
-<hr>
-<h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">¶</a></h2>
-<p>All settings via <code>GbcmsConfig</code> (Pydantic model):</p>
+<h2 id="step-5-homopolymer-decomposition-detection">Step 5: Homopolymer Decomposition Detection<a class="headerlink" href="#step-5-homopolymer-decomposition-detection" title="Permanent link">¶</a></h2>
+<p>Some variant callers merge nearby events (e.g., a 1bp deletion + SNV in a homopolymer) into a single complex variant with an inflated deletion size. For example, <code>CCCCCC→T</code> when the reads actually show <code>CCCCCC→CCCCT</code> (a D(1) + C→T).</p>
+<h3 id="detection-criteria">Detection Criteria<a class="headerlink" href="#detection-criteria" title="Permanent link">¶</a></h3>
+<p>All four conditions must be met:</p>
 <div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
 <nav class="panzoom-nav">
 <button class="panzoom-info panzoom-button">
@@ -1061,23 +1285,34 @@ Use mouse to pan and zoom
 </svg>
 </button>
 </nav>
-<pre class="mermaid"><code>flowchart TB
-    GbcmsConfig --&gt; OutputConfig[Output Settings]
-    GbcmsConfig --&gt; ReadFilters[Read Filters]
-    GbcmsConfig --&gt; QualityThresholds[Quality Thresholds]
+<pre class="mermaid"><code>flowchart TD
+    C1{"REF is homopolymer?<br>(all same base, ≥3bp)"} -- Yes --&gt; C2{"Net deletion?<br>(ref_len &gt; alt_len)"}
+    C2 -- Yes --&gt; C3{"ALT last base ==<br>next ref base after REF span?"}
+    C3 -- Yes --&gt; C4{"ALT last base ≠<br>homopolymer base?"}
+    C4 -- Yes --&gt; Detected([🔍 Decomposition detected]):::detect
 
-    OutputConfig --&gt; D1[output_dir, format, suffix, column_prefix]
-    ReadFilters --&gt; D2[exclude_secondary, exclude_duplicates]
-    QualityThresholds --&gt; D3["min_mapq, min_baseq, fragment_qual_threshold"]
+    C1 -- No --&gt; Skip([Skip]):::skip
+    C2 -- No --&gt; Skip
+    C3 -- No --&gt; Skip
+    C4 -- No --&gt; Skip
+
+    classDef detect fill:#f39c12,color:#fff,stroke:#d68910,stroke-width:2px;
+    classDef skip fill:#95a5a6,color:#fff,stroke:#7f8c8d,stroke-width:2px;
 </code></pre>
 <div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
 Use mouse to pan and zoom
 </div>
 </div>
-<p>See <a href="file:///src/gbcms/models/core.py">models/core.py</a> for definitions.</p>
-<hr>
-<h2 id="full-pipeline-end-to-end-example">Full Pipeline: End-to-End Example<a class="headerlink" href="#full-pipeline-end-to-end-example" title="Permanent link">¶</a></h2>
-<p>Here's how a single variant is processed through the complete pipeline:</p>
+<h3 id="corrected-allele-construction">Corrected Allele Construction<a class="headerlink" href="#corrected-allele-construction" title="Permanent link">¶</a></h3>
+<p>When detected, a <strong>corrected ALT allele</strong> is built by keeping most of the homopolymer intact and appending the SNV base:</p>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-1-1" id="__codelineno-1-1" name="__codelineno-1-1"></a>Example:  REF = CCCCCC, ALT = T, next_ref_base = T
+<a href="#__codelineno-1-2" id="__codelineno-1-2" name="__codelineno-1-2"></a>
+<a href="#__codelineno-1-3" id="__codelineno-1-3" name="__codelineno-1-3"></a>Step 1: homopolymer base = C
+<a href="#__codelineno-1-4" id="__codelineno-1-4" name="__codelineno-1-4"></a>Step 2: Confirmed: alt_last (T) == next_ref_base (T), T ≠ C
+<a href="#__codelineno-1-5" id="__codelineno-1-5" name="__codelineno-1-5"></a>Step 3: corrected_alt = C × (ref_len - 1) + alt_last = CCCCC + T = CCCCT
+</code></pre></div>
+<h3 id="dual-counting-flow">Dual-Counting Flow<a class="headerlink" href="#dual-counting-flow" title="Permanent link">¶</a></h3>
+<p>The corrected variant is stored in <code>PreparedVariant.decomposed_variant</code>. During counting, <strong>both</strong> the original and corrected alleles are counted independently. The result with the higher <code>alt_count</code> wins:</p>
 <div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
 <nav class="panzoom-nav">
 <button class="panzoom-info panzoom-button">
@@ -1098,116 +1333,85 @@ Use mouse to pan and zoom
 </svg>
 </button>
 </nav>
-<pre class="mermaid"><code>sequenceDiagram
-    participant CLI as CLI (Python)
-    participant Pipeline as Pipeline
-    participant Reader as VCF/MAF Reader
-    participant Kernel as Coordinate Kernel
-    participant Rust as Rust Engine
-    participant BAM as BAM File
+<pre class="mermaid"><code>flowchart TD
+    CountOrig["count_bam(original: CCCCCC→T)"]
+    CountDecomp["count_bam(corrected: CCCCCC→CCCCT)"]
+    Compare{"corrected AD &gt; original AD?"}
+    UseDecomp["Return corrected counts"]
+    UseOrig["Return original counts"]
+    FlagWarn["validation_status =<br>PASS_WARN_HOMOPOLYMER_DECOMP"]
+    FlagPass["validation_status = PASS"]
 
-    CLI-&gt;&gt;Pipeline: run(config)
-    Pipeline-&gt;&gt;Reader: load variants
-    Reader-&gt;&gt;Kernel: normalize coordinates
-    Kernel--&gt;&gt;Reader: 0-based Variant objects
-    Reader--&gt;&gt;Pipeline: List[Variant]
-
-    loop For each BAM sample
-        Pipeline-&gt;&gt;Rust: count_bam(bam, variants, filters)
-        loop For each variant (parallel via Rayon)
-            Rust-&gt;&gt;BAM: fetch(chrom, pos, pos+1)
-            BAM--&gt;&gt;Rust: Iterator of reads
-            loop For each read
-                Note over Rust: Apply filter cascade
-                Note over Rust: Dispatch to type checker
-                Note over Rust: Update read + fragment counts
-            end
-            Note over Rust: Compute Fisher strand bias
-        end
-        Rust--&gt;&gt;Pipeline: Vec[BaseCounts]
-    end
-
-    Pipeline-&gt;&gt;Pipeline: Write output (VCF/MAF)
+    CountOrig --&gt; Compare
+    CountDecomp --&gt; Compare
+    Compare -- "Yes" --&gt; UseDecomp --&gt; FlagWarn
+    Compare -- "No" --&gt; UseOrig --&gt; FlagPass
 </code></pre>
 <div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
 Use mouse to pan and zoom
 </div>
 </div>
+<div class="admonition info">
+<p class="admonition-title">Self-Validating</p>
+<p>The warning flag only appears when reads <em>actually</em> support the decomposed representation better. If the original variant gets more ALT support, it's used as-is with a normal <code>PASS</code> status. This makes the approach safe — it never blindly corrects variants.</p>
+</div>
+<div class="admonition example">
+<p class="admonition-title">Real-World: SOX2</p>
+<p><strong>SOX2</strong> at chr17:181430901: <code>CCCCCC→T</code> (6bp→1bp, net −5bp).
+Original count: <strong>alt=3</strong>. Corrected <code>CCCCCC→CCCCT</code> count: <strong>alt=79</strong>.
+Corrected wins → <code>validation_status = PASS_WARN_HOMOPOLYMER_DECOMP</code>.</p>
+</div>
 <hr>
-<h2 id="comparison-with-original-gbcms">Comparison with Original <abbr title="Get Base Count Multi Sample - Multi-BAM variant counting tool">GBCMS</abbr><a class="headerlink" href="#comparison-with-original-gbcms" title="Permanent link">¶</a></h2>
+<h2 id="validation-status-reference">Validation Status Reference<a class="headerlink" href="#validation-status-reference" title="Permanent link">¶</a></h2>
+<p>Every <code>PreparedVariant</code> carries a <code>validation_status</code> string:</p>
 <table>
 <thead>
 <tr>
-<th style="text-align: left;">Feature</th>
-<th style="text-align: left;">Original <abbr title="Get Base Count Multi Sample - Multi-BAM variant counting tool">GBCMS</abbr></th>
-<th style="text-align: left;">py-gbcms</th>
+<th style="text-align: left;">Status</th>
+<th style="text-align: left;">Meaning</th>
+<th style="text-align: center;">Counted?</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td style="text-align: left;">Counting algorithm</td>
-<td style="text-align: left;">Region-based chunking, position matching</td>
-<td style="text-align: left;">Per-variant CIGAR traversal</td>
+<td style="text-align: left;"><code>PASS</code></td>
+<td style="text-align: left;">Validated successfully</td>
+<td style="text-align: center;">✅</td>
 </tr>
 <tr>
-<td style="text-align: left;">Indel detection</td>
-<td style="text-align: left;">Exact position match only</td>
-<td style="text-align: left;"><strong>Windowed scan</strong> (±5bp) with 3-layer safeguards: sequence identity, closest match, reference context validation</td>
+<td style="text-align: left;"><code>PASS_WARN_HOMOPOLYMER_DECOMP</code></td>
+<td style="text-align: left;">Passed, but corrected allele was used (see above)</td>
+<td style="text-align: center;">✅</td>
 </tr>
 <tr>
-<td style="text-align: left;">Complex variants</td>
-<td style="text-align: left;">Optional via <code>--generic_counting</code></td>
-<td style="text-align: left;">Always uses haplotype reconstruction</td>
+<td style="text-align: left;"><code>REF_MISMATCH</code></td>
+<td style="text-align: left;">REF allele doesn't match reference genome</td>
+<td style="text-align: center;">❌</td>
 </tr>
 <tr>
-<td style="text-align: left;">Complex quality handling</td>
-<td style="text-align: left;">Exact match only (no quality awareness)</td>
-<td style="text-align: left;"><strong>Masked comparison</strong> — bases below <code>--min-baseq</code> are masked out, ambiguity detection prevents false positives</td>
-</tr>
-<tr>
-<td style="text-align: left;">Base quality filtering</td>
-<td style="text-align: left;">No base quality threshold</td>
-<td style="text-align: left;">Default <code>--min-baseq 20</code> (Phred Q20)</td>
-</tr>
-<tr>
-<td style="text-align: left;">MNP handling</td>
-<td style="text-align: left;">Not explicit</td>
-<td style="text-align: left;">Dedicated <code>check_mnp</code> with contiguity check</td>
-</tr>
-<tr>
-<td style="text-align: left;">Fragment counting</td>
-<td style="text-align: left;">Optional (<code>--fragment_count</code>), majority-rule</td>
-<td style="text-align: left;">Always computed, quality-weighted consensus with discard</td>
-</tr>
-<tr>
-<td style="text-align: left;">Positive strand counts</td>
-<td style="text-align: left;">Optional (<code>--positive_count</code>)</td>
-<td style="text-align: left;">Always computed</td>
-</tr>
-<tr>
-<td style="text-align: left;">Strand bias</td>
-<td style="text-align: left;">Not computed</td>
-<td style="text-align: left;">Fisher's exact test (read + fragment level)</td>
-</tr>
-<tr>
-<td style="text-align: left;">Fractional depth</td>
-<td style="text-align: left;"><code>--fragment_fractional_weight</code></td>
-<td style="text-align: left;">Not implemented</td>
-</tr>
-<tr>
-<td style="text-align: left;">Parallelism</td>
-<td style="text-align: left;">OpenMP block-based</td>
-<td style="text-align: left;">Rayon per-variant</td>
+<td style="text-align: left;"><code>FETCH_FAILED</code></td>
+<td style="text-align: left;">Could not fetch reference region</td>
+<td style="text-align: center;">❌</td>
 </tr>
 </tbody>
 </table>
+<div class="admonition note">
+<p class="admonition-title">Filtering Behavior</p>
+<p>The pipeline filters on <code>validation_status.startswith("PASS")</code>, so both <code>PASS</code> and <code>PASS_WARN_*</code> variants proceed to counting. <code>REF_MISMATCH</code> and <code>FETCH_FAILED</code> variants are logged as rejected.</p>
+</div>
+<hr>
+<h2 id="limitations">Limitations<a class="headerlink" href="#limitations" title="Permanent link">¶</a></h2>
+<ol>
+<li><strong>Left-alignment only</strong> — py-gbcms left-aligns but does not right-align. If your input is right-aligned, the windowed scan (±5bp) may still catch it, but left-alignment is recommended.</li>
+<li><strong>100bp normalization window</strong> — variants shifted by more than 100bp from their left-aligned position won't be corrected. This covers virtually all real-world cases.</li>
+<li><strong>Homopolymer detection is conservative</strong> — only triggers for homopolymer REF ≥3bp with a clear D(n)+SNV pattern. Other miscollapsed events are not detected.</li>
+</ol>
 <hr>
 <h2 id="related">Related<a class="headerlink" href="#related" title="Permanent link">¶</a></h2>
 <ul>
-<li><a href="../allele-classification/">Allele Classification</a> — How each variant type is counted</li>
-<li><a href="../variant-normalization/">Variant Normalization</a> — How variants are prepared before counting</li>
-<li><a href="../input-formats/">Input Formats</a> — <abbr title="Variant Call Format - Standard variant call file format">VCF</abbr> and <abbr title="Mutation Annotation Format - Standard mutation annotation file format">MAF</abbr> specifications</li>
-<li><a href="../glossary/">Glossary</a> — Term definitions</li>
+<li><a href="../../cli/normalize/">gbcms normalize</a> — <abbr title="Command Line Interface - Terminal-based program interface">CLI</abbr> command for standalone normalization</li>
+<li><a href="../input-formats/">Input Formats</a> — <abbr title="Variant Call Format - Standard variant call file format">VCF</abbr>/<abbr title="Mutation Annotation Format - Standard mutation annotation file format">MAF</abbr> coordinate conventions</li>
+<li><a href="../allele-classification/">Allele Classification</a> — How reads are classified after normalization</li>
 </ul>
 <!-- Abbreviation definitions for py-gbcms documentation -->
 <!-- These provide hover tooltips for technical acronyms -->
@@ -1216,13 +1420,13 @@ Use mouse to pan and zoom
 <span class="md-icon" title="Last update">
 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
 </span>
-<span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 18, 2026 21:59:37 UTC"><span class="timeago" datetime="2026-02-18T21:59:37+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 18, 2026 21:59:37 UTC">2026-02-18</span>
+<span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 18, 2026 22:57:45 UTC"><span class="timeago" datetime="2026-02-18T22:57:45+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 18, 2026 22:57:45 UTC">2026-02-18</span>
 </span>
 <span class="md-source-file__fact">
 <span class="md-icon" title="Created">
 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M14.47 15.08 11 13V7h1.5v5.25l3.08 1.83c-.41.28-.79.62-1.11 1m-1.39 4.84c-.36.05-.71.08-1.08.08-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8c0 .37-.03.72-.08 1.08.69.1 1.33.32 1.92.64.1-.56.16-1.13.16-1.72 0-5.5-4.5-10-10-10S2 6.5 2 12s4.47 10 10 10c.59 0 1.16-.06 1.72-.16-.32-.59-.54-1.23-.64-1.92M18 15v3h-3v2h3v3h2v-3h3v-2h-3v-3z"></path></svg>
 </span>
-<span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 6, 2026 16:48:48 UTC"><span class="timeago" datetime="2026-02-06T16:48:48+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 6, 2026 16:48:48 UTC">2026-02-06</span>
+<span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 18, 2026 21:59:37 UTC"><span class="timeago" datetime="2026-02-18T21:59:37+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 18, 2026 21:59:37 UTC">2026-02-18</span>
 </span>
 </aside>
 </article>

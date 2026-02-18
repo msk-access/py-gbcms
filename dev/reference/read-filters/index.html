@@ -3,12 +3,12 @@
 <meta content="width=device-width,initial-scale=1" name="viewport">
 <meta content="High-performance variant counting from BAM files" name="description">
 <meta content="MSK-ACCESS" name="author">
-<link href="https://msk-access.github.io/py-gbcms/dev/development/developer-guide/" rel="canonical">
-<link href="../../reference/glossary/" rel="prev">
-<link href="../testing-guide/" rel="next">
+<link href="https://msk-access.github.io/py-gbcms/dev/reference/read-filters/" rel="canonical">
+<link href="../variant-normalization/" rel="prev">
+<link href="../allele-classification/" rel="next">
 <link href="../../assets/images/favicon.png" rel="icon">
 <meta content="mkdocs-1.6.1, mkdocs-material-9.7.2" name="generator">
-<title>Developer Guide - py-gbcms</title>
+<title>Read Filters - py-gbcms</title>
 <link href="../../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet">
 <link href="../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet">
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
@@ -35,7 +35,7 @@
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox">
 <label class="md-overlay" for="__drawer"></label>
 <div data-md-component="skip">
-<a class="md-skip" href="#developer-guide">
+<a class="md-skip" href="#read-filters">
           Skip to content
         </a>
 </div>
@@ -61,7 +61,7 @@
 <div class="md-header__topic" data-md-component="header-topic">
 <span class="md-ellipsis">
             
-              Developer Guide
+              Read Filters
             
           </span>
 </div>
@@ -331,8 +331,8 @@
 </ul>
 </nav>
 </li>
-<li class="md-nav__item md-nav__item--section md-nav__item--nested">
-<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_5" type="checkbox">
+<li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_5" type="checkbox">
 <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
 <span class="md-ellipsis">
     
@@ -344,7 +344,7 @@
   </span>
 <span class="md-nav__icon md-icon"></span>
 </label>
-<nav aria-expanded="false" aria-labelledby="__nav_5_label" class="md-nav" data-md-level="1">
+<nav aria-expanded="true" aria-labelledby="__nav_5_label" class="md-nav" data-md-level="1">
 <label class="md-nav__title" for="__nav_5">
 <span class="md-nav__icon md-icon"></span>
             
@@ -355,7 +355,7 @@
           </label>
 <ul class="md-nav__list" data-md-scrollfix="">
 <li class="md-nav__item">
-<a class="md-nav__link" href="../../reference/architecture/">
+<a class="md-nav__link" href="../architecture/">
 <span class="md-ellipsis">
     
   
@@ -367,7 +367,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../../reference/input-formats/">
+<a class="md-nav__link" href="../input-formats/">
 <span class="md-ellipsis">
     
   
@@ -379,7 +379,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../../reference/variant-normalization/">
+<a class="md-nav__link" href="../variant-normalization/">
 <span class="md-ellipsis">
     
   
@@ -390,8 +390,20 @@
   </span>
 </a>
 </li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../../reference/read-filters/">
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox">
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    Read Filters
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
 <span class="md-ellipsis">
     
   
@@ -401,9 +413,71 @@
     
   </span>
 </a>
+<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#filter-cascade">
+<span class="md-ellipsis">
+      
+        Filter Cascade
+      
+    </span>
+</a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../../reference/allele-classification/">
+<a class="md-nav__link" href="#filter-options">
+<span class="md-ellipsis">
+      
+        Filter Options
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#quality-thresholds">
+<span class="md-ellipsis">
+      
+        Quality Thresholds
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#comparison-with-original-gbcms">
+<span class="md-ellipsis">
+      
+        Comparison with Original GBCMS
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#fetch-window">
+<span class="md-ellipsis">
+      
+        Fetch Window
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#related">
+<span class="md-ellipsis">
+      
+        Related
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../allele-classification/">
 <span class="md-ellipsis">
     
   
@@ -415,7 +489,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../../reference/counting-metrics/">
+<a class="md-nav__link" href="../counting-metrics/">
 <span class="md-ellipsis">
     
   
@@ -427,7 +501,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../../reference/glossary/">
+<a class="md-nav__link" href="../glossary/">
 <span class="md-ellipsis">
     
   
@@ -441,8 +515,8 @@
 </ul>
 </nav>
 </li>
-<li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
-<input checked="" class="md-nav__toggle md-toggle" id="__nav_6" type="checkbox">
+<li class="md-nav__item md-nav__item--section md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_6" type="checkbox">
 <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
 <span class="md-ellipsis">
     
@@ -454,7 +528,7 @@
   </span>
 <span class="md-nav__icon md-icon"></span>
 </label>
-<nav aria-expanded="true" aria-labelledby="__nav_6_label" class="md-nav" data-md-level="1">
+<nav aria-expanded="false" aria-labelledby="__nav_6_label" class="md-nav" data-md-level="1">
 <label class="md-nav__title" for="__nav_6">
 <span class="md-nav__icon md-icon"></span>
             
@@ -464,20 +538,8 @@
 
           </label>
 <ul class="md-nav__list" data-md-scrollfix="">
-<li class="md-nav__item md-nav__item--active">
-<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox">
-<label class="md-nav__link md-nav__link--active" for="__toc">
-<span class="md-ellipsis">
-    
-  
-    Developer Guide
-  
-
-    
-  </span>
-<span class="md-nav__icon md-icon"></span>
-</label>
-<a class="md-nav__link md-nav__link--active" href="./">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../development/developer-guide/">
 <span class="md-ellipsis">
     
   
@@ -487,102 +549,9 @@
     
   </span>
 </a>
-<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
-<label class="md-nav__title" for="__toc">
-<span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
-<li class="md-nav__item">
-<a class="md-nav__link" href="#setup">
-<span class="md-ellipsis">
-      
-        Setup
-      
-    </span>
-</a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#project-structure">
-<span class="md-ellipsis">
-      
-        Project Structure
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#build-commands">
-<span class="md-ellipsis">
-      
-        Build Commands
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#code-standards">
-<span class="md-ellipsis">
-      
-        Code Standards
-      
-    </span>
-</a>
-<nav aria-label="Code Standards" class="md-nav">
-<ul class="md-nav__list">
-<li class="md-nav__item">
-<a class="md-nav__link" href="#python">
-<span class="md-ellipsis">
-      
-        Python
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#rust">
-<span class="md-ellipsis">
-      
-        Rust
-      
-    </span>
-</a>
-</li>
-</ul>
-</nav>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#git-workflow-git-flow">
-<span class="md-ellipsis">
-      
-        Git Workflow (git-flow)
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#quality-checklist">
-<span class="md-ellipsis">
-      
-        Quality Checklist
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#environment-variables">
-<span class="md-ellipsis">
-      
-        Environment Variables
-      
-    </span>
-</a>
-</li>
-</ul>
-</nav>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../testing-guide/">
+<a class="md-nav__link" href="../../development/testing-guide/">
 <span class="md-ellipsis">
     
   
@@ -594,7 +563,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../release-guide/">
+<a class="md-nav__link" href="../../development/release-guide/">
 <span class="md-ellipsis">
     
   
@@ -606,7 +575,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../changelog/">
+<a class="md-nav__link" href="../../development/changelog/">
 <span class="md-ellipsis">
     
   
@@ -618,7 +587,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../contributing/">
+<a class="md-nav__link" href="../../development/contributing/">
 <span class="md-ellipsis">
     
   
@@ -697,86 +666,55 @@
     </label>
 <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#setup">
+<a class="md-nav__link" href="#filter-cascade">
 <span class="md-ellipsis">
       
-        Setup
+        Filter Cascade
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#project-structure">
+<a class="md-nav__link" href="#filter-options">
 <span class="md-ellipsis">
       
-        Project Structure
+        Filter Options
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#build-commands">
+<a class="md-nav__link" href="#quality-thresholds">
 <span class="md-ellipsis">
       
-        Build Commands
+        Quality Thresholds
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#code-standards">
+<a class="md-nav__link" href="#comparison-with-original-gbcms">
 <span class="md-ellipsis">
       
-        Code Standards
-      
-    </span>
-</a>
-<nav aria-label="Code Standards" class="md-nav">
-<ul class="md-nav__list">
-<li class="md-nav__item">
-<a class="md-nav__link" href="#python">
-<span class="md-ellipsis">
-      
-        Python
+        Comparison with Original GBCMS
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#rust">
+<a class="md-nav__link" href="#fetch-window">
 <span class="md-ellipsis">
       
-        Rust
-      
-    </span>
-</a>
-</li>
-</ul>
-</nav>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#git-workflow-git-flow">
-<span class="md-ellipsis">
-      
-        Git Workflow (git-flow)
+        Fetch Window
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#quality-checklist">
+<a class="md-nav__link" href="#related">
 <span class="md-ellipsis">
       
-        Quality Checklist
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#environment-variables">
-<span class="md-ellipsis">
-      
-        Environment Variables
+        Related
       
     </span>
 </a>
@@ -797,84 +735,19 @@
 </a>
 </li>
 <li class="md-path__item">
-<a class="md-path__link" href="./">
+<a class="md-path__link" href="../architecture/">
 <span class="md-ellipsis">
-    Development
+    How It Works
   </span>
 </a>
 </li>
 </ol>
 </nav>
 <article class="md-content__inner md-typeset">
-<h1 id="developer-guide">Developer Guide<a class="headerlink" href="#developer-guide" title="Permanent link">¶</a></h1>
-<p>Guide for contributing to py-gbcms.</p>
-<hr>
-<h2 id="setup">Setup<a class="headerlink" href="#setup" title="Permanent link">¶</a></h2>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio"><input id="__tabbed_1_2" name="__tabbed_1" type="radio"><input id="__tabbed_1_3" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="__tabbed_1_1">Modern Linux (Ubuntu 22.04+, RHEL 9+)</label><label for="__tabbed_1_2">Legacy Linux (RHEL 8 / <abbr title="High-Performance Computing - Cluster computing environment">HPC</abbr>)</label><label for="__tabbed_1_3">macOS</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-0-1" id="__codelineno-0-1" name="__codelineno-0-1"></a><span class="c1"># Clone</span>
-<a href="#__codelineno-0-2" id="__codelineno-0-2" name="__codelineno-0-2"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/msk-access/py-gbcms.git
-<a href="#__codelineno-0-3" id="__codelineno-0-3" name="__codelineno-0-3"></a><span class="nb">cd</span><span class="w"> </span>py-gbcms
-<a href="#__codelineno-0-4" id="__codelineno-0-4" name="__codelineno-0-4"></a>
-<a href="#__codelineno-0-5" id="__codelineno-0-5" name="__codelineno-0-5"></a><span class="c1"># Virtual environment</span>
-<a href="#__codelineno-0-6" id="__codelineno-0-6" name="__codelineno-0-6"></a>python<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>.venv
-<a href="#__codelineno-0-7" id="__codelineno-0-7" name="__codelineno-0-7"></a><span class="nb">source</span><span class="w"> </span>.venv/bin/activate
-<a href="#__codelineno-0-8" id="__codelineno-0-8" name="__codelineno-0-8"></a>
-<a href="#__codelineno-0-9" id="__codelineno-0-9" name="__codelineno-0-9"></a><span class="c1"># Install Rust (if not installed)</span>
-<a href="#__codelineno-0-10" id="__codelineno-0-10" name="__codelineno-0-10"></a>curl<span class="w"> </span>--proto<span class="w"> </span><span class="s1">'=https'</span><span class="w"> </span>--tlsv1.2<span class="w"> </span>-sSf<span class="w"> </span>https://sh.rustup.rs<span class="w"> </span><span class="p">|</span><span class="w"> </span>sh
-<a href="#__codelineno-0-11" id="__codelineno-0-11" name="__codelineno-0-11"></a>
-<a href="#__codelineno-0-12" id="__codelineno-0-12" name="__codelineno-0-12"></a><span class="c1"># Install (builds Rust extension)</span>
-<a href="#__codelineno-0-13" id="__codelineno-0-13" name="__codelineno-0-13"></a>maturin<span class="w"> </span>develop<span class="w"> </span>--release
-<a href="#__codelineno-0-14" id="__codelineno-0-14" name="__codelineno-0-14"></a>
-<a href="#__codelineno-0-15" id="__codelineno-0-15" name="__codelineno-0-15"></a><span class="c1"># Verify</span>
-<a href="#__codelineno-0-16" id="__codelineno-0-16" name="__codelineno-0-16"></a>gbcms<span class="w"> </span>--version
-</code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-1-1" id="__codelineno-1-1" name="__codelineno-1-1"></a><span class="c1"># Clone</span>
-<a href="#__codelineno-1-2" id="__codelineno-1-2" name="__codelineno-1-2"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/msk-access/py-gbcms.git
-<a href="#__codelineno-1-3" id="__codelineno-1-3" name="__codelineno-1-3"></a><span class="nb">cd</span><span class="w"> </span>py-gbcms
-<a href="#__codelineno-1-4" id="__codelineno-1-4" name="__codelineno-1-4"></a>
-<a href="#__codelineno-1-5" id="__codelineno-1-5" name="__codelineno-1-5"></a><span class="c1"># Create conda environment with build dependencies</span>
-<a href="#__codelineno-1-6" id="__codelineno-1-6" name="__codelineno-1-6"></a><span class="c1"># Note: clangdev (not clang) provides headers needed by bindgen</span>
-<a href="#__codelineno-1-7" id="__codelineno-1-7" name="__codelineno-1-7"></a>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>gbcms-dev<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.11<span class="w"> </span>clangdev<span class="w"> </span>rust<span class="w"> </span>-c<span class="w"> </span>conda-forge
-<a href="#__codelineno-1-8" id="__codelineno-1-8" name="__codelineno-1-8"></a>conda<span class="w"> </span>activate<span class="w"> </span>gbcms-dev
-<a href="#__codelineno-1-9" id="__codelineno-1-9" name="__codelineno-1-9"></a>
-<a href="#__codelineno-1-10" id="__codelineno-1-10" name="__codelineno-1-10"></a><span class="c1"># Set libclang path for the Rust build</span>
-<a href="#__codelineno-1-11" id="__codelineno-1-11" name="__codelineno-1-11"></a><span class="nb">export</span><span class="w"> </span><span class="nv">LIBCLANG_PATH</span><span class="o">=</span><span class="nv">$CONDA_PREFIX</span>/lib
-<a href="#__codelineno-1-12" id="__codelineno-1-12" name="__codelineno-1-12"></a>
-<a href="#__codelineno-1-13" id="__codelineno-1-13" name="__codelineno-1-13"></a><span class="c1"># Install maturin and build</span>
-<a href="#__codelineno-1-14" id="__codelineno-1-14" name="__codelineno-1-14"></a>pip<span class="w"> </span>install<span class="w"> </span>maturin
-<a href="#__codelineno-1-15" id="__codelineno-1-15" name="__codelineno-1-15"></a>maturin<span class="w"> </span>develop<span class="w"> </span>--release
-<a href="#__codelineno-1-16" id="__codelineno-1-16" name="__codelineno-1-16"></a>
-<a href="#__codelineno-1-17" id="__codelineno-1-17" name="__codelineno-1-17"></a><span class="c1"># Verify</span>
-<a href="#__codelineno-1-18" id="__codelineno-1-18" name="__codelineno-1-18"></a>gbcms<span class="w"> </span>--version
-</code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-2-1" id="__codelineno-2-1" name="__codelineno-2-1"></a><span class="c1"># Clone</span>
-<a href="#__codelineno-2-2" id="__codelineno-2-2" name="__codelineno-2-2"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/msk-access/py-gbcms.git
-<a href="#__codelineno-2-3" id="__codelineno-2-3" name="__codelineno-2-3"></a><span class="nb">cd</span><span class="w"> </span>py-gbcms
-<a href="#__codelineno-2-4" id="__codelineno-2-4" name="__codelineno-2-4"></a>
-<a href="#__codelineno-2-5" id="__codelineno-2-5" name="__codelineno-2-5"></a><span class="c1"># Install Rust (if not installed)</span>
-<a href="#__codelineno-2-6" id="__codelineno-2-6" name="__codelineno-2-6"></a>curl<span class="w"> </span>--proto<span class="w"> </span><span class="s1">'=https'</span><span class="w"> </span>--tlsv1.2<span class="w"> </span>-sSf<span class="w"> </span>https://sh.rustup.rs<span class="w"> </span><span class="p">|</span><span class="w"> </span>sh
-<a href="#__codelineno-2-7" id="__codelineno-2-7" name="__codelineno-2-7"></a>
-<a href="#__codelineno-2-8" id="__codelineno-2-8" name="__codelineno-2-8"></a><span class="c1"># Virtual environment</span>
-<a href="#__codelineno-2-9" id="__codelineno-2-9" name="__codelineno-2-9"></a>python<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>.venv
-<a href="#__codelineno-2-10" id="__codelineno-2-10" name="__codelineno-2-10"></a><span class="nb">source</span><span class="w"> </span>.venv/bin/activate
-<a href="#__codelineno-2-11" id="__codelineno-2-11" name="__codelineno-2-11"></a>
-<a href="#__codelineno-2-12" id="__codelineno-2-12" name="__codelineno-2-12"></a><span class="c1"># Install (builds Rust extension)</span>
-<a href="#__codelineno-2-13" id="__codelineno-2-13" name="__codelineno-2-13"></a>maturin<span class="w"> </span>develop<span class="w"> </span>--release
-<a href="#__codelineno-2-14" id="__codelineno-2-14" name="__codelineno-2-14"></a>
-<a href="#__codelineno-2-15" id="__codelineno-2-15" name="__codelineno-2-15"></a><span class="c1"># Verify</span>
-<a href="#__codelineno-2-16" id="__codelineno-2-16" name="__codelineno-2-16"></a>gbcms<span class="w"> </span>--version
-</code></pre></div>
-</div>
-</div>
-</div>
-<hr>
-<h2 id="project-structure">Project Structure<a class="headerlink" href="#project-structure" title="Permanent link">¶</a></h2>
+<h1 id="read-filters">Read Filters<a class="headerlink" href="#read-filters" title="Permanent link">¶</a></h1>
+<p>Which reads are excluded before allele classification — the filter cascade, <abbr title="Command Line Interface - Terminal-based program interface">CLI</abbr> flags, and defaults.</p>
+<h2 id="filter-cascade">Filter Cascade<a class="headerlink" href="#filter-cascade" title="Permanent link">¶</a></h2>
+<p>Every read from the <abbr title="Binary Alignment Map - Compressed sequence alignment file format">BAM</abbr> passes through a <strong>filter cascade</strong> before being checked for allele support. Reads failing any enabled filter are discarded. The order matches the Rust engine implementation.</p>
 <div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
 <nav class="panzoom-nav">
 <button class="panzoom-info panzoom-button">
@@ -895,200 +768,208 @@
 </svg>
 </button>
 </nav>
-<pre class="mermaid"><code>flowchart LR
-    subgraph Python["src/gbcms/"]
-        CLI[cli.py] --&gt; Pipeline[pipeline.py]
-        CLI --&gt; Normalize[normalize.py]
-        Pipeline --&gt; IO[io/]
-        Pipeline --&gt; Models[models/]
+<pre class="mermaid"><code>flowchart TD
+    Start([📖 Read from BAM]):::process
+
+    subgraph Filters [Quality &amp; Alignment Filters]
+        direction TB
+        F1{Duplicate?}:::decision
+        F2{Secondary?}:::decision
+        F3{Supplementary?}:::decision
+        F4{QC Failed?}:::decision
+        F5{Improper pair?}:::decision
+        F6{Contains indel?}:::decision
+        F7{MAPQ ≥ threshold?}:::decision
     end
 
-    subgraph Rust["rust/src/"]
-        Lib[lib.rs] --&gt; Count[counting.rs]
-        Lib --&gt; Norm[normalize.rs]
-        Count --&gt; Stats[stats.rs]
-    end
+    Drop{{❌ Discard Read}}:::discard
+    Pass([✅ Pass to Allele Checker]):::success
 
-    Pipeline --&gt; Rust
-    Normalize --&gt; Rust
+    Start --&gt; F1
+
+    F1 -- "Yes" --&gt; Drop
+    F1 -- "No" --&gt; F2
+
+    F2 -- "Yes" --&gt; Drop
+    F2 -- "No" --&gt; F3
+
+    F3 -- "Yes" --&gt; Drop
+    F3 -- "No" --&gt; F4
+
+    F4 -- "Yes" --&gt; Drop
+    F4 -- "No" --&gt; F5
+
+    F5 -- "Yes" --&gt; Drop
+    F5 -- "No" --&gt; F6
+
+    F6 -- "Yes" --&gt; Drop
+    F6 -- "No" --&gt; F7
+
+    F7 -- "Below threshold" --&gt; Drop
+    F7 -- "Pass" --&gt; Pass
+
+    classDef process fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
+    classDef decision fill:#f39c12,color:#fff,stroke:#d68910,stroke-width:2px;
+    classDef discard fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
+    classDef success fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
 </code></pre>
 <div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
 Use mouse to pan and zoom
 </div>
 </div>
 <hr>
-<h2 id="build-commands">Build Commands<a class="headerlink" href="#build-commands" title="Permanent link">¶</a></h2>
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-3-1" id="__codelineno-3-1" name="__codelineno-3-1"></a><span class="c1"># Development (fast)</span>
-<a href="#__codelineno-3-2" id="__codelineno-3-2" name="__codelineno-3-2"></a>maturin<span class="w"> </span>develop
-<a href="#__codelineno-3-3" id="__codelineno-3-3" name="__codelineno-3-3"></a>
-<a href="#__codelineno-3-4" id="__codelineno-3-4" name="__codelineno-3-4"></a><span class="c1"># Release (optimized)</span>
-<a href="#__codelineno-3-5" id="__codelineno-3-5" name="__codelineno-3-5"></a>maturin<span class="w"> </span>develop<span class="w"> </span>--release
-<a href="#__codelineno-3-6" id="__codelineno-3-6" name="__codelineno-3-6"></a>
-<a href="#__codelineno-3-7" id="__codelineno-3-7" name="__codelineno-3-7"></a><span class="c1"># Build wheel</span>
-<a href="#__codelineno-3-8" id="__codelineno-3-8" name="__codelineno-3-8"></a>maturin<span class="w"> </span>build<span class="w"> </span>--release<span class="w"> </span>--out<span class="w"> </span>dist
-</code></pre></div>
-<hr>
-<h2 id="code-standards">Code Standards<a class="headerlink" href="#code-standards" title="Permanent link">¶</a></h2>
-<h3 id="python">Python<a class="headerlink" href="#python" title="Permanent link">¶</a></h3>
+<h2 id="filter-options">Filter Options<a class="headerlink" href="#filter-options" title="Permanent link">¶</a></h2>
 <table>
 <thead>
 <tr>
-<th style="text-align: left;">Standard</th>
-<th style="text-align: left;">Requirement</th>
+<th style="text-align: left;">Filter</th>
+<th style="text-align: left;"><abbr title="Command Line Interface - Terminal-based program interface">CLI</abbr> Flag</th>
+<th style="text-align: left;">Default</th>
+<th style="text-align: left;">SAM Flag</th>
+<th style="text-align: left;">Description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td style="text-align: left;">Type hints</td>
-<td style="text-align: left;">All public functions</td>
+<td style="text-align: left;">Duplicates</td>
+<td style="text-align: left;"><code>--filter-duplicates</code></td>
+<td style="text-align: left;"><strong>On</strong></td>
+<td style="text-align: left;"><code>0x400</code></td>
+<td style="text-align: left;">PCR/optical duplicates</td>
 </tr>
 <tr>
-<td style="text-align: left;">Docstrings</td>
-<td style="text-align: left;">Google style</td>
+<td style="text-align: left;">Secondary</td>
+<td style="text-align: left;"><code>--filter-secondary</code></td>
+<td style="text-align: left;">Off</td>
+<td style="text-align: left;"><code>0x100</code></td>
+<td style="text-align: left;">Secondary alignments</td>
 </tr>
 <tr>
-<td style="text-align: left;">Exports</td>
-<td style="text-align: left;"><code>__all__</code> in every module</td>
+<td style="text-align: left;">Supplementary</td>
+<td style="text-align: left;"><code>--filter-supplementary</code></td>
+<td style="text-align: left;">Off</td>
+<td style="text-align: left;"><code>0x800</code></td>
+<td style="text-align: left;">Chimeric/split alignments</td>
 </tr>
 <tr>
-<td style="text-align: left;">Logging</td>
-<td style="text-align: left;">Use <code>logging</code>, not <code>print()</code></td>
+<td style="text-align: left;">QC Failed</td>
+<td style="text-align: left;"><code>--filter-qc-failed</code></td>
+<td style="text-align: left;">Off</td>
+<td style="text-align: left;"><code>0x200</code></td>
+<td style="text-align: left;">Platform QC failures</td>
 </tr>
 <tr>
-<td style="text-align: left;">Config</td>
-<td style="text-align: left;">Pydantic models</td>
-</tr>
-</tbody>
-</table>
-<h3 id="rust">Rust<a class="headerlink" href="#rust" title="Permanent link">¶</a></h3>
-<table>
-<thead>
-<tr>
-<th style="text-align: left;">Standard</th>
-<th style="text-align: left;">Requirement</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align: left;">Docs</td>
-<td style="text-align: left;"><code>///</code> on public items</td>
+<td style="text-align: left;">Improper Pair</td>
+<td style="text-align: left;"><code>--filter-improper-pair</code></td>
+<td style="text-align: left;">Off</td>
+<td style="text-align: left;"><code>0x2</code> (inverted)</td>
+<td style="text-align: left;">Reads not properly paired</td>
 </tr>
 <tr>
-<td style="text-align: left;">Errors</td>
-<td style="text-align: left;"><code>anyhow::Result</code></td>
+<td style="text-align: left;">Indel reads</td>
+<td style="text-align: left;"><code>--filter-indel</code></td>
+<td style="text-align: left;">Off</td>
+<td style="text-align: left;">CIGAR-based</td>
+<td style="text-align: left;">Any Ins or Del in CIGAR</td>
 </tr>
 <tr>
-<td style="text-align: left;">Logging</td>
-<td style="text-align: left;"><code>log</code> crate</td>
-</tr>
-</tbody>
-</table>
-<hr>
-<h2 id="git-workflow-git-flow">Git Workflow (git-flow)<a class="headerlink" href="#git-workflow-git-flow" title="Permanent link">¶</a></h2>
-<div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
-<nav class="panzoom-nav">
-<button class="panzoom-info panzoom-button">
-<svg class="panzoom-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M464 256A208 208 0 1 0 48 256a208 208 0 1 0 416 0zM0 256a256 256 0 1 1 512 0A256 256 0 1 1 0 256zm169.8-90.7c7.9-22.3 29.1-37.3 52.8-37.3l58.3 0c34.9 0 63.1 28.3 63.1 63.1c0 22.6-12.1 43.5-31.7 54.8L280 264.4c-.2 13-10.9 23.6-24 23.6c-13.3 0-24-10.7-24-24l0-13.5c0-8.6 4.6-16.5 12.1-20.8l44.3-25.4c4.7-2.7 7.6-7.7 7.6-13.1c0-8.4-6.8-15.1-15.1-15.1l-58.3 0c-3.4 0-6.4 2.1-7.5 5.3l-.4 1.2c-4.4 12.5-18.2 19-30.6 14.6s-19-18.2-14.6-30.6l.4-1.2zM224 352a32 32 0 1 1 64 0 32 32 0 1 1 -64 0z"></path>
-</svg>
-</button><button class="panzoom-reset panzoom-button">
-<svg class="panzoom-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M125.7 160l50.3 0c17.7 0 32 14.3 32 32s-14.3 32-32 32L48 224c-17.7 0-32-14.3-32-32L16 64c0-17.7 14.3-32 32-32s32 14.3 32 32l0 51.2L97.6 97.6c87.5-87.5 229.3-87.5 316.8 0s87.5 229.3 0 316.8s-229.3 87.5-316.8 0c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0c62.5 62.5 163.8 62.5 226.3 0s62.5-163.8 0-226.3s-163.8-62.5-226.3 0L125.7 160z"></path>
-</svg>
-</button><button class="panzoom-max panzoom-button">
-<svg class="panzoom-icon" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M32 32C14.3 32 0 46.3 0 64l0 96c0 17.7 14.3 32 32 32s32-14.3 32-32l0-64 64 0c17.7 0 32-14.3 32-32s-14.3-32-32-32L32 32zM64 352c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-64 0 0-64zM320 32c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0 0 64c0 17.7 14.3 32 32 32s32-14.3 32-32l0-96c0-17.7-14.3-32-32-32l-96 0zM448 352c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 64-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l96 0c17.7 0 32-14.3 32-32l0-96z"></path>
-</svg>
-</button><button class="panzoom-min panzoom-button panzoom-hidden">
-<svg class="panzoom-icon" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M160 64c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 64-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l96 0c17.7 0 32-14.3 32-32l0-96zM32 320c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0 0 64c0 17.7 14.3 32 32 32s32-14.3 32-32l0-96c0-17.7-14.3-32-32-32l-96 0zM352 64c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-64 0 0-64zM320 320c-17.7 0-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32s32-14.3 32-32l0-64 64 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-96 0z"></path>
-</svg>
-</button>
-</nav>
-<pre class="mermaid"><code>gitGraph
-    commit id: "main"
-    branch develop
-    commit id: "develop"
-    branch feature/new-thing
-    commit id: "work"
-    checkout develop
-    merge feature/new-thing
-    branch release/2.5.0
-    commit id: "bump"
-    checkout main
-    merge release/2.5.0 tag: "2.5.0"
-    checkout develop
-    merge release/2.5.0
-</code></pre>
-<div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
-Use mouse to pan and zoom
-</div>
-</div>
-<table>
-<thead>
-<tr>
-<th style="text-align: left;">Branch</th>
-<th style="text-align: left;">Purpose</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align: left;"><code>main</code></td>
-<td style="text-align: left;">Production releases</td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>develop</code></td>
-<td style="text-align: left;">Integration</td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>feature/*</code></td>
-<td style="text-align: left;">New features</td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>release/*</code></td>
-<td style="text-align: left;">Release candidates</td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>hotfix/*</code></td>
-<td style="text-align: left;">Production fixes</td>
+<td style="text-align: left;"><abbr title="Mapping Quality - Confidence score for read alignment">MAPQ</abbr> threshold</td>
+<td style="text-align: left;"><code>--min-mapq</code></td>
+<td style="text-align: left;"><strong>20</strong></td>
+<td style="text-align: left;">—</td>
+<td style="text-align: left;">Minimum mapping quality</td>
 </tr>
 </tbody>
 </table>
 <hr>
-<h2 id="quality-checklist">Quality Checklist<a class="headerlink" href="#quality-checklist" title="Permanent link">¶</a></h2>
-<p>Before committing:</p>
-<ul class="task-list">
-<li class="task-list-item"><label class="task-list-control"><input disabled="" type="checkbox"><span class="task-list-indicator"></span></label> <code>make lint</code> passes</li>
-<li class="task-list-item"><label class="task-list-control"><input disabled="" type="checkbox"><span class="task-list-indicator"></span></label> <code>pytest</code> passes</li>
-<li class="task-list-item"><label class="task-list-control"><input disabled="" type="checkbox"><span class="task-list-indicator"></span></label> Type hints complete</li>
-<li class="task-list-item"><label class="task-list-control"><input disabled="" type="checkbox"><span class="task-list-indicator"></span></label> Docstrings added</li>
-<li class="task-list-item"><label class="task-list-control"><input disabled="" type="checkbox"><span class="task-list-indicator"></span></label> No dead code</li>
-</ul>
-<hr>
-<h2 id="environment-variables">Environment Variables<a class="headerlink" href="#environment-variables" title="Permanent link">¶</a></h2>
+<h2 id="quality-thresholds">Quality Thresholds<a class="headerlink" href="#quality-thresholds" title="Permanent link">¶</a></h2>
+<p>Beyond the read-level filters above, py-gbcms also applies <strong>base-level quality thresholds</strong> during allele classification:</p>
 <table>
 <thead>
 <tr>
-<th style="text-align: left;">Variable</th>
+<th style="text-align: left;">Parameter</th>
+<th style="text-align: left;"><abbr title="Command Line Interface - Terminal-based program interface">CLI</abbr> Flag</th>
 <th style="text-align: left;">Default</th>
 <th style="text-align: left;">Description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td style="text-align: left;"><code>GBCMS_LOG_LEVEL</code></td>
-<td style="text-align: left;">INFO</td>
-<td style="text-align: left;">Logging level</td>
+<td style="text-align: left;">Min base quality</td>
+<td style="text-align: left;"><code>--min-baseq</code></td>
+<td style="text-align: left;"><strong>20</strong></td>
+<td style="text-align: left;">Bases below this are masked or rejected</td>
 </tr>
 <tr>
-<td style="text-align: left;"><code>RUST_LOG</code></td>
-<td style="text-align: left;">—</td>
-<td style="text-align: left;">Rust logging</td>
+<td style="text-align: left;">Fragment consensus threshold</td>
+<td style="text-align: left;"><code>--fragment-qual-threshold</code></td>
+<td style="text-align: left;"><strong>10</strong></td>
+<td style="text-align: left;">Quality margin for R1/R2 conflict resolution</td>
 </tr>
 </tbody>
 </table>
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-4-1" id="__codelineno-4-1" name="__codelineno-4-1"></a><span class="nv">GBCMS_LOG_LEVEL</span><span class="o">=</span>DEBUG<span class="w"> </span><span class="nv">RUST_LOG</span><span class="o">=</span>debug<span class="w"> </span>gbcms<span class="w"> </span>run<span class="w"> </span>...
+<div class="admonition info">
+<p class="admonition-title">How Base Quality Is Used</p>
+<p>The effect of <code>--min-baseq</code> varies by variant type:</p>
+<ul>
+<li><strong>SNP</strong>: Read is rejected if the base at the variant position has quality &lt; threshold</li>
+<li><strong>MNP</strong>: Read is rejected if <strong>any</strong> base in the MNP region has quality &lt; threshold</li>
+<li><strong>Insertion/Deletion (windowed scan)</strong>: Inserted/deleted bases below threshold are <strong>masked</strong> (treated as wildcards) rather than rejecting the entire read</li>
+<li><strong>Complex (Phase 2)</strong>: Low-quality bases are masked — they cannot vote for either allele</li>
+<li><strong>Complex (Phase 3 SW)</strong>: Low-quality bases are replaced with <code>N</code>, which scores 0 against any base</li>
+</ul>
+</div>
+<hr>
+<h2 id="comparison-with-original-gbcms">Comparison with Original <abbr title="Get Base Count Multi Sample - Multi-BAM variant counting tool">GBCMS</abbr><a class="headerlink" href="#comparison-with-original-gbcms" title="Permanent link">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Filter Non-Primary</p>
+<p>The original <abbr title="Get Base Count Multi Sample - Multi-BAM variant counting tool">GBCMS</abbr> has a single <code>--filter_non_primary</code> flag. py-gbcms splits this into <code>--filter-secondary</code> and <code>--filter-supplementary</code> for finer control. Both default to <strong>off</strong>, matching the original behavior.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Feature</th>
+<th style="text-align: left;">Original <abbr title="Get Base Count Multi Sample - Multi-BAM variant counting tool">GBCMS</abbr></th>
+<th style="text-align: left;">py-gbcms</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Base quality filtering</td>
+<td style="text-align: left;">No threshold</td>
+<td style="text-align: left;">Default <code>--min-baseq 20</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Duplicate filtering</td>
+<td style="text-align: left;">Optional</td>
+<td style="text-align: left;"><strong>On</strong> by default</td>
+</tr>
+<tr>
+<td style="text-align: left;">Non-primary filter</td>
+<td style="text-align: left;">Single flag</td>
+<td style="text-align: left;">Split: secondary + supplementary</td>
+</tr>
+<tr>
+<td style="text-align: left;">Indel read filter</td>
+<td style="text-align: left;">Optional</td>
+<td style="text-align: left;">Optional (off by default)</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="fetch-window">Fetch Window<a class="headerlink" href="#fetch-window" title="Permanent link">¶</a></h2>
+<p>Before filtering, py-gbcms fetches reads from a <strong>±5bp window</strong> around each variant position — not just at the exact position. This expanded window ensures reads with shifted indels (common in repetitive regions) are retrieved and can be matched by the <a href="../allele-classification/#windowed-scan-safeguards">windowed scan</a>.</p>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-0-1" id="__codelineno-0-1" name="__codelineno-0-1"></a>Variant: chr1:100 A→ATG (insertion)
+<a href="#__codelineno-0-2" id="__codelineno-0-2" name="__codelineno-0-2"></a>
+<a href="#__codelineno-0-3" id="__codelineno-0-3" name="__codelineno-0-3"></a>BAM fetch window: [95, 106)    ← ±5bp from anchor position
 </code></pre></div>
+<hr>
+<h2 id="related">Related<a class="headerlink" href="#related" title="Permanent link">¶</a></h2>
+<ul>
+<li><a href="../allele-classification/">Allele Classification</a> — How reads passing filters are classified</li>
+<li><a href="../counting-metrics/">Counting &amp; Metrics</a> — Read-level and fragment-level counts</li>
+<li><a href="../../cli/run/"><abbr title="Command Line Interface - Terminal-based program interface">CLI</abbr> Run Command</a> — All parameter options</li>
+</ul>
 <!-- Abbreviation definitions for py-gbcms documentation -->
 <!-- These provide hover tooltips for technical acronyms -->
 <aside class="md-source-file">
@@ -1102,7 +983,7 @@ Use mouse to pan and zoom
 <span class="md-icon" title="Created">
 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M14.47 15.08 11 13V7h1.5v5.25l3.08 1.83c-.41.28-.79.62-1.11 1m-1.39 4.84c-.36.05-.71.08-1.08.08-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8c0 .37-.03.72-.08 1.08.69.1 1.33.32 1.92.64.1-.56.16-1.13.16-1.72 0-5.5-4.5-10-10-10S2 6.5 2 12s4.47 10 10 10c.59 0 1.16-.06 1.72-.16-.32-.59-.54-1.23-.64-1.92M18 15v3h-3v2h3v3h2v-3h3v-2h-3v-3z"></path></svg>
 </span>
-<span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 6, 2026 16:48:48 UTC"><span class="timeago" datetime="2026-02-06T16:48:48+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 6, 2026 16:48:48 UTC">2026-02-06</span>
+<span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 18, 2026 21:59:37 UTC"><span class="timeago" datetime="2026-02-18T21:59:37+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 18, 2026 21:59:37 UTC">2026-02-18</span>
 </span>
 </aside>
 </article>

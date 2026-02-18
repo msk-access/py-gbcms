@@ -6,7 +6,7 @@
 <link href="https://msk-access.github.io/py-gbcms/dev/" rel="canonical">
 <link href="getting-started/" rel="next">
 <link href="assets/images/favicon.png" rel="icon">
-<meta content="mkdocs-1.6.1, mkdocs-material-9.7.1" name="generator">
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.2" name="generator">
 <title>py-gbcms</title>
 <link href="assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet">
 <link href="assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet">
@@ -28,7 +28,7 @@
             body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
             body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
         </style><meta name="panzoom-theme" content="material">
-<meta name="panzoom-data" content='{"selectors": [".mermaid", ".d2"], "initial_zoom_level": 1.0}'> </head>
+<meta name="panzoom-data" content='{"selectors": [".d2", ".mermaid"], "initial_zoom_level": 1.0}'> </head>
 <body data-md-color-accent="custom" data-md-color-primary="custom" data-md-color-scheme="default" dir="ltr">
 <input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox">
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox">
@@ -327,6 +327,18 @@
   </span>
 </a>
 </li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="cli/normalize/">
+<span class="md-ellipsis">
+    
+  
+    Normalize Command
+  
+
+    
+  </span>
+</a>
+</li>
 </ul>
 </nav>
 </li>
@@ -402,7 +414,7 @@
 <span class="md-ellipsis">
     
   
-    Reference
+    How It Works
   
 
     
@@ -414,7 +426,7 @@
 <span class="md-nav__icon md-icon"></span>
             
   
-    Reference
+    How It Works
   
 
           </label>
@@ -432,11 +444,11 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="reference/variant-counting/">
+<a class="md-nav__link" href="reference/input-formats/">
 <span class="md-ellipsis">
     
   
-    Variant Counting
+    Input Formats
   
 
     
@@ -444,11 +456,47 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="reference/input-formats/">
+<a class="md-nav__link" href="reference/variant-normalization/">
 <span class="md-ellipsis">
     
   
-    Input Formats
+    Variant Normalization
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="reference/read-filters/">
+<span class="md-ellipsis">
+    
+  
+    Read Filters
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="reference/allele-classification/">
+<span class="md-ellipsis">
+    
+  
+    Allele Classification
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="reference/counting-metrics/">
+<span class="md-ellipsis">
+    
+  
+    Counting &amp; Metrics
   
 
     
@@ -876,7 +924,7 @@ Use mouse to pan and zoom
 Use mouse to pan and zoom
 </div>
 </div>
-<p><strong>→ <a href="reference/architecture/">Technical Details</a></strong> | <strong>→ <a href="reference/variant-counting/">Variant Counting</a></strong></p>
+<p><strong>→ <a href="reference/architecture/">Technical Details</a></strong> | <strong>→ <a href="reference/allele-classification/">How It Works</a></strong></p>
 <hr>
 <h2 id="documentation">Documentation<a class="headerlink" href="#documentation" title="Permanent link">¶</a></h2>
 <table>
@@ -900,12 +948,8 @@ Use mouse to pan and zoom
 <td style="text-align: left;"><abbr title="High-Performance Computing - Cluster computing environment">HPC</abbr> workflow</td>
 </tr>
 <tr>
-<td style="text-align: left;"><a href="reference/architecture/">Reference</a></td>
-<td style="text-align: left;">Architecture and formats</td>
-</tr>
-<tr>
-<td style="text-align: left;"><a href="reference/variant-counting/">Variant Counting</a></td>
-<td style="text-align: left;">How each variant type is counted</td>
+<td style="text-align: left;"><a href="reference/architecture/">How It Works</a></td>
+<td style="text-align: left;">Architecture, algorithms, and formats</td>
 </tr>
 <tr>
 <td style="text-align: left;"><a href="development/developer-guide/">Development</a></td>
@@ -920,7 +964,7 @@ Use mouse to pan and zoom
 <span class="md-icon" title="Last update">
 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
 </span>
-<span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 10, 2026 05:30:24 UTC"><span class="timeago" datetime="2026-02-10T05:30:24+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 10, 2026 05:30:24 UTC">2026-02-10</span>
+<span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 18, 2026 21:59:37 UTC"><span class="timeago" datetime="2026-02-18T21:59:37+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 18, 2026 21:59:37 UTC">2026-02-18</span>
 </span>
 <span class="md-source-file__fact">
 <span class="md-icon" title="Created">

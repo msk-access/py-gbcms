@@ -3,12 +3,12 @@
 <meta content="width=device-width,initial-scale=1" name="viewport">
 <meta content="High-performance variant counting from BAM files" name="description">
 <meta content="MSK-ACCESS" name="author">
-<link href="https://msk-access.github.io/py-gbcms/dev/reference/variant-counting/" rel="canonical">
-<link href="../architecture/" rel="prev">
-<link href="../input-formats/" rel="next">
+<link href="https://msk-access.github.io/py-gbcms/dev/reference/allele-classification/" rel="canonical">
+<link href="../read-filters/" rel="prev">
+<link href="../counting-metrics/" rel="next">
 <link href="../../assets/images/favicon.png" rel="icon">
-<meta content="mkdocs-1.6.1, mkdocs-material-9.7.1" name="generator">
-<title>Variant Counting - py-gbcms</title>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.2" name="generator">
+<title>Allele Classification - py-gbcms</title>
 <link href="../../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet">
 <link href="../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet">
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
@@ -29,13 +29,13 @@
             body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
             body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
         </style><meta name="panzoom-theme" content="material">
-<meta name="panzoom-data" content='{"selectors": [".mermaid", ".d2"], "initial_zoom_level": 1.0}'> </head>
+<meta name="panzoom-data" content='{"selectors": [".d2", ".mermaid"], "initial_zoom_level": 1.0}'> </head>
 <body data-md-color-accent="custom" data-md-color-primary="custom" data-md-color-scheme="default" dir="ltr">
 <input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox">
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox">
 <label class="md-overlay" for="__drawer"></label>
 <div data-md-component="skip">
-<a class="md-skip" href="#variant-counting">
+<a class="md-skip" href="#allele-classification">
           Skip to content
         </a>
 </div>
@@ -61,7 +61,7 @@
 <div class="md-header__topic" data-md-component="header-topic">
 <span class="md-ellipsis">
             
-              Variant Counting
+              Allele Classification
             
           </span>
 </div>
@@ -250,6 +250,18 @@
   </span>
 </a>
 </li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../cli/normalize/">
+<span class="md-ellipsis">
+    
+  
+    Normalize Command
+  
+
+    
+  </span>
+</a>
+</li>
 </ul>
 </nav>
 </li>
@@ -325,7 +337,7 @@
 <span class="md-ellipsis">
     
   
-    Reference
+    How It Works
   
 
     
@@ -337,7 +349,7 @@
 <span class="md-nav__icon md-icon"></span>
             
   
-    Reference
+    How It Works
   
 
           </label>
@@ -354,13 +366,49 @@
   </span>
 </a>
 </li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../input-formats/">
+<span class="md-ellipsis">
+    
+  
+    Input Formats
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../variant-normalization/">
+<span class="md-ellipsis">
+    
+  
+    Variant Normalization
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../read-filters/">
+<span class="md-ellipsis">
+    
+  
+    Read Filters
+  
+
+    
+  </span>
+</a>
+</li>
 <li class="md-nav__item md-nav__item--active">
 <input class="md-nav__toggle md-toggle" id="__toc" type="checkbox">
 <label class="md-nav__link md-nav__link--active" for="__toc">
 <span class="md-ellipsis">
     
   
-    Variant Counting
+    Allele Classification
   
 
     
@@ -371,7 +419,7 @@
 <span class="md-ellipsis">
     
   
-    Variant Counting
+    Allele Classification
   
 
     
@@ -384,33 +432,14 @@
     </label>
 <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#overview">
+<a class="md-nav__link" href="#dispatch">
 <span class="md-ellipsis">
       
-        Overview
+        Dispatch
       
     </span>
 </a>
 </li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#read-filter-pipeline">
-<span class="md-ellipsis">
-      
-        Read Filter Pipeline
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#variant-types">
-<span class="md-ellipsis">
-      
-        Variant Types
-      
-    </span>
-</a>
-<nav aria-label="Variant Types" class="md-nav">
-<ul class="md-nav__list">
 <li class="md-nav__item">
 <a class="md-nav__link" href="#snp-single-nucleotide-polymorphism">
 <span class="md-ellipsis">
@@ -422,10 +451,10 @@
 <nav aria-label="SNP (Single Nucleotide Polymorphism)" class="md-nav">
 <ul class="md-nav__list">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#algorithm-flow">
+<a class="md-nav__link" href="#algorithm">
 <span class="md-ellipsis">
       
-        Algorithm Flow
+        Algorithm
       
     </span>
 </a>
@@ -453,10 +482,19 @@
 <nav aria-label="Insertion" class="md-nav">
 <ul class="md-nav__list">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#algorithm-flow_1">
+<a class="md-nav__link" href="#algorithm_1">
 <span class="md-ellipsis">
       
-        Algorithm Flow
+        Algorithm
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#windowed-scan-safeguards">
+<span class="md-ellipsis">
+      
+        Windowed Scan Safeguards
       
     </span>
 </a>
@@ -484,10 +522,10 @@
 <nav aria-label="Deletion" class="md-nav">
 <ul class="md-nav__list">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#algorithm-flow_2">
+<a class="md-nav__link" href="#algorithm_2">
 <span class="md-ellipsis">
       
-        Algorithm Flow
+        Algorithm
       
     </span>
 </a>
@@ -515,19 +553,19 @@
 <nav aria-label="MNP (Multi-Nucleotide Polymorphism)" class="md-nav">
 <ul class="md-nav__list">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#algorithm-flow_3">
+<a class="md-nav__link" href="#algorithm_3">
 <span class="md-ellipsis">
       
-        Algorithm Flow
+        Algorithm
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#visual-example_3">
+<a class="md-nav__link" href="#contiguity-check">
 <span class="md-ellipsis">
       
-        Visual Example
+        Contiguity Check
       
     </span>
 </a>
@@ -546,72 +584,37 @@
 <nav aria-label="Complex (Indel + Substitution)" class="md-nav">
 <ul class="md-nav__list">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#algorithm-flow-haplotype-reconstruction-masked-comparison">
+<a class="md-nav__link" href="#three-phase-algorithm">
 <span class="md-ellipsis">
       
-        Algorithm Flow — Haplotype Reconstruction + Masked Comparison
+        Three-Phase Algorithm
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#worked-example-step-by-step-reconstruction">
+<a class="md-nav__link" href="#phase-1-haplotype-reconstruction">
 <span class="md-ellipsis">
       
-        Worked Example: Step-by-Step Reconstruction
-      
-    </span>
-</a>
-</li>
-</ul>
-</nav>
-</li>
-</ul>
-</nav>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#counting-levels">
-<span class="md-ellipsis">
-      
-        Counting Levels
-      
-    </span>
-</a>
-<nav aria-label="Counting Levels" class="md-nav">
-<ul class="md-nav__list">
-<li class="md-nav__item">
-<a class="md-nav__link" href="#read-level-vs-fragment-level">
-<span class="md-ellipsis">
-      
-        Read-Level vs Fragment-Level
+        Phase 1: Haplotype Reconstruction
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#read-level-metrics">
+<a class="md-nav__link" href="#phase-2-masked-comparison">
 <span class="md-ellipsis">
       
-        Read-Level Metrics
+        Phase 2: Masked Comparison
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#fragment-counting-algorithm">
+<a class="md-nav__link" href="#phase-3-smith-waterman-fallback">
 <span class="md-ellipsis">
       
-        Fragment Counting Algorithm
-      
-    </span>
-</a>
-<nav aria-label="Fragment Counting Algorithm" class="md-nav">
-<ul class="md-nav__list">
-<li class="md-nav__item">
-<a class="md-nav__link" href="#quality-weighted-consensus">
-<span class="md-ellipsis">
-      
-        Quality-Weighted Consensus
+        Phase 3: Smith-Waterman Fallback
       
     </span>
 </a>
@@ -620,16 +623,13 @@
 </nav>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#strand-bias-fishers-exact-test">
+<a class="md-nav__link" href="#limitations">
 <span class="md-ellipsis">
       
-        Strand Bias (Fisher's Exact Test)
+        Limitations
       
     </span>
 </a>
-</li>
-</ul>
-</nav>
 </li>
 <li class="md-nav__item">
 <a class="md-nav__link" href="#related">
@@ -644,11 +644,11 @@
 </nav>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../input-formats/">
+<a class="md-nav__link" href="../counting-metrics/">
 <span class="md-ellipsis">
     
   
-    Input Formats
+    Counting &amp; Metrics
   
 
     
@@ -821,33 +821,14 @@
     </label>
 <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#overview">
+<a class="md-nav__link" href="#dispatch">
 <span class="md-ellipsis">
       
-        Overview
+        Dispatch
       
     </span>
 </a>
 </li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#read-filter-pipeline">
-<span class="md-ellipsis">
-      
-        Read Filter Pipeline
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#variant-types">
-<span class="md-ellipsis">
-      
-        Variant Types
-      
-    </span>
-</a>
-<nav aria-label="Variant Types" class="md-nav">
-<ul class="md-nav__list">
 <li class="md-nav__item">
 <a class="md-nav__link" href="#snp-single-nucleotide-polymorphism">
 <span class="md-ellipsis">
@@ -859,10 +840,10 @@
 <nav aria-label="SNP (Single Nucleotide Polymorphism)" class="md-nav">
 <ul class="md-nav__list">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#algorithm-flow">
+<a class="md-nav__link" href="#algorithm">
 <span class="md-ellipsis">
       
-        Algorithm Flow
+        Algorithm
       
     </span>
 </a>
@@ -890,10 +871,19 @@
 <nav aria-label="Insertion" class="md-nav">
 <ul class="md-nav__list">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#algorithm-flow_1">
+<a class="md-nav__link" href="#algorithm_1">
 <span class="md-ellipsis">
       
-        Algorithm Flow
+        Algorithm
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#windowed-scan-safeguards">
+<span class="md-ellipsis">
+      
+        Windowed Scan Safeguards
       
     </span>
 </a>
@@ -921,10 +911,10 @@
 <nav aria-label="Deletion" class="md-nav">
 <ul class="md-nav__list">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#algorithm-flow_2">
+<a class="md-nav__link" href="#algorithm_2">
 <span class="md-ellipsis">
       
-        Algorithm Flow
+        Algorithm
       
     </span>
 </a>
@@ -952,19 +942,19 @@
 <nav aria-label="MNP (Multi-Nucleotide Polymorphism)" class="md-nav">
 <ul class="md-nav__list">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#algorithm-flow_3">
+<a class="md-nav__link" href="#algorithm_3">
 <span class="md-ellipsis">
       
-        Algorithm Flow
+        Algorithm
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#visual-example_3">
+<a class="md-nav__link" href="#contiguity-check">
 <span class="md-ellipsis">
       
-        Visual Example
+        Contiguity Check
       
     </span>
 </a>
@@ -983,72 +973,37 @@
 <nav aria-label="Complex (Indel + Substitution)" class="md-nav">
 <ul class="md-nav__list">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#algorithm-flow-haplotype-reconstruction-masked-comparison">
+<a class="md-nav__link" href="#three-phase-algorithm">
 <span class="md-ellipsis">
       
-        Algorithm Flow — Haplotype Reconstruction + Masked Comparison
+        Three-Phase Algorithm
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#worked-example-step-by-step-reconstruction">
+<a class="md-nav__link" href="#phase-1-haplotype-reconstruction">
 <span class="md-ellipsis">
       
-        Worked Example: Step-by-Step Reconstruction
-      
-    </span>
-</a>
-</li>
-</ul>
-</nav>
-</li>
-</ul>
-</nav>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#counting-levels">
-<span class="md-ellipsis">
-      
-        Counting Levels
-      
-    </span>
-</a>
-<nav aria-label="Counting Levels" class="md-nav">
-<ul class="md-nav__list">
-<li class="md-nav__item">
-<a class="md-nav__link" href="#read-level-vs-fragment-level">
-<span class="md-ellipsis">
-      
-        Read-Level vs Fragment-Level
+        Phase 1: Haplotype Reconstruction
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#read-level-metrics">
+<a class="md-nav__link" href="#phase-2-masked-comparison">
 <span class="md-ellipsis">
       
-        Read-Level Metrics
+        Phase 2: Masked Comparison
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#fragment-counting-algorithm">
+<a class="md-nav__link" href="#phase-3-smith-waterman-fallback">
 <span class="md-ellipsis">
       
-        Fragment Counting Algorithm
-      
-    </span>
-</a>
-<nav aria-label="Fragment Counting Algorithm" class="md-nav">
-<ul class="md-nav__list">
-<li class="md-nav__item">
-<a class="md-nav__link" href="#quality-weighted-consensus">
-<span class="md-ellipsis">
-      
-        Quality-Weighted Consensus
+        Phase 3: Smith-Waterman Fallback
       
     </span>
 </a>
@@ -1057,16 +1012,13 @@
 </nav>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#strand-bias-fishers-exact-test">
+<a class="md-nav__link" href="#limitations">
 <span class="md-ellipsis">
       
-        Strand Bias (Fisher's Exact Test)
+        Limitations
       
     </span>
 </a>
-</li>
-</ul>
-</nav>
 </li>
 <li class="md-nav__item">
 <a class="md-nav__link" href="#related">
@@ -1095,17 +1047,17 @@
 <li class="md-path__item">
 <a class="md-path__link" href="../architecture/">
 <span class="md-ellipsis">
-    Reference
+    How It Works
   </span>
 </a>
 </li>
 </ol>
 </nav>
 <article class="md-content__inner md-typeset">
-<h1 id="variant-counting">Variant Counting<a class="headerlink" href="#variant-counting" title="Permanent link">¶</a></h1>
-<p>How py-gbcms counts reads for each variant type — with visual examples.</p>
-<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">¶</a></h2>
-<p>For every variant, py-gbcms fetches reads overlapping the variant position from each <abbr title="Binary Alignment Map - Compressed sequence alignment file format">BAM</abbr> file, applies <a href="#read-filters">read filters</a>, and then dispatches to a <strong>type-specific</strong> allele checker. Each read is classified as supporting the <strong>reference</strong> allele, the <strong>alternate</strong> allele, or <strong>neither</strong>.</p>
+<h1 id="allele-classification">Allele Classification<a class="headerlink" href="#allele-classification" title="Permanent link">¶</a></h1>
+<p>How py-gbcms classifies each read as supporting the <strong>reference</strong> allele, the <strong>alternate</strong> allele, or <strong>neither</strong>.</p>
+<h2 id="dispatch">Dispatch<a class="headerlink" href="#dispatch" title="Permanent link">¶</a></h2>
+<p>After passing <a href="../read-filters/">read filters</a>, each read is dispatched to a <strong>type-specific</strong> allele checker based on the variant's type string (assigned during <a href="../variant-normalization/">normalization</a>):</p>
 <div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
 <nav class="panzoom-nav">
 <button class="panzoom-info panzoom-button">
@@ -1134,6 +1086,8 @@
     Dispatch --&gt;|Deletion| DEL[check_deletion]
     Dispatch --&gt;|MNP| MNP[check_mnp]
     Dispatch --&gt;|Complex| CPX[check_complex]
+    INS -.-&gt;|"Phase 3 fallback"| CPX
+    DEL -.-&gt;|"fallback (CIGAR mismatch)"| CPX
     SNP --&gt; Count([📊 Update Counts]):::count
     INS --&gt; Count
     DEL --&gt; Count
@@ -1148,145 +1102,12 @@
 Use mouse to pan and zoom
 </div>
 </div>
-<hr>
-<h2 id="read-filter-pipeline">Read Filter Pipeline<a class="headerlink" href="#read-filter-pipeline" title="Permanent link">¶</a></h2>
-<p>Before any allele checking begins, every read passes through a <strong>filter cascade</strong>. Reads that fail any enabled filter are discarded. The order matches the Rust engine implementation.</p>
-<div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
-<nav class="panzoom-nav">
-<button class="panzoom-info panzoom-button">
-<svg class="panzoom-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M464 256A208 208 0 1 0 48 256a208 208 0 1 0 416 0zM0 256a256 256 0 1 1 512 0A256 256 0 1 1 0 256zm169.8-90.7c7.9-22.3 29.1-37.3 52.8-37.3l58.3 0c34.9 0 63.1 28.3 63.1 63.1c0 22.6-12.1 43.5-31.7 54.8L280 264.4c-.2 13-10.9 23.6-24 23.6c-13.3 0-24-10.7-24-24l0-13.5c0-8.6 4.6-16.5 12.1-20.8l44.3-25.4c4.7-2.7 7.6-7.7 7.6-13.1c0-8.4-6.8-15.1-15.1-15.1l-58.3 0c-3.4 0-6.4 2.1-7.5 5.3l-.4 1.2c-4.4 12.5-18.2 19-30.6 14.6s-19-18.2-14.6-30.6l.4-1.2zM224 352a32 32 0 1 1 64 0 32 32 0 1 1 -64 0z"></path>
-</svg>
-</button><button class="panzoom-reset panzoom-button">
-<svg class="panzoom-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M125.7 160l50.3 0c17.7 0 32 14.3 32 32s-14.3 32-32 32L48 224c-17.7 0-32-14.3-32-32L16 64c0-17.7 14.3-32 32-32s32 14.3 32 32l0 51.2L97.6 97.6c87.5-87.5 229.3-87.5 316.8 0s87.5 229.3 0 316.8s-229.3 87.5-316.8 0c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0c62.5 62.5 163.8 62.5 226.3 0s62.5-163.8 0-226.3s-163.8-62.5-226.3 0L125.7 160z"></path>
-</svg>
-</button><button class="panzoom-max panzoom-button">
-<svg class="panzoom-icon" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M32 32C14.3 32 0 46.3 0 64l0 96c0 17.7 14.3 32 32 32s32-14.3 32-32l0-64 64 0c17.7 0 32-14.3 32-32s-14.3-32-32-32L32 32zM64 352c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-64 0 0-64zM320 32c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0 0 64c0 17.7 14.3 32 32 32s32-14.3 32-32l0-96c0-17.7-14.3-32-32-32l-96 0zM448 352c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 64-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l96 0c17.7 0 32-14.3 32-32l0-96z"></path>
-</svg>
-</button><button class="panzoom-min panzoom-button panzoom-hidden">
-<svg class="panzoom-icon" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M160 64c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 64-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l96 0c17.7 0 32-14.3 32-32l0-96zM32 320c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0 0 64c0 17.7 14.3 32 32 32s32-14.3 32-32l0-96c0-17.7-14.3-32-32-32l-96 0zM352 64c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-64 0 0-64zM320 320c-17.7 0-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32s32-14.3 32-32l0-64 64 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-96 0z"></path>
-</svg>
-</button>
-</nav>
-<pre class="mermaid"><code>flowchart TD
-    Start([📖 Read from BAM]):::process
-
-    subgraph Filters [Quality &amp; Alignment Filters]
-        direction TB
-        F1{Duplicate?}:::decision
-        F2{Secondary?}:::decision
-        F3{Supplementary?}:::decision
-        F4{QC Failed?}:::decision
-        F5{Improper pair?}:::decision
-        F6{Contains indel?}:::decision
-        F7{MAPQ ≥ 20?}:::decision
-    end
-
-    Drop{{❌ Discard Read}}:::discard
-    Pass([✅ Pass to Allele Checker]):::success
-
-    Start --&gt; F1
-
-    F1 -- "Yes" --&gt; Drop
-    F1 -- "No" --&gt; F2
-
-    F2 -- "Yes" --&gt; Drop
-    F2 -- "No" --&gt; F3
-
-    F3 -- "Yes" --&gt; Drop
-    F3 -- "No" --&gt; F4
-
-    F4 -- "Yes" --&gt; Drop
-    F4 -- "No" --&gt; F5
-
-    F5 -- "Yes" --&gt; Drop
-    F5 -- "No" --&gt; F6
-
-    F6 -- "Yes" --&gt; Drop
-    F6 -- "No" --&gt; F7
-
-    F7 -- "Below 20" --&gt; Drop
-    F7 -- "Pass" --&gt; Pass
-
-    classDef process fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
-    classDef decision fill:#f39c12,color:#fff,stroke:#d68910,stroke-width:2px;
-    classDef discard fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
-    classDef success fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
-</code></pre>
-<div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
-Use mouse to pan and zoom
-</div>
-</div>
-<table>
-<thead>
-<tr>
-<th style="text-align: left;">Filter</th>
-<th style="text-align: left;"><abbr title="Command Line Interface - Terminal-based program interface">CLI</abbr> Flag</th>
-<th style="text-align: left;">Default</th>
-<th style="text-align: left;">SAM Flag</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align: left;">Duplicates</td>
-<td style="text-align: left;"><code>--filter-duplicates</code></td>
-<td style="text-align: left;"><strong>On</strong></td>
-<td style="text-align: left;"><code>0x400</code></td>
-</tr>
-<tr>
-<td style="text-align: left;">Secondary</td>
-<td style="text-align: left;"><code>--filter-secondary</code></td>
-<td style="text-align: left;">Off</td>
-<td style="text-align: left;"><code>0x100</code></td>
-</tr>
-<tr>
-<td style="text-align: left;">Supplementary</td>
-<td style="text-align: left;"><code>--filter-supplementary</code></td>
-<td style="text-align: left;">Off</td>
-<td style="text-align: left;"><code>0x800</code></td>
-</tr>
-<tr>
-<td style="text-align: left;">QC Failed</td>
-<td style="text-align: left;"><code>--filter-qc-failed</code></td>
-<td style="text-align: left;">Off</td>
-<td style="text-align: left;"><code>0x200</code></td>
-</tr>
-<tr>
-<td style="text-align: left;">Improper Pair</td>
-<td style="text-align: left;"><code>--filter-improper-pair</code></td>
-<td style="text-align: left;">Off</td>
-<td style="text-align: left;"><code>0x2</code> (inverted)</td>
-</tr>
-<tr>
-<td style="text-align: left;">Indel reads</td>
-<td style="text-align: left;"><code>--filter-indel</code></td>
-<td style="text-align: left;">Off</td>
-<td style="text-align: left;">CIGAR-based</td>
-</tr>
-<tr>
-<td style="text-align: left;"><abbr title="Mapping Quality - Confidence score for read alignment">MAPQ</abbr> threshold</td>
-<td style="text-align: left;"><code>--min-mapq</code></td>
-<td style="text-align: left;"><strong>20</strong></td>
-<td style="text-align: left;">—</td>
-</tr>
-<tr>
-<td style="text-align: left;"><abbr title="Base Quality - Phred-scaled base call confidence">BASEQ</abbr> threshold</td>
-<td style="text-align: left;"><code>--min-baseq</code></td>
-<td style="text-align: left;"><strong>0</strong></td>
-<td style="text-align: left;">— (per-type)</td>
-</tr>
-</tbody>
-</table>
-<div class="admonition note">
-<p class="admonition-title">Filter Non-Primary</p>
-<p>The original <abbr title="Get Base Count Multi Sample - Multi-BAM variant counting tool">GBCMS</abbr> has a single <code>--filter_non_primary</code> flag. py-gbcms splits this into <code>--filter-secondary</code> and <code>--filter-supplementary</code> for finer control. Both default to <strong>off</strong>, matching the original behavior.</p>
+<div class="admonition info">
+<p class="admonition-title">Auto-Detection</p>
+<p>If a variant's type string is unknown, py-gbcms auto-detects <strong>MNPs</strong> (equal-length REF/ALT with length &gt; 1) and falls back to <code>check_complex</code> for everything else. This ensures every variant gets classified.</p>
 </div>
 <hr>
-<h2 id="variant-types">Variant Types<a class="headerlink" href="#variant-types" title="Permanent link">¶</a></h2>
-<h3 id="snp-single-nucleotide-polymorphism">SNP (Single Nucleotide Polymorphism)<a class="headerlink" href="#snp-single-nucleotide-polymorphism" title="Permanent link">¶</a></h3>
+<h2 id="snp-single-nucleotide-polymorphism">SNP (Single Nucleotide Polymorphism)<a class="headerlink" href="#snp-single-nucleotide-polymorphism" title="Permanent link">¶</a></h2>
 <p>A single base substitution — the simplest and most common variant type.</p>
 <table>
 <thead>
@@ -1310,7 +1131,7 @@ Use mouse to pan and zoom
 </tr>
 </tbody>
 </table>
-<h4 id="algorithm-flow">Algorithm Flow<a class="headerlink" href="#algorithm-flow" title="Permanent link">¶</a></h4>
+<h3 id="algorithm">Algorithm<a class="headerlink" href="#algorithm" title="Permanent link">¶</a></h3>
 <div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
 <nav class="panzoom-nav">
 <button class="panzoom-info panzoom-button">
@@ -1353,7 +1174,7 @@ Use mouse to pan and zoom
 Use mouse to pan and zoom
 </div>
 </div>
-<h4 id="visual-example">Visual Example<a class="headerlink" href="#visual-example" title="Permanent link">¶</a></h4>
+<h3 id="visual-example">Visual Example<a class="headerlink" href="#visual-example" title="Permanent link">¶</a></h3>
 <div class="highlight"><pre><span></span><code><a href="#__codelineno-0-1" id="__codelineno-0-1" name="__codelineno-0-1"></a>Variant: chr1:100 C→T (SNP)
 <a href="#__codelineno-0-2" id="__codelineno-0-2" name="__codelineno-0-2"></a>
 <a href="#__codelineno-0-3" id="__codelineno-0-3" name="__codelineno-0-3"></a>Reference: 5'─ ...G  A  T  C  G  A  T  C  G  A... ─3'
@@ -1374,7 +1195,7 @@ Use mouse to pan and zoom
 <a href="#__codelineno-0-18" id="__codelineno-0-18" name="__codelineno-0-18"></a>                          base=A ≠ REF or ALT
 </code></pre></div>
 <hr>
-<h3 id="insertion">Insertion<a class="headerlink" href="#insertion" title="Permanent link">¶</a></h3>
+<h2 id="insertion">Insertion<a class="headerlink" href="#insertion" title="Permanent link">¶</a></h2>
 <p>Bases inserted after an <strong>anchor</strong> position. The anchor is the last reference base before the inserted sequence.</p>
 <table>
 <thead>
@@ -1394,12 +1215,12 @@ Use mouse to pan and zoom
 </tr>
 <tr>
 <td style="text-align: left;">Quality check</td>
-<td style="text-align: left;">None (CIGAR-structural check only)</td>
+<td style="text-align: left;">Quality-masked sequence comparison</td>
 </tr>
 </tbody>
 </table>
-<h4 id="algorithm-flow_1">Algorithm Flow<a class="headerlink" href="#algorithm-flow_1" title="Permanent link">¶</a></h4>
-<p>The insertion check uses a <strong>single CIGAR walk</strong> with two strategies: strict match (fast path) and windowed scan (±5bp fallback).</p>
+<h3 id="algorithm_1">Algorithm<a class="headerlink" href="#algorithm_1" title="Permanent link">¶</a></h3>
+<p>The insertion check uses a <strong>single CIGAR walk</strong> with four detection strategies:</p>
 <div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
 <nav class="panzoom-nav">
 <button class="panzoom-info panzoom-button">
@@ -1424,19 +1245,25 @@ Use mouse to pan and zoom
     Start([🧬 Insertion Check]):::start --&gt; Walk[Walk CIGAR left → right]
     Walk --&gt; Found{Match block contains anchor?}
     Found --&gt;|No| WindowCheck
-    Found --&gt;|Yes| AtEnd{Anchor at end of block?}
+    Found --&gt;|Yes| Backward{Anchor at start of block AND prev op is Ins?}
+    Backward --&gt;|Yes| BWMatch{Length + seq match? quality-masked}
+    BWMatch --&gt;|Yes| BWAlt([🔴 ALT - backward]):::alt
+    BWMatch --&gt;|No| AtEnd
+    Backward --&gt;|No| AtEnd{Anchor at end of block?}
     AtEnd --&gt;|No| RefCov[Mark ref coverage]
     AtEnd --&gt;|Yes| NextOp{Next op is Ins?}
     NextOp --&gt;|No| RefCov
-    NextOp --&gt;|Yes| Strict{Length + seq match?}
+    NextOp --&gt;|Yes| Strict{"Length + seq match? (quality-masked)"}
     Strict --&gt;|Yes| StrictAlt([🔴 ALT - strict]):::alt
     Strict --&gt;|No| RefCov
     RefCov --&gt; WindowCheck
 
     WindowCheck{Ins within ±5bp window?}
     WindowCheck --&gt;|No| Continue[Continue CIGAR walk]
-    WindowCheck --&gt;|Yes| S1{S1: Seq matches?}
-    S1 --&gt;|No| Continue
+    WindowCheck --&gt;|Yes| S1{"S1: Seq matches? (quality-masked)"}
+    S1 --&gt;|No| LenMatch{"Same length?"}
+    LenMatch --&gt;|Yes| FlagP3["Flag for Phase 3"]:::fallback
+    LenMatch --&gt;|No| Continue
     S1 --&gt;|Yes| S3{S3: Anchor base matches ref?}
     S3 --&gt;|No| Continue
     S3 --&gt;|Yes| S2[S2: Track closest match]
@@ -1446,7 +1273,9 @@ Use mouse to pan and zoom
     MoreOps --&gt;|Yes| Walk
     MoreOps --&gt;|No| Eval{Windowed candidate found?}
     Eval --&gt;|Yes| WinAlt([🔴 ALT - windowed]):::alt
-    Eval --&gt;|No| HasRef{Read covered anchor?}
+    Eval --&gt;|No| P3Check{"Phase 3 flagged<br>AND ref coverage?"}
+    P3Check --&gt;|Yes| Complex([🔄 check_complex<br>Phase 3 SW]):::fallback
+    P3Check --&gt;|No| HasRef{Read covered anchor?}
     HasRef --&gt;|Yes| Ref([✅ REF]):::ref
     HasRef --&gt;|No| Neither([Neither]):::neither
 
@@ -1454,12 +1283,45 @@ Use mouse to pan and zoom
     classDef ref fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
     classDef alt fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
     classDef neither fill:#95a5a6,color:#fff,stroke:#7f8c8d,stroke-width:2px;
+    classDef fallback fill:#f39c12,color:#fff,stroke:#d68910,stroke-width:2px;
 </code></pre>
 <div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
 Use mouse to pan and zoom
 </div>
 </div>
-<h4 id="visual-example_1">Visual Example<a class="headerlink" href="#visual-example_1" title="Permanent link">¶</a></h4>
+<h3 id="windowed-scan-safeguards">Windowed Scan Safeguards<a class="headerlink" href="#windowed-scan-safeguards" title="Permanent link">¶</a></h3>
+<p>Three layers of validation prevent false-positive windowed matches:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Safeguard</th>
+<th style="text-align: left;">Check</th>
+<th style="text-align: left;">Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>S1</strong></td>
+<td style="text-align: left;">Inserted sequence matches expected ALT bases (quality-masked)</td>
+<td style="text-align: left;">Prevents matching unrelated insertions</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>S2</strong></td>
+<td style="text-align: left;">Closest match wins (minimum distance from anchor)</td>
+<td style="text-align: left;">When multiple candidates exist, picks the most likely</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>S3</strong></td>
+<td style="text-align: left;">Reference base at shifted anchor matches original anchor base</td>
+<td style="text-align: left;">Ensures the shifted position is biologically equivalent</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Phase 3 Haplotype Fallback</p>
+<p>When the windowed scan finds an insertion that matches in <strong>length</strong> but not <strong>sequence</strong> (e.g., aligner represents the biological event with shifted bases in a repeat), the engine flags <code>has_nearby_length_match</code> and falls back to <code>check_complex</code> for <strong>Smith-Waterman arbitration</strong>. This ensures ambiguous cases are resolved by haplotype comparison rather than strict sequence matching.</p>
+</div>
+<h3 id="visual-example_1">Visual Example<a class="headerlink" href="#visual-example_1" title="Permanent link">¶</a></h3>
 <div class="highlight"><pre><span></span><code><a href="#__codelineno-1-1" id="__codelineno-1-1" name="__codelineno-1-1"></a>Variant: chr1:100 A→ATG (insertion of TG after anchor A)
 <a href="#__codelineno-1-2" id="__codelineno-1-2" name="__codelineno-1-2"></a>
 <a href="#__codelineno-1-3" id="__codelineno-1-3" name="__codelineno-1-3"></a>Reference:     5'─ ...C  G  A ── C  G  T  A... ─3'
@@ -1481,79 +1343,10 @@ Use mouse to pan and zoom
 <a href="#__codelineno-1-19" id="__codelineno-1-19" name="__codelineno-1-19"></a>               5'─ ...C  G  A  C  G  T  A... ─3'
 <a href="#__codelineno-1-20" id="__codelineno-1-20" name="__codelineno-1-20"></a>                               ↑
 <a href="#__codelineno-1-21" id="__codelineno-1-21" name="__codelineno-1-21"></a>                          no insertion after anchor → REF ✅
-<a href="#__codelineno-1-22" id="__codelineno-1-22" name="__codelineno-1-22"></a>
-<a href="#__codelineno-1-23" id="__codelineno-1-23" name="__codelineno-1-23"></a>Read 4 (wrong seq): CIGAR = 5M 2I 5M
-<a href="#__codelineno-1-24" id="__codelineno-1-24" name="__codelineno-1-24"></a>               5'─ ...C  G  A [C  C] C  G  T  A... ─3'
-<a href="#__codelineno-1-25" id="__codelineno-1-25" name="__codelineno-1-25"></a>                               └──┘
-<a href="#__codelineno-1-26" id="__codelineno-1-26" name="__codelineno-1-26"></a>                          insertion bases ≠ expected TG → S1 reject
 </code></pre></div>
-<div class="admonition tip">
-<p class="admonition-title">Why anchor-based?</p>
-<p>In <abbr title="Variant Call Format - Standard variant call file format">VCF</abbr> format, insertions are represented as <code>REF=A, ALT=ATG</code> where the first base <code>A</code> is the anchor — it's not part of the inserted sequence. py-gbcms uses this anchor to locate where the insertion should occur in the CIGAR string.</p>
-</div>
-<div class="admonition info">
-<p class="admonition-title"><abbr title="Mutation Annotation Format - Standard mutation annotation file format">MAF</abbr> → <abbr title="Variant Call Format - Standard variant call file format">VCF</abbr> Anchor Conversion</p>
-<p><abbr title="Mutation Annotation Format - Standard mutation annotation file format">MAF</abbr> format represents indels differently — using <code>-</code> dashes instead of an anchor base. py-gbcms automatically converts <abbr title="Mutation Annotation Format - Standard mutation annotation file format">MAF</abbr> indels to <abbr title="Variant Call Format - Standard variant call file format">VCF</abbr>-style anchor-based representation at input time, which requires a <strong>reference <abbr title="FASTA format - Reference genome sequence file">FASTA</abbr></strong> (<code>--fasta</code>).</p>
-<p><strong>Insertion</strong> (e.g., insert <code>TG</code> after chr1:100):</p>
-<table>
-<thead>
-<tr>
-<th style="text-align: left;"></th>
-<th style="text-align: left;"><abbr title="Mutation Annotation Format - Standard mutation annotation file format">MAF</abbr></th>
-<th style="text-align: left;"><abbr title="Variant Call Format - Standard variant call file format">VCF</abbr> (internal)</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align: left;">Position</td>
-<td style="text-align: left;"><code>Start_Position=100</code> (anchor)</td>
-<td style="text-align: left;"><code>POS=100</code></td>
-</tr>
-<tr>
-<td style="text-align: left;">REF</td>
-<td style="text-align: left;"><code>-</code></td>
-<td style="text-align: left;"><code>A</code> (fetched from <abbr title="FASTA format - Reference genome sequence file">FASTA</abbr>)</td>
-</tr>
-<tr>
-<td style="text-align: left;">ALT</td>
-<td style="text-align: left;"><code>TG</code></td>
-<td style="text-align: left;"><code>ATG</code> (anchor + inserted seq)</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Deletion</strong> (e.g., delete <code>CG</code> at chr1:101–102):</p>
-<table>
-<thead>
-<tr>
-<th style="text-align: left;"></th>
-<th style="text-align: left;"><abbr title="Mutation Annotation Format - Standard mutation annotation file format">MAF</abbr></th>
-<th style="text-align: left;"><abbr title="Variant Call Format - Standard variant call file format">VCF</abbr> (internal)</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align: left;">Position</td>
-<td style="text-align: left;"><code>Start_Position=101</code> (first deleted base)</td>
-<td style="text-align: left;"><code>POS=100</code> (anchor = base before)</td>
-</tr>
-<tr>
-<td style="text-align: left;">REF</td>
-<td style="text-align: left;"><code>CG</code></td>
-<td style="text-align: left;"><code>ACG</code> (anchor + deleted seq)</td>
-</tr>
-<tr>
-<td style="text-align: left;">ALT</td>
-<td style="text-align: left;"><code>-</code></td>
-<td style="text-align: left;"><code>A</code> (anchor only)</td>
-</tr>
-</tbody>
-</table>
-<p>Note that for <strong>deletions</strong>, <abbr title="Mutation Annotation Format - Standard mutation annotation file format">MAF</abbr> <code>Start_Position</code> points to the <em>first deleted base</em>, not the anchor. py-gbcms shifts back by one position and fetches the preceding base from the <abbr title="FASTA format - Reference genome sequence file">FASTA</abbr> as the anchor.</p>
-<p>See <a href="../input-formats/#maf-indel-normalization">Input Formats</a> for full details.</p>
-</div>
 <hr>
-<h3 id="deletion">Deletion<a class="headerlink" href="#deletion" title="Permanent link">¶</a></h3>
-<p>Bases deleted after an <strong>anchor</strong> position. The logic mirrors insertion but looks for <code>Del</code> CIGAR operations.</p>
+<h2 id="deletion">Deletion<a class="headerlink" href="#deletion" title="Permanent link">¶</a></h2>
+<p>Bases deleted after an <strong>anchor</strong> position. Mirrors insertion but looks for <code>Del</code> CIGAR operations.</p>
 <table>
 <thead>
 <tr>
@@ -1572,12 +1365,26 @@ Use mouse to pan and zoom
 </tr>
 <tr>
 <td style="text-align: left;">Quality check</td>
-<td style="text-align: left;">None (CIGAR-structural check only)</td>
+<td style="text-align: left;">Quality-masked ref-context comparison</td>
 </tr>
 </tbody>
 </table>
-<h4 id="algorithm-flow_2">Algorithm Flow<a class="headerlink" href="#algorithm-flow_2" title="Permanent link">¶</a></h4>
-<p>Same single-walk strategy as insertion, with Safeguard 3 checking deleted reference bases.</p>
+<h3 id="algorithm_2">Algorithm<a class="headerlink" href="#algorithm_2" title="Permanent link">¶</a></h3>
+<p>Same single-walk strategy as insertion, with three additional features:</p>
+<ol>
+<li>
+<p><strong>Reciprocal overlap matching</strong> — For large deletions (≥50bp), if the CIGAR shows a deletion at the anchor but with a different length, py-gbcms accepts it if the reciprocal overlap is ≥50% (SV-caller standard, used by SURVIVOR):</p>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-2-1" id="__codelineno-2-1" name="__codelineno-2-1"></a>reciprocal_overlap = min(expected, found) / max(expected, found)
+<a href="#__codelineno-2-2" id="__codelineno-2-2" name="__codelineno-2-2"></a>Accept if expected_del ≥ 50bp AND reciprocal_overlap ≥ 0.50
+</code></pre></div>
+</li>
+<li>
+<p><strong>Interior REF guard</strong> — For large deletions (≥50bp), reads that start <em>inside</em> the deleted region are classified as REF directly, without falling back to Smith-Waterman. This prevents overcounting caused by the SW aligner's bias toward shorter ALT haplotypes.</p>
+</li>
+<li>
+<p><strong>Haplotype fallback</strong> — When no CIGAR match is found and the read doesn't cover the anchor, falls back to <code>check_complex</code> for haplotype-based comparison.</p>
+</li>
+</ol>
 <div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
 <nav class="panzoom-nav">
 <button class="panzoom-info panzoom-button">
@@ -1606,69 +1413,74 @@ Use mouse to pan and zoom
     AtEnd --&gt;|No| RefCov[Mark ref coverage]
     AtEnd --&gt;|Yes| NextOp{Next op is Del?}
     NextOp --&gt;|No| RefCov
-    NextOp --&gt;|Yes| Strict{Length matches?}
-    Strict --&gt;|Yes| StrictAlt([🔴 ALT - strict]):::alt
-    Strict --&gt;|No| RefCov
+    NextOp --&gt;|Yes| LenCheck{Length matches?}
+    LenCheck --&gt;|Yes| StrictAlt([🔴 ALT - strict]):::alt
+    LenCheck --&gt;|No| RecipCheck{"≥50bp AND overlap ≥50%?"}
+    RecipCheck --&gt;|Yes| TolAlt([🔴 ALT - tolerant]):::alt
+    RecipCheck --&gt;|No| Fallback1([🔄 check_complex]):::fallback
     RefCov --&gt; WindowCheck
 
     WindowCheck{Del within ±5bp window?}
-    WindowCheck --&gt;|No| Continue[Continue CIGAR walk]
-    WindowCheck --&gt;|Yes| S1{S1: Del length matches?}
-    S1 --&gt;|No| Continue
-    S1 --&gt;|Yes| S3{S3: Ref bases at shift match?}
+    WindowCheck --&gt;|No| Continue[Continue walk]
+    WindowCheck --&gt;|Yes| S1{S1: Length check}
+    S1 --&gt;|Match| S3{"S3: Ref bases match?"}
+    S1 --&gt;|"≥50bp + overlap ≥50%"| S2Track[S2: Track closest]
+    S1 --&gt;|No match| Continue
+    S3 --&gt;|Yes| S2[S2: Track closest]
     S3 --&gt;|No| Continue
-    S3 --&gt;|Yes| S2[S2: Track closest match]
+    S2Track --&gt; Continue
     S2 --&gt; Continue
 
-    Continue --&gt; MoreOps{More CIGAR ops?}
+    Continue --&gt; MoreOps{More ops?}
     MoreOps --&gt;|Yes| Walk
-    MoreOps --&gt;|No| Eval{Windowed candidate found?}
-    Eval --&gt;|Yes| WinAlt([🔴 ALT - windowed]):::alt
-    Eval --&gt;|No| HasRef{Read covered anchor?}
+    MoreOps --&gt;|No| Eval{Windowed match?}
+    Eval --&gt;|Yes| WinAlt([🔴 ALT]):::alt
+    Eval --&gt;|No| Interior{"Interior read?<br>(≥50bp del, read starts inside span)"}
+    Interior --&gt;|Yes| IntRef([✅ REF - interior]):::ref
+    Interior --&gt;|No| HasRef{Anchor covered?}
     HasRef --&gt;|Yes| Ref([✅ REF]):::ref
-    HasRef --&gt;|No| Neither([Neither]):::neither
+    HasRef --&gt;|No| Fallback2([🔄 check_complex]):::fallback
 
     classDef start fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
     classDef ref fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
     classDef alt fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
     classDef neither fill:#95a5a6,color:#fff,stroke:#7f8c8d,stroke-width:2px;
+    classDef fallback fill:#f39c12,color:#fff,stroke:#d68910,stroke-width:2px;
 </code></pre>
 <div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
 Use mouse to pan and zoom
 </div>
 </div>
-<h4 id="visual-example_2">Visual Example<a class="headerlink" href="#visual-example_2" title="Permanent link">¶</a></h4>
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-2-1" id="__codelineno-2-1" name="__codelineno-2-1"></a>Variant: chr1:100 ACG→A (deletion of CG after anchor A)
-<a href="#__codelineno-2-2" id="__codelineno-2-2" name="__codelineno-2-2"></a>
-<a href="#__codelineno-2-3" id="__codelineno-2-3" name="__codelineno-2-3"></a>Reference:     5'─ ...T  G  A  C  G  T  A  C... ─3'
-<a href="#__codelineno-2-4" id="__codelineno-2-4" name="__codelineno-2-4"></a>                          99 100 101 102
-<a href="#__codelineno-2-5" id="__codelineno-2-5" name="__codelineno-2-5"></a>                               ▲
-<a href="#__codelineno-2-6" id="__codelineno-2-6" name="__codelineno-2-6"></a>                          anchor pos
-<a href="#__codelineno-2-7" id="__codelineno-2-7" name="__codelineno-2-7"></a>
-<a href="#__codelineno-2-8" id="__codelineno-2-8" name="__codelineno-2-8"></a>Read 1 (ALT, strict):  CIGAR = 5M 2D 5M
-<a href="#__codelineno-2-9" id="__codelineno-2-9" name="__codelineno-2-9"></a>               5'─ ...T  G  A  ──  ──  T  A  C... ─3'
-<a href="#__codelineno-2-10" id="__codelineno-2-10" name="__codelineno-2-10"></a>                               └─────┘
-<a href="#__codelineno-2-11" id="__codelineno-2-11" name="__codelineno-2-11"></a>                          2bp deletion at anchor → ALT ✅ (strict)
-<a href="#__codelineno-2-12" id="__codelineno-2-12" name="__codelineno-2-12"></a>
-<a href="#__codelineno-2-13" id="__codelineno-2-13" name="__codelineno-2-13"></a>Read 2 (ALT, windowed): CIGAR = 7M 2D 3M
-<a href="#__codelineno-2-14" id="__codelineno-2-14" name="__codelineno-2-14"></a>               5'─ ...T  G  A  C  G  T  ──  ──  A  C... ─3'
-<a href="#__codelineno-2-15" id="__codelineno-2-15" name="__codelineno-2-15"></a>                                              └─────┘
-<a href="#__codelineno-2-16" id="__codelineno-2-16" name="__codelineno-2-16"></a>                  deletion shifted +2bp, same length, ref matches → ALT ✅ (windowed)
-<a href="#__codelineno-2-17" id="__codelineno-2-17" name="__codelineno-2-17"></a>                  (S3 verifies ref bases at shifted pos match deleted 'CG')
-<a href="#__codelineno-2-18" id="__codelineno-2-18" name="__codelineno-2-18"></a>
-<a href="#__codelineno-2-19" id="__codelineno-2-19" name="__codelineno-2-19"></a>Read 3 (REF):  CIGAR = 12M
-<a href="#__codelineno-2-20" id="__codelineno-2-20" name="__codelineno-2-20"></a>               5'─ ...T  G  A  C  G  T  A  C... ─3'
-<a href="#__codelineno-2-21" id="__codelineno-2-21" name="__codelineno-2-21"></a>                               ↑
-<a href="#__codelineno-2-22" id="__codelineno-2-22" name="__codelineno-2-22"></a>                          no deletion after anchor → REF ✅
-<a href="#__codelineno-2-23" id="__codelineno-2-23" name="__codelineno-2-23"></a>
-<a href="#__codelineno-2-24" id="__codelineno-2-24" name="__codelineno-2-24"></a>Read 4 (wrong length): CIGAR = 5M 3D 5M
-<a href="#__codelineno-2-25" id="__codelineno-2-25" name="__codelineno-2-25"></a>               5'─ ...T  G  A  ──  ──  ──  A  C... ─3'
-<a href="#__codelineno-2-26" id="__codelineno-2-26" name="__codelineno-2-26"></a>                               └────────┘
-<a href="#__codelineno-2-27" id="__codelineno-2-27" name="__codelineno-2-27"></a>                          3bp deletion ≠ expected 2bp → S1 reject
+<div class="admonition warning">
+<p class="admonition-title">Interior REF Guard</p>
+<p>For deletions &gt;50bp, reads that fall <strong>entirely within</strong> the deleted region would be incorrectly classified as ALT by Smith-Waterman (because the short ALT haplotype aligns better than the long REF haplotype). The interior REF guard catches these reads early and classifies them as REF before they reach Phase 3.</p>
+</div>
+<h3 id="visual-example_2">Visual Example<a class="headerlink" href="#visual-example_2" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-3-1" id="__codelineno-3-1" name="__codelineno-3-1"></a>Variant: chr1:100 ACG→A (deletion of CG after anchor A)
+<a href="#__codelineno-3-2" id="__codelineno-3-2" name="__codelineno-3-2"></a>
+<a href="#__codelineno-3-3" id="__codelineno-3-3" name="__codelineno-3-3"></a>Reference:     5'─ ...T  G  A  C  G  T  A  C... ─3'
+<a href="#__codelineno-3-4" id="__codelineno-3-4" name="__codelineno-3-4"></a>                          99 100 101 102
+<a href="#__codelineno-3-5" id="__codelineno-3-5" name="__codelineno-3-5"></a>                               ▲
+<a href="#__codelineno-3-6" id="__codelineno-3-6" name="__codelineno-3-6"></a>                          anchor pos
+<a href="#__codelineno-3-7" id="__codelineno-3-7" name="__codelineno-3-7"></a>
+<a href="#__codelineno-3-8" id="__codelineno-3-8" name="__codelineno-3-8"></a>Read 1 (ALT, strict):  CIGAR = 5M 2D 5M
+<a href="#__codelineno-3-9" id="__codelineno-3-9" name="__codelineno-3-9"></a>               5'─ ...T  G  A  ──  ──  T  A  C... ─3'
+<a href="#__codelineno-3-10" id="__codelineno-3-10" name="__codelineno-3-10"></a>                               └─────┘
+<a href="#__codelineno-3-11" id="__codelineno-3-11" name="__codelineno-3-11"></a>                          2bp deletion at anchor → ALT ✅ (strict)
+<a href="#__codelineno-3-12" id="__codelineno-3-12" name="__codelineno-3-12"></a>
+<a href="#__codelineno-3-13" id="__codelineno-3-13" name="__codelineno-3-13"></a>Read 2 (ALT, windowed): CIGAR = 7M 2D 3M
+<a href="#__codelineno-3-14" id="__codelineno-3-14" name="__codelineno-3-14"></a>               5'─ ...T  G  A  C  G  T  ──  ──  A  C... ─3'
+<a href="#__codelineno-3-15" id="__codelineno-3-15" name="__codelineno-3-15"></a>                                              └─────┘
+<a href="#__codelineno-3-16" id="__codelineno-3-16" name="__codelineno-3-16"></a>                  deletion shifted +2bp, same length, ref matches → ALT ✅ (windowed)
+<a href="#__codelineno-3-17" id="__codelineno-3-17" name="__codelineno-3-17"></a>
+<a href="#__codelineno-3-18" id="__codelineno-3-18" name="__codelineno-3-18"></a>Read 3 (REF):  CIGAR = 12M
+<a href="#__codelineno-3-19" id="__codelineno-3-19" name="__codelineno-3-19"></a>               5'─ ...T  G  A  C  G  T  A  C... ─3'
+<a href="#__codelineno-3-20" id="__codelineno-3-20" name="__codelineno-3-20"></a>                               ↑
+<a href="#__codelineno-3-21" id="__codelineno-3-21" name="__codelineno-3-21"></a>                          no deletion after anchor → REF ✅
 </code></pre></div>
 <hr>
-<h3 id="mnp-multi-nucleotide-polymorphism">MNP (Multi-Nucleotide Polymorphism)<a class="headerlink" href="#mnp-multi-nucleotide-polymorphism" title="Permanent link">¶</a></h3>
-<p>Multiple adjacent bases substituted simultaneously. Think of it as multiple SNPs happening at consecutive positions.</p>
+<h2 id="mnp-multi-nucleotide-polymorphism">MNP (Multi-Nucleotide Polymorphism)<a class="headerlink" href="#mnp-multi-nucleotide-polymorphism" title="Permanent link">¶</a></h2>
+<p>Multiple adjacent bases substituted simultaneously.</p>
 <table>
 <thead>
 <tr>
@@ -1691,7 +1503,7 @@ Use mouse to pan and zoom
 </tr>
 </tbody>
 </table>
-<h4 id="algorithm-flow_3">Algorithm Flow<a class="headerlink" href="#algorithm-flow_3" title="Permanent link">¶</a></h4>
+<h3 id="algorithm_3">Algorithm<a class="headerlink" href="#algorithm_3" title="Permanent link">¶</a></h3>
 <div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
 <nav class="panzoom-nav">
 <button class="panzoom-info panzoom-button">
@@ -1749,38 +1561,15 @@ Use mouse to pan and zoom
 Use mouse to pan and zoom
 </div>
 </div>
-<h4 id="visual-example_3">Visual Example<a class="headerlink" href="#visual-example_3" title="Permanent link">¶</a></h4>
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-3-1" id="__codelineno-3-1" name="__codelineno-3-1"></a>Variant: chr1:100 AT→CG (2-base MNP)
-<a href="#__codelineno-3-2" id="__codelineno-3-2" name="__codelineno-3-2"></a>
-<a href="#__codelineno-3-3" id="__codelineno-3-3" name="__codelineno-3-3"></a>Reference:     5'─ ...G  A  T  A  T  G  C... ─3'
-<a href="#__codelineno-3-4" id="__codelineno-3-4" name="__codelineno-3-4"></a>                          99 100 101
-<a href="#__codelineno-3-5" id="__codelineno-3-5" name="__codelineno-3-5"></a>                              ▲───▲
-<a href="#__codelineno-3-6" id="__codelineno-3-6" name="__codelineno-3-6"></a>                           MNP region
-<a href="#__codelineno-3-7" id="__codelineno-3-7" name="__codelineno-3-7"></a>
-<a href="#__codelineno-3-8" id="__codelineno-3-8" name="__codelineno-3-8"></a>Read 1 (ALT):  5'─ ...G  A  T [C  G] G  C... ─3'   → ALT ✅
-<a href="#__codelineno-3-9" id="__codelineno-3-9" name="__codelineno-3-9"></a>                              └──┘
-<a href="#__codelineno-3-10" id="__codelineno-3-10" name="__codelineno-3-10"></a>                         both bases match ALT: C=C ✓, G=G ✓
-<a href="#__codelineno-3-11" id="__codelineno-3-11" name="__codelineno-3-11"></a>
-<a href="#__codelineno-3-12" id="__codelineno-3-12" name="__codelineno-3-12"></a>Read 2 (REF):  5'─ ...G  A  T [A  T] G  C... ─3'   → REF ✅
-<a href="#__codelineno-3-13" id="__codelineno-3-13" name="__codelineno-3-13"></a>                              └──┘
-<a href="#__codelineno-3-14" id="__codelineno-3-14" name="__codelineno-3-14"></a>                         both bases match REF: A=A ✓, T=T ✓
-<a href="#__codelineno-3-15" id="__codelineno-3-15" name="__codelineno-3-15"></a>
-<a href="#__codelineno-3-16" id="__codelineno-3-16" name="__codelineno-3-16"></a>Read 3 (mixed): 5'─ ...G  A  T [C  T] G  C... ─3'  → Neither
-<a href="#__codelineno-3-17" id="__codelineno-3-17" name="__codelineno-3-17"></a>                              └──┘
-<a href="#__codelineno-3-18" id="__codelineno-3-18" name="__codelineno-3-18"></a>                         C=ALT[0] ✓, but T=REF[1] ✗  (partial match)
-<a href="#__codelineno-3-19" id="__codelineno-3-19" name="__codelineno-3-19"></a>
-<a href="#__codelineno-3-20" id="__codelineno-3-20" name="__codelineno-3-20"></a>Read 4 (indel): CIGAR = 3M 1I 3M
-<a href="#__codelineno-3-21" id="__codelineno-3-21" name="__codelineno-3-21"></a>                5'─ ...G  A  T [C] X [G] G  C... ─3' → Neither
-<a href="#__codelineno-3-22" id="__codelineno-3-22" name="__codelineno-3-22"></a>                                   ↑
-<a href="#__codelineno-3-23" id="__codelineno-3-23" name="__codelineno-3-23"></a>                         indel within MNP region → fails contiguity check
-</code></pre></div>
 <div class="admonition warning">
-<p class="admonition-title">Strict matching</p>
-<p>MNP matching is <strong>all-or-nothing</strong>: every base must match either REF or ALT. A read with <code>C T</code> at a <code>AT→CG</code> variant (matching the first ALT base but second REF base) is classified as <strong>neither</strong> — it's not counted for either allele.</p>
+<p class="admonition-title">Strict Matching</p>
+<p>MNP matching is <strong>all-or-nothing</strong>: every base must match either REF or ALT. A read with <code>C T</code> at a <code>AT→CG</code> variant (first base matches ALT, second matches REF) is classified as <strong>neither</strong>.</p>
 </div>
+<h3 id="contiguity-check">Contiguity Check<a class="headerlink" href="#contiguity-check" title="Permanent link">¶</a></h3>
+<p>After checking all bases, py-gbcms verifies that no <strong>indels</strong> exist within the MNP region by comparing the read positions of the first and last MNP base. If the distance doesn't equal <code>len - 1</code>, an insertion or deletion interrupted the MNP → classified as <strong>neither</strong>.</p>
 <hr>
-<h3 id="complex-indel-substitution">Complex (Indel + Substitution)<a class="headerlink" href="#complex-indel-substitution" title="Permanent link">¶</a></h3>
-<p>Variants where REF and ALT differ in both sequence <strong>and</strong> length. This is the catch-all category that uses a sophisticated <strong>haplotype reconstruction</strong> algorithm with <strong>quality-aware masked comparison</strong>.</p>
+<h2 id="complex-indel-substitution">Complex (Indel + Substitution)<a class="headerlink" href="#complex-indel-substitution" title="Permanent link">¶</a></h2>
+<p>Variants where REF and ALT differ in both sequence <strong>and</strong> length. Uses a sophisticated <strong>three-phase</strong> algorithm with quality-aware matching and Smith-Waterman fallback.</p>
 <table>
 <thead>
 <tr>
@@ -1799,11 +1588,11 @@ Use mouse to pan and zoom
 </tr>
 <tr>
 <td style="text-align: left;">Quality check</td>
-<td style="text-align: left;"><strong>Masked comparison</strong> — bases below <code>--min-baseq</code> are masked out and cannot vote for either allele</td>
+<td style="text-align: left;">Masked comparison — bases below <code>--min-baseq</code> are masked</td>
 </tr>
 </tbody>
 </table>
-<h4 id="algorithm-flow-haplotype-reconstruction-masked-comparison">Algorithm Flow — Haplotype Reconstruction + Masked Comparison<a class="headerlink" href="#algorithm-flow-haplotype-reconstruction-masked-comparison" title="Permanent link">¶</a></h4>
+<h3 id="three-phase-algorithm">Three-Phase Algorithm<a class="headerlink" href="#three-phase-algorithm" title="Permanent link">¶</a></h3>
 <div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
 <nav class="panzoom-nav">
 <button class="panzoom-info panzoom-button">
@@ -1825,63 +1614,67 @@ Use mouse to pan and zoom
 </button>
 </nav>
 <pre class="mermaid"><code>flowchart TD
-    Start([🧬 Complex Check]):::start --&gt; Region["Define region: pos .. pos+len REF"]:::info
-    Region --&gt; Init["Init reconstructed_seq + quals_per_base"]
+    Start([🧬 Complex Check]):::start
+    Start --&gt; Phase1
 
-    subgraph CIGARWalk [Phase 1: CIGAR Walk — Haplotype Reconstruction]
+    subgraph Phase1 [Phase 1: Haplotype Reconstruction]
         direction TB
-        Walk[Walk each CIGAR op]
-        OpType{CIGAR op type?}
-        Walk --&gt; OpType
-        OpType --&gt;|"M / = / X"| Match["Append bases + quals"]
-        OpType --&gt;|"I"| InsCheck["Append inserted bases + quals"]
-        OpType --&gt;|"D / N"| AdvRef[Advance ref_pos only]
-        OpType --&gt;|"S"| AdvRead[Advance read_pos only]
-        OpType --&gt;|"H / P"| Skip[No action]
-        Match --&gt; Next[Next op]
-        InsCheck --&gt; Next
-        AdvRef --&gt; Next
-        AdvRead --&gt; Next
-        Skip --&gt; Next
-        Next --&gt; More{More CIGAR ops?}
-        More --&gt;|Yes| Walk
+        Walk[Walk CIGAR to reconstruct<br>read sequence for variant region]
+        Walk --&gt; Ops{CIGAR op type?}
+        Ops --&gt;|M/=/X| Match[Append overlapping bases + quals]
+        Ops --&gt;|I| Ins[Append inserted bases + quals]
+        Ops --&gt;|D/N| Del[Advance ref_pos only]
+        Ops --&gt;|S| SC{Overlaps variant?}
+        SC --&gt;|Yes| SCAdd[Append soft-clipped bases]
+        SC --&gt;|No| SCSkip[Skip]
     end
 
-    Init --&gt; Walk
-    More --&gt;|No| LenCheck
+    Phase1 --&gt; LargeGuard{"ref_len &gt; 50 AND<br>recon &lt; 10% of ref?"}
+    LargeGuard --&gt;|Yes| SkipP2[Skip Phase 2<br>unreliable]:::neither
+    LargeGuard --&gt;|No| Phase2
 
-    subgraph MaskedCompare ["Phase 2: Masked Comparison (Reliable Intersection)"]
+    subgraph Phase2 ["Phase 2: Masked Comparison"]
         direction TB
-        LenCheck{Check recon length}
-        LenCheck --&gt;|"== ALT == REF"| CaseA["Case A: Dual masked compare"]
-        LenCheck --&gt;|"== ALT only"| CaseB["Case B: ALT-only masked compare"]
-        LenCheck --&gt;|"== REF only"| CaseC["Case C: REF-only masked compare"]
-        LenCheck --&gt;|Neither| Neither4([Neither]):::neither
+        LenCheck{Recon length matches?}
+        LenCheck --&gt;|"ALT and REF"| CaseA["Case A: Dual compare<br>+ ambiguity detection"]
+        LenCheck --&gt;|"ALT only"| CaseB["Case B: ALT-only compare"]
+        LenCheck --&gt;|"REF only"| CaseC["Case C: REF-only compare"]
+        LenCheck --&gt;|Neither| NoMatch[No match]
+    end
 
-        CaseA --&gt; Mask1["Mask bases with qual &lt; min_baseq"]
-        Mask1 --&gt; Reliable1{reliable_count &gt; 0?}
-        Reliable1 --&gt;|No| Neither5([Neither]):::neither
-        Reliable1 --&gt;|Yes| Ambig{Matches BOTH on reliable?}
-        Ambig --&gt;|Yes| Neither6(["Neither (ambiguous)"]):::neither
-        Ambig --&gt;|No| AltOnly{Matches ALT only?}
-        AltOnly --&gt;|Yes| Alt1([🔴 ALT]):::alt
-        AltOnly --&gt;|No| RefOnly{Matches REF only?}
-        RefOnly --&gt;|Yes| Ref1([✅ REF]):::ref
-        RefOnly --&gt;|No| Neither7([Neither]):::neither
+    CaseA --&gt; Ambig{"Reliable bases<br>match BOTH?"}
+    Ambig --&gt;|Yes| Neither1([Neither - ambiguous]):::neither
+    Ambig --&gt;|No| Matches
 
-        CaseB --&gt; Mask2["Mask low-qual bases"]
-        Mask2 --&gt; ReliableB{reliable &gt; 0 AND 0 mismatches?}
-        ReliableB --&gt;|Yes| Alt2([🔴 ALT]):::alt
-        ReliableB --&gt;|No| Neither8([Neither]):::neither
+    Matches{Which allele matches?}
+    Matches --&gt;|ALT| Alt1([🔴 ALT]):::alt
+    Matches --&gt;|REF| Ref1([✅ REF]):::ref
+    Matches --&gt;|Neither| NoMatch
 
-        CaseC --&gt; Mask3["Mask low-qual bases"]
-        Mask3 --&gt; ReliableC{reliable &gt; 0 AND 0 mismatches?}
-        ReliableC --&gt;|Yes| Ref2([✅ REF]):::ref
-        ReliableC --&gt;|No| Neither9([Neither]):::neither
+    CaseB --&gt; AltMatch{"0 mismatches on<br>reliable bases?"}
+    AltMatch --&gt;|Yes| Alt2([🔴 ALT]):::alt
+    AltMatch --&gt;|No| NoMatch
+
+    CaseC --&gt; RefMatch{"0 mismatches on<br>reliable bases?"}
+    RefMatch --&gt;|Yes| Ref2([✅ REF]):::ref
+    RefMatch --&gt;|No| NoMatch
+
+    SkipP2 --&gt; Phase3
+    NoMatch --&gt; Phase3
+
+    subgraph Phase3 ["Phase 3: Smith-Waterman Fallback"]
+        direction TB
+        PreFilter{"is_worth_realignment?<br>(indels/clips near window)"}
+        PreFilter --&gt;|No| Neither2([Neither]):::neither
+        PreFilter --&gt;|Yes| Extract[Extract raw read window]
+        Extract --&gt; SW["Semiglobal SW alignment<br>vs REF and ALT haplotypes"]
+        SW --&gt; Margin{"Score difference ≥ 2?"}
+        Margin --&gt;|ALT wins| Alt3([🔴 ALT]):::alt
+        Margin --&gt;|REF wins| Ref3([✅ REF]):::ref
+        Margin --&gt;|Within margin| Neither3([Neither]):::neither
     end
 
     classDef start fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
-    classDef info fill:#3498db,color:#fff,stroke:#2471a3,stroke-width:2px;
     classDef ref fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
     classDef alt fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
     classDef neither fill:#95a5a6,color:#fff,stroke:#7f8c8d,stroke-width:2px;
@@ -1890,361 +1683,165 @@ Use mouse to pan and zoom
 Use mouse to pan and zoom
 </div>
 </div>
-<div class="admonition info">
-<p class="admonition-title">Masked Comparison — Why Not Exact Match?</p>
-<p>A single sequencing error at a low-quality base would discard the entire read
-under exact matching. The masked approach ignores unreliable bases, allowing the
-remaining high-quality bases to determine allele support. When masking causes both
-alleles to match (ambiguity), the read is safely discarded rather than guessed.</p>
-</div>
-<h4 id="worked-example-step-by-step-reconstruction">Worked Example: Step-by-Step Reconstruction<a class="headerlink" href="#worked-example-step-by-step-reconstruction" title="Permanent link">¶</a></h4>
-<p>Here's a concrete example showing how the engine reconstructs a read's sequence for a complex variant.</p>
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-4-1" id="__codelineno-4-1" name="__codelineno-4-1"></a>Variant: chr1:10 ACG→TT (complex: 3bp REF → 2bp ALT)
-<a href="#__codelineno-4-2" id="__codelineno-4-2" name="__codelineno-4-2"></a>Region:  [10, 13)   (0-based, half-open)
-</code></pre></div>
-<p><strong>Read supporting ALT</strong> — CIGAR: <code>10M 1D 1I 8M</code></p>
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-5-1" id="__codelineno-5-1" name="__codelineno-5-1"></a>Step-by-step CIGAR walk:
-<a href="#__codelineno-5-2" id="__codelineno-5-2" name="__codelineno-5-2"></a>
-<a href="#__codelineno-5-3" id="__codelineno-5-3" name="__codelineno-5-3"></a>  CIGAR op    ref_pos  read_pos  Overlap with [10,13)?  Action
-<a href="#__codelineno-5-4" id="__codelineno-5-4" name="__codelineno-5-4"></a>  ─────────   ───────  ────────  ─────────────────────  ──────────────────────
-<a href="#__codelineno-5-5" id="__codelineno-5-5" name="__codelineno-5-5"></a>  10M         0→10     0→10      [10,10) = none         (just advance)
-<a href="#__codelineno-5-6" id="__codelineno-5-6" name="__codelineno-5-6"></a>  ⚠️ Wait — let's reconsider. 10M covers ref [0,10), read [0,10).
-<a href="#__codelineno-5-7" id="__codelineno-5-7" name="__codelineno-5-7"></a>     overlap with [10,13) = none yet.
-<a href="#__codelineno-5-8" id="__codelineno-5-8" name="__codelineno-5-8"></a>
-<a href="#__codelineno-5-9" id="__codelineno-5-9" name="__codelineno-5-9"></a>  Actually, the 10M goes from ref 0 to 10 (exclusive).
-<a href="#__codelineno-5-10" id="__codelineno-5-10" name="__codelineno-5-10"></a>  After 10M: ref_pos=10, read_pos=10.
-<a href="#__codelineno-5-11" id="__codelineno-5-11" name="__codelineno-5-11"></a>
-<a href="#__codelineno-5-12" id="__codelineno-5-12" name="__codelineno-5-12"></a>  1D          10→11    (no read)  ref_pos 10 is in [10,13)
-<a href="#__codelineno-5-13" id="__codelineno-5-13" name="__codelineno-5-13"></a>                                  But Del → no bases appended, ref advances
-<a href="#__codelineno-5-14" id="__codelineno-5-14" name="__codelineno-5-14"></a>              After: ref_pos=11, read_pos=10
-<a href="#__codelineno-5-15" id="__codelineno-5-15" name="__codelineno-5-15"></a>
-<a href="#__codelineno-5-16" id="__codelineno-5-16" name="__codelineno-5-16"></a>  1I          11       10→11     ref_pos=11 is in [10,13]
-<a href="#__codelineno-5-17" id="__codelineno-5-17" name="__codelineno-5-17"></a>                                  Append 1 inserted base from read[10]
-<a href="#__codelineno-5-18" id="__codelineno-5-18" name="__codelineno-5-18"></a>                                  reconstructed = "T"
-<a href="#__codelineno-5-19" id="__codelineno-5-19" name="__codelineno-5-19"></a>              After: ref_pos=11, read_pos=11
-<a href="#__codelineno-5-20" id="__codelineno-5-20" name="__codelineno-5-20"></a>
-<a href="#__codelineno-5-21" id="__codelineno-5-21" name="__codelineno-5-21"></a>  8M          11→19    11→19     overlap [11,13) = 2 bases
-<a href="#__codelineno-5-22" id="__codelineno-5-22" name="__codelineno-5-22"></a>                                  Append read[11] and read[12]
-<a href="#__codelineno-5-23" id="__codelineno-5-23" name="__codelineno-5-23"></a>                                  reconstructed = "T" + "T" = "TT"
-<a href="#__codelineno-5-24" id="__codelineno-5-24" name="__codelineno-5-24"></a>              After: ref_pos=19, read_pos=19
-<a href="#__codelineno-5-25" id="__codelineno-5-25" name="__codelineno-5-25"></a>
-<a href="#__codelineno-5-26" id="__codelineno-5-26" name="__codelineno-5-26"></a>  ─────────────────────────────────────────────────────────────────
-<a href="#__codelineno-5-27" id="__codelineno-5-27" name="__codelineno-5-27"></a>  Result: reconstructed = "TT"
-<a href="#__codelineno-5-28" id="__codelineno-5-28" name="__codelineno-5-28"></a>          Compare to ALT = "TT" → ✅ Match! → ALT
-</code></pre></div>
-<p><strong>Read supporting REF</strong> — CIGAR: <code>20M</code></p>
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-6-1" id="__codelineno-6-1" name="__codelineno-6-1"></a>  CIGAR op    ref_pos  read_pos  Overlap with [10,13)?  Action
-<a href="#__codelineno-6-2" id="__codelineno-6-2" name="__codelineno-6-2"></a>  ─────────   ───────  ────────  ─────────────────────  ──────────────
-<a href="#__codelineno-6-3" id="__codelineno-6-3" name="__codelineno-6-3"></a>  20M         0→20     0→20      [10,13) = 3 bases
-<a href="#__codelineno-6-4" id="__codelineno-6-4" name="__codelineno-6-4"></a>                                  Append read[10], read[11], read[12]
-<a href="#__codelineno-6-5" id="__codelineno-6-5" name="__codelineno-6-5"></a>                                  reconstructed = "ACG"
-<a href="#__codelineno-6-6" id="__codelineno-6-6" name="__codelineno-6-6"></a>
-<a href="#__codelineno-6-7" id="__codelineno-6-7" name="__codelineno-6-7"></a>  ─────────────────────────────────────────────────────────────────
-<a href="#__codelineno-6-8" id="__codelineno-6-8" name="__codelineno-6-8"></a>  Result: reconstructed = "ACG"
-<a href="#__codelineno-6-9" id="__codelineno-6-9" name="__codelineno-6-9"></a>          Compare to ALT = "TT"  → length 3 ≠ 2 → no match
-<a href="#__codelineno-6-10" id="__codelineno-6-10" name="__codelineno-6-10"></a>          Compare to REF = "ACG" → ✅ Match! → REF
-</code></pre></div>
-<div class="admonition info">
-<p class="admonition-title">Auto-detection</p>
-<p>If a variant's type string is unknown, py-gbcms auto-detects MNPs (equal-length REF/ALT with length &gt; 1) and falls back to the complex haplotype reconstruction for everything else.</p>
-</div>
-<hr>
-<h2 id="counting-levels">Counting Levels<a class="headerlink" href="#counting-levels" title="Permanent link">¶</a></h2>
-<p>After allele classification, py-gbcms tracks counts at <strong>two levels</strong>: individual reads and collapsed fragments.</p>
-<h3 id="read-level-vs-fragment-level">Read-Level vs Fragment-Level<a class="headerlink" href="#read-level-vs-fragment-level" title="Permanent link">¶</a></h3>
-<div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
-<nav class="panzoom-nav">
-<button class="panzoom-info panzoom-button">
-<svg class="panzoom-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M464 256A208 208 0 1 0 48 256a208 208 0 1 0 416 0zM0 256a256 256 0 1 1 512 0A256 256 0 1 1 0 256zm169.8-90.7c7.9-22.3 29.1-37.3 52.8-37.3l58.3 0c34.9 0 63.1 28.3 63.1 63.1c0 22.6-12.1 43.5-31.7 54.8L280 264.4c-.2 13-10.9 23.6-24 23.6c-13.3 0-24-10.7-24-24l0-13.5c0-8.6 4.6-16.5 12.1-20.8l44.3-25.4c4.7-2.7 7.6-7.7 7.6-13.1c0-8.4-6.8-15.1-15.1-15.1l-58.3 0c-3.4 0-6.4 2.1-7.5 5.3l-.4 1.2c-4.4 12.5-18.2 19-30.6 14.6s-19-18.2-14.6-30.6l.4-1.2zM224 352a32 32 0 1 1 64 0 32 32 0 1 1 -64 0z"></path>
-</svg>
-</button><button class="panzoom-reset panzoom-button">
-<svg class="panzoom-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M125.7 160l50.3 0c17.7 0 32 14.3 32 32s-14.3 32-32 32L48 224c-17.7 0-32-14.3-32-32L16 64c0-17.7 14.3-32 32-32s32 14.3 32 32l0 51.2L97.6 97.6c87.5-87.5 229.3-87.5 316.8 0s87.5 229.3 0 316.8s-229.3 87.5-316.8 0c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0c62.5 62.5 163.8 62.5 226.3 0s62.5-163.8 0-226.3s-163.8-62.5-226.3 0L125.7 160z"></path>
-</svg>
-</button><button class="panzoom-max panzoom-button">
-<svg class="panzoom-icon" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M32 32C14.3 32 0 46.3 0 64l0 96c0 17.7 14.3 32 32 32s32-14.3 32-32l0-64 64 0c17.7 0 32-14.3 32-32s-14.3-32-32-32L32 32zM64 352c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-64 0 0-64zM320 32c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0 0 64c0 17.7 14.3 32 32 32s32-14.3 32-32l0-96c0-17.7-14.3-32-32-32l-96 0zM448 352c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 64-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l96 0c17.7 0 32-14.3 32-32l0-96z"></path>
-</svg>
-</button><button class="panzoom-min panzoom-button panzoom-hidden">
-<svg class="panzoom-icon" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M160 64c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 64-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l96 0c17.7 0 32-14.3 32-32l0-96zM32 320c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0 0 64c0 17.7 14.3 32 32 32s32-14.3 32-32l0-96c0-17.7-14.3-32-32-32l-96 0zM352 64c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-64 0 0-64zM320 320c-17.7 0-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32s32-14.3 32-32l0-64 64 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-96 0z"></path>
-</svg>
-</button>
-</nav>
-<pre class="mermaid"><code>flowchart TD
-    subgraph ReadLevel [📖 Read-Level Counting]
-        R1[Read 1 fwd → ALT]:::altread
-        R2[Read 2 rev → ALT]:::altread
-        R3[Read 3 fwd → REF]:::refread
-        R4[Read 4 rev → REF]:::refread
-        R5[Read 5 fwd → ALT]:::altread
-        R6[Read 6 rev → REF]:::refread
-    end
-
-    subgraph FragLevel [🧬 Fragment-Level Counting]
-        direction TB
-        F1[Fragment A: R1+R2 → ALT]:::altfrag
-        F2[Fragment B: R3+R4 → REF]:::reffrag
-        F3[Fragment C: R5 only → ALT]:::altfrag
-        F4[Fragment D: R6 only → REF]:::reffrag
-    end
-
-    R1 --&gt; F1
-    R2 --&gt; F1
-    R3 --&gt; F2
-    R4 --&gt; F2
-    R5 --&gt; F3
-    R6 --&gt; F4
-
-    subgraph Results [📊 Final Counts]
-        ReadCounts[Reads: DP=6  RD=3  AD=3]
-        FragCounts[Fragments: DPF=4  RDF=2  ADF=2]
-    end
-
-    F1 --&gt; FragCounts
-    F2 --&gt; FragCounts
-    F3 --&gt; FragCounts
-    F4 --&gt; FragCounts
-
-    classDef altread fill:#e74c3c15,stroke:#e74c3c;
-    classDef refread fill:#27ae6015,stroke:#27ae60;
-    classDef altfrag fill:#9b59b615,stroke:#9b59b6;
-    classDef reffrag fill:#27ae6015,stroke:#27ae60;
-</code></pre>
-<div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
-Use mouse to pan and zoom
-</div>
-</div>
-<h3 id="read-level-metrics">Read-Level Metrics<a class="headerlink" href="#read-level-metrics" title="Permanent link">¶</a></h3>
-<p>Each read is counted independently.</p>
+<h3 id="phase-1-haplotype-reconstruction">Phase 1: Haplotype Reconstruction<a class="headerlink" href="#phase-1-haplotype-reconstruction" title="Permanent link">¶</a></h3>
+<p>Walks the CIGAR to rebuild what the read shows for the genomic region <code>[pos, pos + ref_len)</code>. Each CIGAR operation contributes differently:</p>
 <table>
 <thead>
 <tr>
-<th style="text-align: left;">Metric</th>
-<th style="text-align: left;">Description</th>
+<th style="text-align: left;">CIGAR Op</th>
+<th style="text-align: left;">Action</th>
+<th style="text-align: left;">Example</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td style="text-align: left;"><strong>DP</strong></td>
-<td style="text-align: left;">Total depth (reads supporting REF or ALT)</td>
+<td style="text-align: left;">M / = / X</td>
+<td style="text-align: left;">Append overlapping bases and qualities</td>
+<td style="text-align: left;">Standard aligned bases</td>
 </tr>
 <tr>
-<td style="text-align: left;"><strong>RD</strong> / <strong>AD</strong></td>
-<td style="text-align: left;">Reference / Alternate read counts</td>
+<td style="text-align: left;">I</td>
+<td style="text-align: left;">Append inserted bases if <code>ref_pos</code> is within variant region</td>
+<td style="text-align: left;">Captures insertions</td>
 </tr>
 <tr>
-<td style="text-align: left;"><strong>DP_fwd</strong> / <strong>DP_rev</strong></td>
-<td style="text-align: left;">Strand-specific total depth</td>
+<td style="text-align: left;">D / N</td>
+<td style="text-align: left;">Advance <code>ref_pos</code> without appending</td>
+<td style="text-align: left;">Deletions skip</td>
 </tr>
 <tr>
-<td style="text-align: left;"><strong>RD_fwd</strong> / <strong>RD_rev</strong></td>
-<td style="text-align: left;">Strand-specific reference counts</td>
+<td style="text-align: left;">S</td>
+<td style="text-align: left;">Append if <code>ref_pos</code> overlaps variant window</td>
+<td style="text-align: left;">Recovers soft-clipped evidence</td>
 </tr>
 <tr>
-<td style="text-align: left;"><strong>AD_fwd</strong> / <strong>AD_rev</strong></td>
-<td style="text-align: left;">Strand-specific alternate counts</td>
+<td style="text-align: left;">H / P</td>
+<td style="text-align: left;">No action</td>
+<td style="text-align: left;">Hard clips have no sequence</td>
 </tr>
 </tbody>
 </table>
-<h3 id="fragment-counting-algorithm">Fragment Counting Algorithm<a class="headerlink" href="#fragment-counting-algorithm" title="Permanent link">¶</a></h3>
-<p>Fragment counting collapses read pairs into a single observation per fragment using <strong>quality-weighted consensus</strong>. Each fragment is tracked internally as a <code>FragmentEvidence</code> struct that records the best base quality seen for REF and ALT across both reads.</p>
-<div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
-<nav class="panzoom-nav">
-<button class="panzoom-info panzoom-button">
-<svg class="panzoom-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M464 256A208 208 0 1 0 48 256a208 208 0 1 0 416 0zM0 256a256 256 0 1 1 512 0A256 256 0 1 1 0 256zm169.8-90.7c7.9-22.3 29.1-37.3 52.8-37.3l58.3 0c34.9 0 63.1 28.3 63.1 63.1c0 22.6-12.1 43.5-31.7 54.8L280 264.4c-.2 13-10.9 23.6-24 23.6c-13.3 0-24-10.7-24-24l0-13.5c0-8.6 4.6-16.5 12.1-20.8l44.3-25.4c4.7-2.7 7.6-7.7 7.6-13.1c0-8.4-6.8-15.1-15.1-15.1l-58.3 0c-3.4 0-6.4 2.1-7.5 5.3l-.4 1.2c-4.4 12.5-18.2 19-30.6 14.6s-19-18.2-14.6-30.6l.4-1.2zM224 352a32 32 0 1 1 64 0 32 32 0 1 1 -64 0z"></path>
-</svg>
-</button><button class="panzoom-reset panzoom-button">
-<svg class="panzoom-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M125.7 160l50.3 0c17.7 0 32 14.3 32 32s-14.3 32-32 32L48 224c-17.7 0-32-14.3-32-32L16 64c0-17.7 14.3-32 32-32s32 14.3 32 32l0 51.2L97.6 97.6c87.5-87.5 229.3-87.5 316.8 0s87.5 229.3 0 316.8s-229.3 87.5-316.8 0c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0c62.5 62.5 163.8 62.5 226.3 0s62.5-163.8 0-226.3s-163.8-62.5-226.3 0L125.7 160z"></path>
-</svg>
-</button><button class="panzoom-max panzoom-button">
-<svg class="panzoom-icon" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M32 32C14.3 32 0 46.3 0 64l0 96c0 17.7 14.3 32 32 32s32-14.3 32-32l0-64 64 0c17.7 0 32-14.3 32-32s-14.3-32-32-32L32 32zM64 352c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-64 0 0-64zM320 32c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0 0 64c0 17.7 14.3 32 32 32s32-14.3 32-32l0-96c0-17.7-14.3-32-32-32l-96 0zM448 352c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 64-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l96 0c17.7 0 32-14.3 32-32l0-96z"></path>
-</svg>
-</button><button class="panzoom-min panzoom-button panzoom-hidden">
-<svg class="panzoom-icon" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M160 64c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 64-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l96 0c17.7 0 32-14.3 32-32l0-96zM32 320c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0 0 64c0 17.7 14.3 32 32 32s32-14.3 32-32l0-96c0-17.7-14.3-32-32-32l-96 0zM352 64c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-64 0 0-64zM320 320c-17.7 0-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32s32-14.3 32-32l0-64 64 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-96 0z"></path>
-</svg>
-</button>
-</nav>
-<pre class="mermaid"><code>flowchart TD
-    Start([For each read passing filters]):::start
-    Start --&gt; Hash["Hash QNAME → u64 key"]
-    Hash --&gt; Observe["Record allele + base quality into FragmentEvidence"]
-    Observe --&gt; Done[After all reads processed]
-    Done --&gt; ForEach[For each unique fragment]
-    ForEach --&gt; HasBoth{Both REF and ALT evidence?}
-    HasBoth --&gt;|No| Direct[Assign to whichever allele was seen]
-    HasBoth --&gt;|Yes| QualCheck{"Quality difference &gt; threshold?"}
-    QualCheck --&gt;|"REF qual &gt;&gt; ALT qual"| Ref([✅ Count as REF]):::ref
-    QualCheck --&gt;|"ALT qual &gt;&gt; REF qual"| Alt([🔴 Count as ALT]):::alt
-    QualCheck --&gt;|"Within threshold"| Discard([⚪ Discard — ambiguous]):::discard
-    Direct --&gt; Count
-    Ref --&gt; Count
-    Alt --&gt; Count
-    Discard --&gt; DPF["Still counted in DPF"]:::info
-    Count[Update RDF / ADF / DPF + strand counts]
-
-    classDef start fill:#3498db,color:#fff,stroke:#2471a3,stroke-width:2px;
-    classDef ref fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
-    classDef alt fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
-    classDef discard fill:#95a5a6,color:#fff,stroke:#7f8c8d,stroke-width:2px;
-    classDef info fill:#3498db15,stroke:#3498db;
-</code></pre>
-<div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
-Use mouse to pan and zoom
-</div>
-</div>
-<h4 id="quality-weighted-consensus">Quality-Weighted Consensus<a class="headerlink" href="#quality-weighted-consensus" title="Permanent link">¶</a></h4>
-<p>When R1 and R2 of a fragment <strong>disagree</strong> (one supports REF, the other ALT), the engine resolves the conflict using base quality scores:</p>
+<h3 id="phase-2-masked-comparison">Phase 2: Masked Comparison<a class="headerlink" href="#phase-2-masked-comparison" title="Permanent link">¶</a></h3>
+<p>Instead of exact matching, bases with quality below <code>--min-baseq</code> are <strong>masked out</strong> — they cannot vote for either allele. Three cases based on reconstructed sequence length:</p>
 <table>
 <thead>
 <tr>
-<th style="text-align: left;">Scenario</th>
+<th style="text-align: left;">Case</th>
 <th style="text-align: left;">Condition</th>
-<th style="text-align: left;">Result</th>
+<th style="text-align: left;">Behavior</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td style="text-align: left;"><strong>REF wins</strong></td>
-<td style="text-align: left;"><code>best_ref_qual &gt; best_alt_qual + threshold</code></td>
-<td style="text-align: left;">Count as REF</td>
+<td style="text-align: left;"><strong>A</strong></td>
+<td style="text-align: left;"><code>recon == alt == ref</code> length</td>
+<td style="text-align: left;">Dual compare + ambiguity detection</td>
 </tr>
 <tr>
-<td style="text-align: left;"><strong>ALT wins</strong></td>
-<td style="text-align: left;"><code>best_alt_qual &gt; best_ref_qual + threshold</code></td>
-<td style="text-align: left;">Count as ALT</td>
+<td style="text-align: left;"><strong>B</strong></td>
+<td style="text-align: left;"><code>recon == alt</code> length only</td>
+<td style="text-align: left;">ALT-only masked compare</td>
 </tr>
 <tr>
-<td style="text-align: left;"><strong>Ambiguous</strong></td>
-<td style="text-align: left;">Quality difference ≤ threshold</td>
-<td style="text-align: left;"><strong>Discard</strong> (neither REF nor ALT)</td>
+<td style="text-align: left;"><strong>C</strong></td>
+<td style="text-align: left;"><code>recon == ref</code> length only</td>
+<td style="text-align: left;">REF-only masked compare</td>
 </tr>
 </tbody>
 </table>
-<p>The threshold is configurable via <code>--fragment-qual-threshold</code> (default: <strong>10</strong>).</p>
 <div class="admonition important">
-<p class="admonition-title">Why discard instead of defaulting to REF?</p>
-<p>Assigning ambiguous fragments to REF would systematically <strong>deflate <abbr title="Variant Allele Frequency - Fraction of reads supporting the variant allele">VAF</abbr></strong> by inflating the reference count. In <abbr title="Cell-free DNA - Circulating DNA fragments in blood plasma">cfDNA</abbr> sequencing where true variants can be at 0.1–1% <abbr title="Variant Allele Frequency - Fraction of reads supporting the variant allele">VAF</abbr>, this bias could mask real mutations. Discarding preserves an unbiased <abbr title="Variant Allele Frequency - Fraction of reads supporting the variant allele">VAF</abbr> estimate at the cost of slightly reduced power (fewer counted fragments).</p>
+<p class="admonition-title">Ambiguity Detection (Case A)</p>
+<p>When reliable bases match <strong>both</strong> REF and ALT (possible when they differ only at masked positions), the read is discarded rather than guessed. This prevents false calls at positions where low-quality bases happen to match one allele.</p>
 </div>
-<div class="admonition tip">
-<p class="admonition-title">Quality metric: DPF − (RDF + ADF)</p>
-<p>Discarded fragments are still counted in <strong>DPF</strong> (total fragment depth) but <em>not</em> in RDF or ADF. The gap <code>DPF − (RDF + ADF)</code> reveals how many ambiguous fragments exist at a locus — a useful quality signal. A high gap suggests a noisy or error-prone site.</p>
+<div class="admonition warning">
+<p class="admonition-title">Large-REF Guard</p>
+<p>For variants with REF &gt;50bp, if the reconstruction is &lt;10% of the REF length (e.g., 1bp recon for a 1024bp deletion), Phase 2 is skipped entirely. A tiny reconstruction would trivially match a short ALT allele, causing overcounting. Phase 3 SW handles these correctly.</p>
 </div>
+<h3 id="phase-3-smith-waterman-fallback">Phase 3: Smith-Waterman Fallback<a class="headerlink" href="#phase-3-smith-waterman-fallback" title="Permanent link">¶</a></h3>
+<p>When Phase 2 fails, the engine expands to the full <code>ref_context</code> window and performs <strong>dual-haplotype Smith-Waterman alignment</strong> (inspired by <a href="https://doi.org/10.1093/bioinformatics/btab601">indelpost</a>):</p>
+<ol>
+<li><strong>Build haplotypes</strong>: <code>REF_hap = left_ctx + REF + right_ctx</code>, <code>ALT_hap = left_ctx + ALT + right_ctx</code></li>
+<li><strong>Trim</strong>: If haplotype exceeds read length, symmetrically trim flanks</li>
+<li><strong>Mask</strong>: Replace low-quality bases with <code>N</code> (scores 0 against any base)</li>
+<li><strong>Align</strong>: Semiglobal alignment — haplotype (query) must be fully consumed, read (text) has free overhangs</li>
+<li><strong>Score</strong>: ALT wins if <code>alt_score ≥ ref_score + 2</code>; REF wins if <code>ref_score ≥ alt_score + 2</code></li>
+</ol>
 <table>
 <thead>
 <tr>
-<th style="text-align: left;">Metric</th>
-<th style="text-align: left;">Description</th>
+<th style="text-align: left;">Parameter</th>
+<th style="text-align: left;">Value</th>
+<th style="text-align: left;">Rationale</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td style="text-align: left;"><strong>DPF</strong></td>
-<td style="text-align: left;">Fragment depth (all fragments, including discarded)</td>
+<td style="text-align: left;">Scoring</td>
+<td style="text-align: left;">+1 match, −1 mismatch</td>
+<td style="text-align: left;">Standard</td>
 </tr>
 <tr>
-<td style="text-align: left;"><strong>RDF</strong> / <strong>ADF</strong></td>
-<td style="text-align: left;">Reference / Alternate fragment counts (resolved only)</td>
+<td style="text-align: left;">N vs anything</td>
+<td style="text-align: left;">0</td>
+<td style="text-align: left;">Low-quality bases don't bias</td>
 </tr>
 <tr>
-<td style="text-align: left;"><strong>RDF_fwd</strong> / <strong>RDF_rev</strong></td>
-<td style="text-align: left;">Strand-specific reference fragment counts</td>
+<td style="text-align: left;">Gap open</td>
+<td style="text-align: left;">−5</td>
+<td style="text-align: left;">Affine gap penalties</td>
 </tr>
 <tr>
-<td style="text-align: left;"><strong>ADF_fwd</strong> / <strong>ADF_rev</strong></td>
-<td style="text-align: left;">Strand-specific alternate fragment counts</td>
+<td style="text-align: left;">Gap extend</td>
+<td style="text-align: left;">−1</td>
+<td style="text-align: left;">Affine gap penalties</td>
+</tr>
+<tr>
+<td style="text-align: left;">Score margin</td>
+<td style="text-align: left;">≥2</td>
+<td style="text-align: left;">Prevents ambiguous calls</td>
+</tr>
+<tr>
+<td style="text-align: left;">Min usable bases</td>
+<td style="text-align: left;">3</td>
+<td style="text-align: left;">Reads with &lt;3 usable bases are skipped</td>
 </tr>
 </tbody>
 </table>
 <div class="admonition tip">
-<p class="admonition-title">Why fragment counting matters for <abbr title="Cell-free DNA - Circulating DNA fragments in blood plasma">cfDNA</abbr></p>
-<p>In <abbr title="Cell-free DNA - Circulating DNA fragments in blood plasma">cfDNA</abbr> sequencing (like MSK-ACCESS), the same DNA fragment is often sequenced from both ends. Counting reads would double-count each fragment. Fragment-level counting gives a more accurate picture of the number of <strong>unique molecules</strong> supporting each allele.</p>
+<p class="admonition-title">Performance: Pre-Filter</p>
+<p>To avoid expensive O(n×m) alignment on clean REF reads (~80-90% at any locus), <code>is_worth_realignment()</code> checks if the read has soft-clips, indels, or mismatches near the variant window. Clean M-only reads are skipped.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Performance: Aligner Reuse</p>
+<p>SW aligners are created <strong>once per variant</strong> in <code>count_single_variant()</code> and reused for all reads. The <code>bio::alignment::pairwise::Aligner</code> reuses internal DP buffers, avoiding repeated heap allocation.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Raw Read Window Extraction</p>
+<p>Phase 3 uses <code>extract_raw_read_window()</code> instead of CIGAR-projected extraction. For complex variants (e.g., <code>TCC→CT</code> represented as <code>DEL+INS</code> in CIGAR), CIGAR projection produces a hybrid sequence matching neither haplotype. Raw extraction returns the contiguous read bases that SW can correctly classify.</p>
 </div>
 <hr>
-<h3 id="strand-bias-fishers-exact-test">Strand Bias (Fisher's Exact Test)<a class="headerlink" href="#strand-bias-fishers-exact-test" title="Permanent link">¶</a></h3>
-<p>Strand bias detects when an allele is disproportionately supported by reads on one strand — a common sequencing artifact.</p>
-<div class="panzoom-box" data-key="none" id="panzoom0" oncontextmenu="return false;">
-<nav class="panzoom-nav">
-<button class="panzoom-info panzoom-button">
-<svg class="panzoom-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M464 256A208 208 0 1 0 48 256a208 208 0 1 0 416 0zM0 256a256 256 0 1 1 512 0A256 256 0 1 1 0 256zm169.8-90.7c7.9-22.3 29.1-37.3 52.8-37.3l58.3 0c34.9 0 63.1 28.3 63.1 63.1c0 22.6-12.1 43.5-31.7 54.8L280 264.4c-.2 13-10.9 23.6-24 23.6c-13.3 0-24-10.7-24-24l0-13.5c0-8.6 4.6-16.5 12.1-20.8l44.3-25.4c4.7-2.7 7.6-7.7 7.6-13.1c0-8.4-6.8-15.1-15.1-15.1l-58.3 0c-3.4 0-6.4 2.1-7.5 5.3l-.4 1.2c-4.4 12.5-18.2 19-30.6 14.6s-19-18.2-14.6-30.6l.4-1.2zM224 352a32 32 0 1 1 64 0 32 32 0 1 1 -64 0z"></path>
-</svg>
-</button><button class="panzoom-reset panzoom-button">
-<svg class="panzoom-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M125.7 160l50.3 0c17.7 0 32 14.3 32 32s-14.3 32-32 32L48 224c-17.7 0-32-14.3-32-32L16 64c0-17.7 14.3-32 32-32s32 14.3 32 32l0 51.2L97.6 97.6c87.5-87.5 229.3-87.5 316.8 0s87.5 229.3 0 316.8s-229.3 87.5-316.8 0c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0c62.5 62.5 163.8 62.5 226.3 0s62.5-163.8 0-226.3s-163.8-62.5-226.3 0L125.7 160z"></path>
-</svg>
-</button><button class="panzoom-max panzoom-button">
-<svg class="panzoom-icon" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M32 32C14.3 32 0 46.3 0 64l0 96c0 17.7 14.3 32 32 32s32-14.3 32-32l0-64 64 0c17.7 0 32-14.3 32-32s-14.3-32-32-32L32 32zM64 352c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-64 0 0-64zM320 32c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0 0 64c0 17.7 14.3 32 32 32s32-14.3 32-32l0-96c0-17.7-14.3-32-32-32l-96 0zM448 352c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 64-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l96 0c17.7 0 32-14.3 32-32l0-96z"></path>
-</svg>
-</button><button class="panzoom-min panzoom-button panzoom-hidden">
-<svg class="panzoom-icon" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg">
-<path d="M160 64c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 64-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l96 0c17.7 0 32-14.3 32-32l0-96zM32 320c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0 0 64c0 17.7 14.3 32 32 32s32-14.3 32-32l0-96c0-17.7-14.3-32-32-32l-96 0zM352 64c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-64 0 0-64zM320 320c-17.7 0-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32s32-14.3 32-32l0-64 64 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-96 0z"></path>
-</svg>
-</button>
-</nav>
-<pre class="mermaid"><code>flowchart LR
-    subgraph Table [2×2 Contingency Table]
-        direction TB
-        Header["| · | Fwd | Rev |"]
-        RefRow["| REF | a | b |"]
-        AltRow["| ALT | c | d |"]
-    end
-
-    Table --&gt; Fisher([Fisher Exact Test]):::test
-    Fisher --&gt; Pval[SB_pval]
-    Fisher --&gt; OR[SB_OR]
-
-    Pval --&gt; Interpret{p &lt; 0.05?}
-    Interpret --&gt;|Yes| Bias{{⚠️ Possible Strand Bias}}:::warn
-    Interpret --&gt;|No| NoBias([✅ No Strand Bias]):::pass
-
-    classDef test fill:#3498db,color:#fff,stroke:#2471a3,stroke-width:2px;
-    classDef warn fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
-    classDef pass fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
-</code></pre>
-<div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
-Use mouse to pan and zoom
-</div>
-</div>
-<p>Computed at <strong>both</strong> levels:</p>
-<table>
-<thead>
-<tr>
-<th style="text-align: left;">Metric</th>
-<th style="text-align: left;">Level</th>
-<th style="text-align: left;">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align: left;"><strong>SB_pval</strong> / <strong>SB_OR</strong></td>
-<td style="text-align: left;">Read</td>
-<td style="text-align: left;">Strand bias from individual reads</td>
-</tr>
-<tr>
-<td style="text-align: left;"><strong>FSB_pval</strong> / <strong>FSB_OR</strong></td>
-<td style="text-align: left;">Fragment</td>
-<td style="text-align: left;">Strand bias from collapsed fragments</td>
-</tr>
-</tbody>
-</table>
-<div class="admonition example">
-<p class="admonition-title">Strand bias example</p>
-<p>If a variant has <code>AD_fwd=15, AD_rev=1</code>, that's suspicious — almost all ALT-supporting reads are on the forward strand. Fisher's test would yield a low p-value, flagging this as a potential artifact rather than a true variant.</p>
-</div>
+<h2 id="limitations">Limitations<a class="headerlink" href="#limitations" title="Permanent link">¶</a></h2>
+<ol>
+<li>
+<p><strong>Windowed scan range</strong> — Indels shifted beyond the context padding from their expected position won't be detected by the CIGAR-based check. Phase 3 SW can catch some of these via <code>ref_context</code>, but only if the read shows evidence (indels/clips) near the variant. <a href="../variant-normalization/#adaptive-context-padding">Adaptive context padding</a> (enabled by default) automatically increases the window in repeat regions where shifted indels are most common.</p>
+</li>
+<li>
+<p><strong>Score margin ≥ 2</strong> — The SW margin is fixed at 2 points (using <code>&gt;=</code>). Very short variants in highly repetitive regions may produce ambiguous scores.</p>
+</li>
+<li>
+<p><strong>Soft-clip recovery</strong> — Phase 1 includes soft-clipped bases that overlap the variant window, but only when <code>ref_pos</code> is within the variant region. Soft clips at the edge of reads far from the variant are not considered.</p>
+</li>
+<li>
+<p><strong>MNP strict matching</strong> — MNPs use all-or-nothing matching. Partial matches (some bases match ALT, others match REF) are classified as neither, even if most positions match.</p>
+</li>
+</ol>
 <hr>
 <h2 id="related">Related<a class="headerlink" href="#related" title="Permanent link">¶</a></h2>
 <ul>
-<li><a href="../architecture/">Architecture</a> — System design, full pipeline diagram, and comparison with original <abbr title="Get Base Count Multi Sample - Multi-BAM variant counting tool">GBCMS</abbr></li>
-<li><a href="../input-formats/">Input Formats</a> — <abbr title="Variant Call Format - Standard variant call file format">VCF</abbr> and <abbr title="Mutation Annotation Format - Standard mutation annotation file format">MAF</abbr> specifications</li>
+<li><a href="../variant-normalization/">Variant Normalization</a> — How variants are prepared before classification</li>
+<li><a href="../read-filters/">Read Filters</a> — Which reads reach the allele checker</li>
+<li><a href="../counting-metrics/">Counting &amp; Metrics</a> — How classifications become counts</li>
 <li><a href="../glossary/">Glossary</a> — Term definitions</li>
-<li><a href="../../cli/run/"><abbr title="Command Line Interface - Terminal-based program interface">CLI</abbr> Run Command</a> — All parameter options</li>
 </ul>
 <!-- Abbreviation definitions for py-gbcms documentation -->
 <!-- These provide hover tooltips for technical acronyms -->
@@ -2253,13 +1850,13 @@ Use mouse to pan and zoom
 <span class="md-icon" title="Last update">
 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
 </span>
-<span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 10, 2026 17:23:41 UTC"><span class="timeago" datetime="2026-02-10T17:23:41+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 10, 2026 17:23:41 UTC">2026-02-10</span>
+<span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 18, 2026 23:11:17 UTC"><span class="timeago" datetime="2026-02-18T23:11:17+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 18, 2026 23:11:17 UTC">2026-02-18</span>
 </span>
 <span class="md-source-file__fact">
 <span class="md-icon" title="Created">
 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M14.47 15.08 11 13V7h1.5v5.25l3.08 1.83c-.41.28-.79.62-1.11 1m-1.39 4.84c-.36.05-.71.08-1.08.08-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8c0 .37-.03.72-.08 1.08.69.1 1.33.32 1.92.64.1-.56.16-1.13.16-1.72 0-5.5-4.5-10-10-10S2 6.5 2 12s4.47 10 10 10c.59 0 1.16-.06 1.72-.16-.32-.59-.54-1.23-.64-1.92M18 15v3h-3v2h3v3h2v-3h3v-2h-3v-3z"></path></svg>
 </span>
-<span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 10, 2026 04:01:20 UTC"><span class="timeago" datetime="2026-02-10T04:01:20+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 10, 2026 04:01:20 UTC">2026-02-10</span>
+<span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 18, 2026 21:59:37 UTC"><span class="timeago" datetime="2026-02-18T21:59:37+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 18, 2026 21:59:37 UTC">2026-02-18</span>
 </span>
 </aside>
 </article>

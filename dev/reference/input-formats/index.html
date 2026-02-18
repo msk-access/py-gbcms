@@ -4,10 +4,10 @@
 <meta content="High-performance variant counting from BAM files" name="description">
 <meta content="MSK-ACCESS" name="author">
 <link href="https://msk-access.github.io/py-gbcms/dev/reference/input-formats/" rel="canonical">
-<link href="../variant-counting/" rel="prev">
-<link href="../glossary/" rel="next">
+<link href="../architecture/" rel="prev">
+<link href="../variant-normalization/" rel="next">
 <link href="../../assets/images/favicon.png" rel="icon">
-<meta content="mkdocs-1.6.1, mkdocs-material-9.7.1" name="generator">
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.2" name="generator">
 <title>Input Formats - py-gbcms</title>
 <link href="../../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet">
 <link href="../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet">
@@ -29,7 +29,7 @@
             body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
             body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
         </style><meta name="panzoom-theme" content="material">
-<meta name="panzoom-data" content='{"selectors": [".mermaid", ".d2"], "initial_zoom_level": 1.0}'> </head>
+<meta name="panzoom-data" content='{"selectors": [".d2", ".mermaid"], "initial_zoom_level": 1.0}'> </head>
 <body data-md-color-accent="custom" data-md-color-primary="custom" data-md-color-scheme="default" dir="ltr">
 <input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox">
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox">
@@ -250,6 +250,18 @@
   </span>
 </a>
 </li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../cli/normalize/">
+<span class="md-ellipsis">
+    
+  
+    Normalize Command
+  
+
+    
+  </span>
+</a>
+</li>
 </ul>
 </nav>
 </li>
@@ -325,7 +337,7 @@
 <span class="md-ellipsis">
     
   
-    Reference
+    How It Works
   
 
     
@@ -337,7 +349,7 @@
 <span class="md-nav__icon md-icon"></span>
             
   
-    Reference
+    How It Works
   
 
           </label>
@@ -348,18 +360,6 @@
     
   
     Architecture
-  
-
-    
-  </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../variant-counting/">
-<span class="md-ellipsis">
-    
-  
-    Variant Counting
   
 
     
@@ -478,28 +478,6 @@
       
     </span>
 </a>
-<nav aria-label="Variant Left-Normalization" class="md-nav">
-<ul class="md-nav__list">
-<li class="md-nav__item">
-<a class="md-nav__link" href="#vcf-normalization">
-<span class="md-ellipsis">
-      
-        VCF Normalization
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#maf-normalization">
-<span class="md-ellipsis">
-      
-        MAF Normalization
-      
-    </span>
-</a>
-</li>
-</ul>
-</nav>
 </li>
 <li class="md-nav__item">
 <a class="md-nav__link" href="#reference-fasta">
@@ -530,6 +508,54 @@
 </li>
 </ul>
 </nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../variant-normalization/">
+<span class="md-ellipsis">
+    
+  
+    Variant Normalization
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../read-filters/">
+<span class="md-ellipsis">
+    
+  
+    Read Filters
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../allele-classification/">
+<span class="md-ellipsis">
+    
+  
+    Allele Classification
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../counting-metrics/">
+<span class="md-ellipsis">
+    
+  
+    Counting &amp; Metrics
+  
+
+    
+  </span>
+</a>
 </li>
 <li class="md-nav__item">
 <a class="md-nav__link" href="../glossary/">
@@ -779,28 +805,6 @@
       
     </span>
 </a>
-<nav aria-label="Variant Left-Normalization" class="md-nav">
-<ul class="md-nav__list">
-<li class="md-nav__item">
-<a class="md-nav__link" href="#vcf-normalization">
-<span class="md-ellipsis">
-      
-        VCF Normalization
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#maf-normalization">
-<span class="md-ellipsis">
-      
-        MAF Normalization
-      
-    </span>
-</a>
-</li>
-</ul>
-</nav>
 </li>
 <li class="md-nav__item">
 <a class="md-nav__link" href="#reference-fasta">
@@ -847,7 +851,7 @@
 <li class="md-path__item">
 <a class="md-path__link" href="../architecture/">
 <span class="md-ellipsis">
-    Reference
+    How It Works
   </span>
 </a>
 </li>
@@ -1019,17 +1023,14 @@ Use mouse to pan and zoom
 <p>For insertions, <code>Start_Position</code> already points to the anchor base. For deletions, <code>Start_Position</code> points to the <em>first deleted base</em>, so py-gbcms shifts back by one position to find the anchor.</p>
 </div>
 <h2 id="variant-left-normalization">Variant Left-Normalization<a class="headerlink" href="#variant-left-normalization" title="Permanent link">¶</a></h2>
-<p>py-gbcms uses <strong>windowed indel detection</strong> (±5bp) to handle cases where aligners place indels at different positions in repetitive regions. For this to work correctly, input variants should be <strong>left-aligned</strong> (left-normalized).</p>
+<p>py-gbcms automatically <strong>left-aligns</strong> indels and complex variants during the preparation step. For full details on the normalization algorithm, homopolymer decomposition detection, and REF validation, see <a href="../variant-normalization/">Variant Normalization</a>.</p>
 <div class="admonition important">
 <p class="admonition-title">Left-Align Your Variants</p>
 <p>Inconsistently normalized variants reduce the effectiveness of windowed indel detection. While the ±5bp window will catch most aligner-shifted indels, left-alignment ensures the anchor position is consistent with standard conventions.</p>
-</div>
-<h3 id="vcf-normalization"><abbr title="Variant Call Format - Standard variant call file format">VCF</abbr> Normalization<a class="headerlink" href="#vcf-normalization" title="Permanent link">¶</a></h3>
-<p>Use <code>bcftools norm</code> to left-align and normalize <abbr title="Variant Call Format - Standard variant call file format">VCF</abbr> variants:</p>
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-2-1" id="__codelineno-2-1" name="__codelineno-2-1"></a>bcftools<span class="w"> </span>norm<span class="w"> </span>-f<span class="w"> </span>reference.fa<span class="w"> </span>-o<span class="w"> </span>normalized.vcf<span class="w"> </span>input.vcf
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-2-1" id="__codelineno-2-1" name="__codelineno-2-1"></a><span class="c1"># VCF: use bcftools norm</span>
+<a href="#__codelineno-2-2" id="__codelineno-2-2" name="__codelineno-2-2"></a>bcftools<span class="w"> </span>norm<span class="w"> </span>-f<span class="w"> </span>reference.fa<span class="w"> </span>-o<span class="w"> </span>normalized.vcf<span class="w"> </span>input.vcf
 </code></pre></div>
-<h3 id="maf-normalization"><abbr title="Mutation Annotation Format - Standard mutation annotation file format">MAF</abbr> Normalization<a class="headerlink" href="#maf-normalization" title="Permanent link">¶</a></h3>
-<p><abbr title="Mutation Annotation Format - Standard mutation annotation file format">MAF</abbr> files are automatically converted to <abbr title="Variant Call Format - Standard variant call file format">VCF</abbr>-style anchor-based coordinates by py-gbcms (see above). Ensure your <abbr title="Mutation Annotation Format - Standard mutation annotation file format">MAF</abbr> variants are already left-aligned before input — most variant annotation pipelines (e.g., <code>vcf2maf</code>) produce left-aligned output by default.</p>
+</div>
 <h2 id="reference-fasta">Reference <abbr title="FASTA format - Reference genome sequence file">FASTA</abbr><a class="headerlink" href="#reference-fasta" title="Permanent link">¶</a></h2>
 <ul>
 <li>Must have corresponding <code>.fai</code> index</li>
@@ -1047,7 +1048,8 @@ Use mouse to pan and zoom
 <h2 id="related">Related<a class="headerlink" href="#related" title="Permanent link">¶</a></h2>
 <ul>
 <li><a href="../../cli/run/"><abbr title="Command Line Interface - Terminal-based program interface">CLI</abbr> Run Command</a> — Usage examples</li>
-<li><a href="../architecture/">Architecture</a> — How counting works</li>
+<li><a href="../variant-normalization/">Variant Normalization</a> — How variants are prepared</li>
+<li><a href="../allele-classification/">Allele Classification</a> — How counting works</li>
 <li><a href="../glossary/">Glossary</a> — Term definitions</li>
 </ul>
 <!-- Abbreviation definitions for py-gbcms documentation -->
@@ -1057,7 +1059,7 @@ Use mouse to pan and zoom
 <span class="md-icon" title="Last update">
 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
 </span>
-<span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 10, 2026 16:51:01 UTC"><span class="timeago" datetime="2026-02-10T16:51:01+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 10, 2026 16:51:01 UTC">2026-02-10</span>
+<span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 18, 2026 21:59:37 UTC"><span class="timeago" datetime="2026-02-18T21:59:37+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 18, 2026 21:59:37 UTC">2026-02-18</span>
 </span>
 <span class="md-source-file__fact">
 <span class="md-icon" title="Created">
