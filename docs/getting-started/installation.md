@@ -46,17 +46,28 @@
 
 For RHEL 8, CentOS 8, or HPC systems with glibc < 2.34:
 
-=== "Conda + Source (Recommended)"
+=== "Micromamba (Recommended)"
     ```bash
-    # Create conda environment with build dependencies
+    # Create environment with build dependencies
     # Note: clangdev (not clang) provides headers needed by bindgen
-    conda create -n gbcms python=3.11 clangdev rust -c conda-forge
-    conda activate gbcms
+    micromamba create -n py_gbcms_env python=3.13 clangdev rust -c conda-forge
+    micromamba activate py_gbcms_env
     
     # Set libclang path for the Rust build
     export LIBCLANG_PATH=$CONDA_PREFIX/lib
     
     # Install from source
+    git clone https://github.com/msk-access/py-gbcms.git
+    cd py-gbcms
+    pip install .
+    ```
+
+=== "Conda"
+    ```bash
+    conda create -n py_gbcms_env python=3.13 clangdev rust -c conda-forge
+    conda activate py_gbcms_env
+    export LIBCLANG_PATH=$CONDA_PREFIX/lib
+    
     git clone https://github.com/msk-access/py-gbcms.git
     cd py-gbcms
     pip install .
