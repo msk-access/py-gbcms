@@ -35,6 +35,9 @@ process GBCMS_RUN {
 
     // Show normalization columns in output
     def show_norm_arg = params.show_normalization ? "--show-normalization" : ""
+
+    // Adaptive context padding in repeat regions
+    def adaptive_arg = params.adaptive_context ? "" : "--no-adaptive-context"
     
     // Construct filter arguments
     def filters = ""
@@ -56,6 +59,7 @@ process GBCMS_RUN {
         ${col_prefix_arg} \\
         ${preserve_barcode_arg} \\
         ${show_norm_arg} \\
+        ${adaptive_arg} \\
         --threads ${task.cpus} \\
         --min-mapq ${params.min_mapq} \\
         --min-baseq ${params.min_baseq} \\

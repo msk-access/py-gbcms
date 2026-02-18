@@ -112,6 +112,14 @@ class QualityThresholds(BaseModel):
             "regions at minimal computational cost."
         ),
     )
+    adaptive_context: bool = Field(
+        default=True,
+        description=(
+            "Dynamically increase context padding in tandem repeat regions. "
+            "When enabled, the effective padding is max(context_padding, "
+            "repeat_span/2 + 3), capped at 50bp."
+        ),
+    )
 
 
 class OutputConfig(BaseModel):

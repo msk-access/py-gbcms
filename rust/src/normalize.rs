@@ -418,6 +418,129 @@ fn fetch_region(
 }
 
 // ---------------------------------------------------------------------------
+// Tandem repeat detection — for adaptive context padding
+// ---------------------------------------------------------------------------
+
+/// Detect the longest tandem repeat (motif 1–6bp) touching a given position.
+///
+/// Scans the provided sequence `seq` for tandem repeats whose footprint
+/// includes `pos_in_seq`.  Returns `(motif_length, total_span)` for the
+/// longest repeat found, or `(1, 1)` if no repeat is detected.
+///
+/// # Algorithm
+///
+/// For each candidate motif length *k* (1..=6):
+/// 1. Extract the motif starting at `pos_in_seq`
+/// 2. Extend left while preceding *k* bases match the motif
+/// 3. Extend right while following *k* bases match the motif
+/// 4. If the span covers ≥ 2 full copies of the motif, record it
+///
+/// The longest span (breaking ties in favour of larger motif) wins.
+fn find_tandem_repeat(seq: &[u8], pos_in_seq: usize) -> (usize, usize) {
+    let len = seq.len();
+    let mut best_unit = 1;
+    let mut best_span = 1;
+
+    for k in 1..=6usize {
+        if pos_in_seq + k > len {
+            break;
+        }
+
+        let motif = &seq[pos_in_seq..pos_in_seq + k];
+
+        // Extend left: how many full motif copies precede pos_in_seq?
+        let mut left_copies = 0;
+        let mut cursor = pos_in_seq;
+        while cursor >= k {
+            if &seq[cursor - k..cursor] == motif {
+                left_copies += 1;
+                cursor -= k;
+            } else {
+                break;
+            }
+        }
+
+        // Extend right: how many full motif copies follow pos_in_seq?
+        let mut right_copies = 0;
+        let mut cursor = pos_in_seq + k;
+        while cursor + k <= len {
+            if &seq[cursor..cursor + k] == motif {
+                right_copies += 1;
+                cursor += k;
+            } else {
+                break;
+            }
+        }
+
+        let total_copies = left_copies + 1 + right_copies; // 1 = the copy at pos_in_seq
+        let span = total_copies * k;
+
+        // Must have ≥2 copies to count as a repeat
+        if total_copies >= 2 && span > best_span {
+            best_unit = k;
+            best_span = span;
+        }
+    }
+
+    (best_unit, best_span)
+}
+
+/// Compute adaptive context padding based on nearby tandem repeats.
+///
+/// Strategy:
+/// 1. Fetch a wide scan window (±`scan_radius` bp) around the variant
+/// 2. Run `find_tandem_repeat()` at the variant position within the window
+/// 3. `effective = max(default_pad, repeat_span / 2 + 3)`, capped at `max_pad`
+/// 4. Falls back to `default_pad` on FASTA fetch failure
+///
+/// # Arguments
+/// * `reader` — FASTA reader (mutable)
+/// * `chrom` — Chromosome name
+/// * `pos` — 0-based variant position
+/// * `ref_len` — Length of the REF allele
+/// * `default_pad` — Minimum padding (from `--context-padding`)
+/// * `max_pad` — Hard cap on adaptive padding
+fn compute_adaptive_padding(
+    reader: &mut fasta::IndexedReader<File>,
+    chrom: &str,
+    pos: i64,
+    ref_len: usize,
+    default_pad: i64,
+    max_pad: i64,
+) -> i64 {
+    let scan_radius: i64 = 30;
+    let scan_start = (pos - scan_radius).max(0);
+    let scan_end = pos + ref_len as i64 + scan_radius;
+
+    let scan_seq = match fetch_region(reader, chrom, scan_start as u64, scan_end as u64) {
+        Ok(s) => s,
+        Err(_) => {
+            debug!(
+                "Adaptive scan fetch failed for {}:{}-{}, using default padding {}",
+                chrom, scan_start, scan_end, default_pad
+            );
+            return default_pad;
+        }
+    };
+
+    // Position within the scan window
+    let pos_in_scan = (pos - scan_start) as usize;
+
+    let (motif_len, repeat_span) = find_tandem_repeat(&scan_seq, pos_in_scan);
+    let adaptive = (repeat_span as i64) / 2 + 3;
+    let effective = default_pad.max(adaptive).min(max_pad);
+
+    if effective > default_pad {
+        debug!(
+            "Adaptive padding for {}:{}: repeat motif={}bp span={}bp → padding {} (default {})",
+            chrom, pos + 1, motif_len, repeat_span, effective, default_pad
+        );
+    }
+
+    effective
+}
+
+// ---------------------------------------------------------------------------
 // prepare_variants — PyO3 entry point, consolidates all FASTA access
 // ---------------------------------------------------------------------------
 
@@ -435,14 +558,15 @@ fn fetch_region(
 /// # Arguments
 /// * `variants` — Input variants (raw MAF or VCF coords, 0-based)
 /// * `fasta_path` — Path to indexed reference FASTA
-/// * `context_padding` — Flanking bases for ref_context (e.g. 5)
+/// * `context_padding` — Minimum flanking bases for ref_context (e.g. 5)
 /// * `is_maf` — If true, perform MAF→VCF anchor resolution for indels
 /// * `threads` — Number of rayon worker threads
+/// * `adaptive_context` — If true, dynamically increase padding in repeat regions
 ///
 /// # Returns
 /// One `PreparedVariant` per input variant, in the same order.
 #[pyfunction]
-#[pyo3(signature = (variants, fasta_path, context_padding, is_maf, threads=1))]
+#[pyo3(signature = (variants, fasta_path, context_padding, is_maf, threads=1, adaptive_context=true))]
 pub fn prepare_variants(
     py: Python<'_>,
     variants: Vec<Variant>,
@@ -450,12 +574,14 @@ pub fn prepare_variants(
     context_padding: i64,
     is_maf: bool,
     threads: usize,
+    adaptive_context: bool,
 ) -> PyResult<Vec<PreparedVariant>> {
     info!(
-        "prepare_variants: {} variants, is_maf={}, context_padding={}, threads={}",
+        "prepare_variants: {} variants, is_maf={}, context_padding={}, adaptive={}, threads={}",
         variants.len(),
         is_maf,
         context_padding,
+        adaptive_context,
         threads,
     );
 
@@ -496,6 +622,7 @@ pub fn prepare_variants(
                                 variant,
                                 context_padding,
                                 is_maf,
+                                adaptive_context,
                             )
                         },
                     )
@@ -525,12 +652,13 @@ pub fn prepare_variants(
 
 /// Process a single variant through the full preparation pipeline.
 ///
-/// Steps: MAF anchor → validate REF → left-align → fetch ref_context.
+/// Steps: MAF anchor → validate REF → left-align → adaptive context → fetch ref_context.
 fn prepare_single_variant(
     reader_result: &mut Result<fasta::IndexedReader<File>, anyhow::Error>,
     variant: &Variant,
     context_padding: i64,
     is_maf: bool,
+    adaptive_context: bool,
 ) -> Result<PreparedVariant, anyhow::Error> {
     let reader = reader_result.as_mut().map_err(|e| {
         anyhow::anyhow!("FASTA reader not available: {}", e)
@@ -684,9 +812,23 @@ fn prepare_single_variant(
     }
 
     // Step 4: Fetch ref_context at (possibly normalized) position
+    //         With adaptive_context, padding is increased in repeat regions.
     let (ref_context, ref_context_start) = if is_indel || vtype == "COMPLEX" {
-        let ctx_start = (pos - context_padding).max(0);
-        let ctx_end = pos + ref_al.len() as i64 + context_padding;
+        let effective_padding = if adaptive_context {
+            compute_adaptive_padding(
+                reader,
+                &variant.chrom,
+                pos,
+                ref_al.len(),
+                context_padding,
+                50,  // max cap
+            )
+        } else {
+            context_padding
+        };
+
+        let ctx_start = (pos - effective_padding).max(0);
+        let ctx_end = pos + ref_al.len() as i64 + effective_padding;
 
         match fetch_region(
             reader,
@@ -940,5 +1082,106 @@ mod tests {
         assert_eq!(a, b"TC");
         assert!(!modified);
     }
-}
 
+    // -- find_tandem_repeat tests --
+
+    #[test]
+    fn test_find_tandem_repeat_homopolymer() {
+        // GATCAAAAAAGCTT — 6 A's at pos 4-9
+        let seq = b"GATCAAAAAAGCTT";
+        let (unit, span) = find_tandem_repeat(seq, 4);
+        assert_eq!(unit, 1, "Should detect homopolymer (unit=1)");
+        assert_eq!(span, 6, "6 consecutive A's");
+    }
+
+    #[test]
+    fn test_find_tandem_repeat_dinuc() {
+        // GATCACACACCGTT — CA repeat at pos 4-9 (3 copies)
+        let seq = b"GATCACACACGTT";
+        let (unit, span) = find_tandem_repeat(seq, 4);
+        assert_eq!(unit, 2, "Should detect dinucleotide repeat");
+        assert_eq!(span, 6, "3 copies of CA = 6bp span");
+    }
+
+    #[test]
+    fn test_find_tandem_repeat_trinuc() {
+        // CAGCAGCAGTTTT — 3 copies of CAG at pos 0
+        let seq = b"CAGCAGCAGTTTT";
+        let (unit, span) = find_tandem_repeat(seq, 0);
+        assert_eq!(unit, 3, "Should detect trinucleotide repeat");
+        assert_eq!(span, 9, "3 copies of CAG = 9bp span");
+    }
+
+    #[test]
+    fn test_find_tandem_repeat_no_repeat() {
+        // ATCGATCG — no repeat at pos 2
+        let seq = b"ATCGATCG";
+        let (unit, span) = find_tandem_repeat(seq, 2);
+        assert_eq!(span, 1, "No repeat detected, span should be 1");
+        assert_eq!(unit, 1);
+    }
+
+    #[test]
+    fn test_find_tandem_repeat_at_edge() {
+        // AAAAAAA — homopolymer at pos 0
+        let seq = b"AAAAAAA";
+        let (unit, span) = find_tandem_repeat(seq, 0);
+        assert_eq!(unit, 1);
+        assert_eq!(span, 7, "Entire sequence is a homopolymer");
+    }
+
+    #[test]
+    fn test_find_tandem_repeat_middle_of_run() {
+        // TTAAAAATT — 5 A's, queried at pos 4 (middle of run)
+        let seq = b"TTAAAAATT";
+        let (unit, span) = find_tandem_repeat(seq, 4);
+        assert_eq!(unit, 1);
+        assert_eq!(span, 5, "5 A's even when querying from the middle");
+    }
+
+    // -- compute_adaptive_padding (formula) tests --
+
+    #[test]
+    fn test_adaptive_padding_default() {
+        // Non-repeat: span=1 → adaptive = 1/2+3 = 3 → max(5,3) = 5
+        let span = 1;
+        let default_pad: i64 = 5;
+        let max_pad: i64 = 50;
+        let adaptive = (span as i64) / 2 + 3;
+        let effective = default_pad.max(adaptive).min(max_pad);
+        assert_eq!(effective, 5, "Non-repeat should use default padding");
+    }
+
+    #[test]
+    fn test_adaptive_padding_homopoly() {
+        // Poly-A span=14 → adaptive = 14/2+3 = 10 → max(5,10) = 10
+        let span = 14;
+        let default_pad: i64 = 5;
+        let max_pad: i64 = 50;
+        let adaptive = (span as i64) / 2 + 3;
+        let effective = default_pad.max(adaptive).min(max_pad);
+        assert_eq!(effective, 10, "Homopolymer should increase padding");
+    }
+
+    #[test]
+    fn test_adaptive_padding_dinuc() {
+        // CA-repeat span=20 → adaptive = 20/2+3 = 13 → max(5,13) = 13
+        let span = 20;
+        let default_pad: i64 = 5;
+        let max_pad: i64 = 50;
+        let adaptive = (span as i64) / 2 + 3;
+        let effective = default_pad.max(adaptive).min(max_pad);
+        assert_eq!(effective, 13, "Dinucleotide repeat should increase padding");
+    }
+
+    #[test]
+    fn test_adaptive_padding_capped() {
+        // Very long repeat span=120 → adaptive = 120/2+3 = 63 → min(63,50) = 50
+        let span = 120;
+        let default_pad: i64 = 5;
+        let max_pad: i64 = 50;
+        let adaptive = (span as i64) / 2 + 3;
+        let effective = default_pad.max(adaptive).min(max_pad);
+        assert_eq!(effective, 50, "Should be capped at max_pad");
+    }
+}
