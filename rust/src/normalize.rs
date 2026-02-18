@@ -324,52 +324,19 @@ fn resolve_maf_anchor(
     Ok((anchor_pos_0based, vcf_ref, vcf_alt, vtype.to_string()))
 }
 
-/// Fetch a single base from the reference, trying `chrom` then `chr{chrom}`.
+/// Fetch a single base from the reference, delegating to `fetch_region`.
 fn fetch_single_base(
     reader: &mut fasta::IndexedReader<File>,
     chrom: &str,
     pos_0based: i64,
 ) -> anyhow::Result<u8> {
     let pos = pos_0based as u64;
-    let mut buf = Vec::new();
-
-    // Try the chromosome name as-is
-    if reader.fetch(chrom, pos, pos + 1).is_ok() {
-        buf.clear();
-        reader.read(&mut buf)?;
-        if !buf.is_empty() {
-            return Ok(buf[0].to_ascii_uppercase());
-        }
-    }
-
-    // Try with "chr" prefix
-    let chr_name = format!("chr{}", chrom);
-    if reader.fetch(&chr_name, pos, pos + 1).is_ok() {
-        buf.clear();
-        reader.read(&mut buf)?;
-        if !buf.is_empty() {
-            return Ok(buf[0].to_ascii_uppercase());
-        }
-    }
-
-    // Try stripping "chr" prefix if present
-    if let Some(stripped) = chrom.strip_prefix("chr") {
-        if reader.fetch(stripped, pos, pos + 1).is_ok() {
-            buf.clear();
-            reader.read(&mut buf)?;
-            if !buf.is_empty() {
-                return Ok(buf[0].to_ascii_uppercase());
-            }
-        }
-    }
-
-    anyhow::bail!(
-        "FASTA fetch failed for {}:{} (tried '{}', 'chr{}', stripped)",
-        chrom,
-        pos_0based,
-        chrom,
-        chrom,
-    )
+    let buf = fetch_region(reader, chrom, pos, pos + 1)?;
+    buf.first()
+        .map(|b| b.to_ascii_uppercase())
+        .ok_or_else(|| anyhow::anyhow!(
+            "FASTA fetch returned empty for {}:{}", chrom, pos_0based
+        ))
 }
 
 // ---------------------------------------------------------------------------
