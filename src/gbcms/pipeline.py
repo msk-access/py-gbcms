@@ -25,6 +25,10 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 
+from .core.kernel import CoordinateKernel
+from .io.input import MafReader, VariantReader, VcfReader
+from .io.output import MafWriter, VcfWriter
+from .models.core import GbcmsConfig, OutputFormat, Variant
 
 _gbcms_rs = None
 
@@ -38,11 +42,6 @@ def _get_rs():
         _gbcms_rs = _rs
     return _gbcms_rs
 
-
-from .core.kernel import CoordinateKernel
-from .io.input import MafReader, VariantReader, VcfReader
-from .io.output import MafWriter, VcfWriter
-from .models.core import GbcmsConfig, OutputFormat, Variant
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +136,9 @@ class Pipeline:
         )
 
         # Split into valid (for counting) and all (for output)
-        valid_indices = [i for i, p in enumerate(prepared) if p.validation_status.startswith("PASS")]
+        valid_indices = [
+            i for i, p in enumerate(prepared) if p.validation_status.startswith("PASS")
+        ]
         rs_variants = [prepared[i].variant for i in valid_indices]
 
         # Log validation results
@@ -274,7 +275,7 @@ class Pipeline:
             logger.debug("Rust count_bam completed in %.3fs", rust_time)
 
             # Update validation_status for variants where decomposed allele won
-            for idx, counts in zip(valid_indices, counts_list):
+            for idx, counts in zip(valid_indices, counts_list, strict=True):
                 if counts.used_decomposed:
                     prepared[idx].validation_status = "PASS_WARN_HOMOPOLYMER_DECOMP"
 
