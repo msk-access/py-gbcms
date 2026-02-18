@@ -82,15 +82,15 @@ class Pipeline:
         self._stats["total_variants"] = len(variants)
 
         # 3. Prepare Rust Variants
-        # For indels, fetch reference context (±5bp) for windowed detection.
-        # This enables Safeguard 3 (reference context check) in the Rust engine.
-        window_pad = 5
+        # For indels, fetch reference context for windowed detection and
+        # Smith-Waterman haplotype alignment (Safeguard 3 in the Rust engine).
+        window_pad = self.config.quality.context_padding
         fasta = pysam.FastaFile(str(self.config.reference_fasta))
         rs_variants = []
         for v in variants:
             ref_context = None
             ref_context_start = 0
-            if v.variant_type.value in ("INSERTION", "DELETION"):
+            if v.variant_type.value in ("INSERTION", "DELETION", "COMPLEX"):
                 ctx_start = max(0, v.pos - window_pad)
                 ctx_end = v.pos + len(v.ref) + window_pad
                 try:

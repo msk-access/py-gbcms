@@ -92,6 +92,32 @@ class TestMafReader(unittest.TestCase):
         self.assertEqual(v.alt, "A")
         self.assertEqual(v.variant_type, VariantType.DELETION)
 
+    def test_maf_complex_variant(self):
+        """P0-1: Complex variant (CG→TAA) normalized with anchor base."""
+        # Complex: both ref and alt are non-dash with different lengths.
+        # MAF: Start=6, End=7, Ref='CG', Alt='TAA'
+        # FASTA 0-based: 0:A, 1:T, 2:C, 3:G, 4:A, 5:T, 6:C, 7:G
+        # Anchor at pos 5 (1-based) = 4 (0-based) = 'A'
+        # VCF: POS=5, REF='ACG', ALT='ATAA'
+
+        maf_path = self.base_path / "test_complex.maf"
+        with open(maf_path, "w") as f:
+            f.write(
+                "Hugo_Symbol\tChromosome\tStart_Position\tEnd_Position\tReference_Allele\tTumor_Seq_Allele2\n"
+            )
+            f.write("Gene1\tchr1\t6\t7\tCG\tTAA\n")
+
+        reader = MafReader(maf_path, self.fasta_path)
+        variants = list(reader)
+        self.assertEqual(len(variants), 1)
+        v = variants[0]
+
+        self.assertEqual(v.chrom, "1")
+        self.assertEqual(v.pos, 4)  # 0-based: VCF POS 5 → internal 4
+        self.assertEqual(v.ref, "ACG")  # anchor 'A' + original ref 'CG'
+        self.assertEqual(v.alt, "ATAA")  # anchor 'A' + original alt 'TAA'
+        self.assertEqual(v.variant_type, VariantType.COMPLEX)
+
 
 if __name__ == "__main__":
     unittest.main()
