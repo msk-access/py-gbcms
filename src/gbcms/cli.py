@@ -97,6 +97,14 @@ def run(
             "the difference exceeds this threshold; otherwise the fragment is discarded."
         ),
     ),
+    context_padding: int = typer.Option(
+        5,
+        "--context-padding",
+        help=(
+            "Flanking reference bases around indel/complex variants for "
+            "haplotype construction and Smith-Waterman alignment (1-50)."
+        ),
+    ),
     # Read filters
     filter_duplicates: bool = typer.Option(True, help="Filter duplicate reads"),
     filter_secondary: bool = typer.Option(False, help="Filter secondary alignments"),
@@ -139,6 +147,7 @@ def run(
             min_mapping_quality=min_mapq,
             min_base_quality=min_baseq,
             fragment_qual_threshold=fragment_qual_threshold,
+            context_padding=context_padding,
         )
 
         filter_config = ReadFilters(

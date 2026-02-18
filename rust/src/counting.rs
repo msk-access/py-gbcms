@@ -11,7 +11,8 @@ use crate::types::{BaseCounts, Variant};
 use rayon::prelude::*;
 
 use anyhow::{Context, Result};
-use log::debug;
+use log::{debug, trace};
+use bio::alignment::pairwise::Aligner;
 
 /// Evidence accumulated for a single fragment (read pair) at a variant site.
 /// Tracks the best base quality seen for each allele across both reads,
@@ -99,6 +100,7 @@ fn hash_qname(qname: &[u8]) -> u64 {
 }
 
 /// Count bases for a list of variants in a BAM file.
+#[allow(clippy::too_many_arguments)]
 #[pyfunction]
 #[pyo3(signature = (bam_path, variants, min_mapq, min_baseq, filter_duplicates, filter_secondary, filter_supplementary, filter_qc_failed, filter_improper_pair, filter_indel, threads, fragment_qual_threshold=10))]
 pub fn count_bam(
@@ -173,6 +175,7 @@ pub fn count_bam(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn count_single_variant(
     bam: &mut bam::IndexedReader,
     variant: &Variant,
@@ -210,6 +213,19 @@ fn count_single_variant(
     // Configurable via --fragment-qual-threshold (default: 10).
     let qual_diff_threshold: u8 = fragment_qual_threshold;
 
+    // Create SW aligners ONCE per variant, not per read (indelpost pattern).
+    // bio::alignment::pairwise::Aligner reuses internal DP buffers on
+    // subsequent calls, avoiding repeated O(n×m) heap allocation.
+    let score_fn = |a: u8, b: u8| -> i32 {
+        if a == b'N' || b == b'N' { 0 } else if a == b { 1 } else { -1 }
+    };
+    // ALT + REF: Same affine gap penalties for fair comparison.
+    // With raw read window extraction (extract_raw_read_window), the read
+    // includes insertion bases making it potentially longer than either
+    // haplotype. Both aligners need gap tolerance for correct scoring.
+    let mut alt_aligner = Aligner::new(-5, -1, &score_fn);
+    let mut ref_aligner = Aligner::new(-5, -1, &score_fn);
+
     for result in bam.records() {
         let record = result.context("Error reading BAM record")?;
 
@@ -243,7 +259,9 @@ fn count_single_variant(
         }
 
         // Determine allele status and base quality at variant position
-        let (is_ref, is_alt, base_qual) = check_allele_with_qual(&record, variant, min_baseq);
+        let (is_ref, is_alt, base_qual) = check_allele_with_qual(
+            &record, variant, min_baseq, &mut alt_aligner, &mut ref_aligner,
+        );
 
         if !is_ref && !is_alt {
             continue;
@@ -288,7 +306,7 @@ fn count_single_variant(
     // Each fragment contributes exactly ONE allele call (REF xor ALT),
     // preventing the double-counting bug where R1=REF + R2=ALT
     // inflated both rdf and adf.
-    for (_qname_hash, evidence) in &fragments {
+    for evidence in fragments.values() {
         let (frag_ref, frag_alt) = evidence.resolve(qual_diff_threshold);
 
         // Get fragment orientation (prefer read 1)
@@ -345,19 +363,29 @@ fn count_single_variant(
 /// Each variant-type handler returns quality directly from its own CIGAR
 /// walk, ensuring correct quality extraction even for reads carrying
 /// indels at the variant position.
-fn check_allele_with_qual(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool, u8) {
+///
+/// The `alt_aligner` and `ref_aligner` are reusable SW aligners created
+/// once per variant in `count_single_variant()` and threaded through to
+/// avoid per-read allocation (indelpost pattern).
+fn check_allele_with_qual<F: Fn(u8, u8) -> i32>(
+    record: &Record,
+    variant: &Variant,
+    min_baseq: u8,
+    alt_aligner: &mut Aligner<F>,
+    ref_aligner: &mut Aligner<F>,
+) -> (bool, bool, u8) {
     let variant_type = &variant.variant_type;
     debug!("check_allele type={} pos={} ref={} alt={}", variant_type, variant.pos, variant.ref_allele, variant.alt_allele);
 
     match variant_type.as_str() {
         "SNP" => check_snp(record, variant, min_baseq),
         "INSERTION" => check_insertion(record, variant, min_baseq),
-        "DELETION" => check_deletion(record, variant, min_baseq),
+        "DELETION" => check_deletion(record, variant, min_baseq, alt_aligner, ref_aligner),
         "MNP" => {
             debug!("Dispatching to check_mnp");
             check_mnp(record, variant, min_baseq)
         },
-        "COMPLEX" => check_complex(record, variant, min_baseq),
+        "COMPLEX" => check_complex(record, variant, min_baseq, alt_aligner, ref_aligner),
         _ => {
             // Auto-detect MNP if type is not explicit but looks like one
             if variant.ref_allele.len() == variant.alt_allele.len()
@@ -367,13 +395,309 @@ fn check_allele_with_qual(record: &Record, variant: &Variant, min_baseq: u8) -> 
                 check_mnp(record, variant, min_baseq)
             } else {
                 // Fallback to complex check for anything else (e.g. DelIns)
-                check_complex(record, variant, min_baseq)
+                check_complex(record, variant, min_baseq, alt_aligner, ref_aligner)
             }
         }
     }
 }
 
 
+
+
+/// Extract contiguous **raw** read bases spanning a genomic window `[win_start, win_end)`.
+///
+/// Unlike `extract_read_subsequence` which concatenates CIGAR-projected bases
+/// (breaking complex variants represented as DEL+INS), this function finds the
+/// read position range overlapping the window and returns the **original read
+/// sequence** — preserving the true underlying allele for SW alignment.
+///
+/// ## Why this matters for complex variants
+///
+/// For EPHA7 (REF=TCC, ALT=CT), BWA represents ALT reads as `91M2D6M4I`.
+/// CIGAR-projected extraction produces `GGAAACTCTCCAAAA` which matches
+/// neither REF (`GGAAATCCACTCC`) nor ALT (`GGAAACTACTCC`).
+/// Raw extraction produces `GGAAACTCTCCAAAA` from the same read positions,
+/// which SW alignment can correctly classify by scoring against both haplotypes.
+///
+/// ## Algorithm
+///
+/// 1. Walk CIGAR to find the first read_pos where ref enters the window
+/// 2. Walk CIGAR to find the last read_pos where ref is still in the window
+///    (including insertion bases at window boundaries)
+/// 3. Return `seq[first_read_pos..=last_read_pos]`
+///
+/// Returns `(bases, quals)` — empty if the read doesn't overlap the window.
+fn extract_raw_read_window(
+    record: &Record,
+    win_start: i64,
+    win_end: i64,
+) -> (Vec<u8>, Vec<u8>) {
+    let cigar = record.cigar();
+    let mut ref_pos = record.pos();
+    let mut read_pos: usize = 0;
+    let seq = record.seq();
+    let quals = record.qual();
+
+    let mut first_read_pos: Option<usize> = None;
+    let mut last_read_pos: Option<usize> = None;
+
+    for op in cigar.iter() {
+        match op {
+            Cigar::Match(len) | Cigar::Equal(len) | Cigar::Diff(len) => {
+                let len_i64 = *len as i64;
+                let len_usize = *len as usize;
+
+                // Check overlap with [win_start, win_end)
+                let overlap_start = std::cmp::max(ref_pos, win_start);
+                let overlap_end = std::cmp::min(ref_pos + len_i64, win_end);
+                if overlap_start < overlap_end {
+                    let offset = (overlap_start - ref_pos) as usize;
+                    let count = (overlap_end - overlap_start) as usize;
+                    let rp_start = read_pos + offset;
+                    let rp_end = rp_start + count - 1;
+                    if first_read_pos.is_none() {
+                        first_read_pos = Some(rp_start);
+                    }
+                    last_read_pos = Some(rp_end);
+                }
+                ref_pos += len_i64;
+                read_pos += len_usize;
+            }
+            Cigar::Ins(len) => {
+                let len_usize = *len as usize;
+                // Include insertion bases if they fall within the window boundary.
+                // An insertion at ref_pos X appears between ref X-1 and X.
+                if ref_pos >= win_start && ref_pos <= win_end {
+                    let rp_end = read_pos + len_usize - 1;
+                    if first_read_pos.is_none() {
+                        first_read_pos = Some(read_pos);
+                    }
+                    last_read_pos = Some(rp_end);
+                }
+                read_pos += len_usize;
+            }
+            Cigar::Del(len) | Cigar::RefSkip(len) => {
+                ref_pos += *len as i64;
+            }
+            Cigar::SoftClip(len) => {
+                let len_usize = *len as usize;
+                // Soft clips near the window may carry variant evidence.
+                if ref_pos >= win_start && ref_pos < win_end {
+                    let rp_end = read_pos + len_usize - 1;
+                    if first_read_pos.is_none() {
+                        first_read_pos = Some(read_pos);
+                    }
+                    last_read_pos = Some(rp_end);
+                }
+                read_pos += len_usize;
+            }
+            Cigar::HardClip(_) | Cigar::Pad(_) => {}
+        }
+    }
+
+    // Extract contiguous raw read bases from first to last overlapping position
+    match (first_read_pos, last_read_pos) {
+        (Some(first), Some(last)) if first <= last && last < seq.len() => {
+            let bases: Vec<u8> = (first..=last).map(|i| seq[i]).collect();
+            let base_quals: Vec<u8> = quals[first..=last].to_vec();
+            (bases, base_quals)
+        }
+        _ => (Vec::new(), Vec::new()),
+    }
+}
+
+/// Quick pre-filter before Smith-Waterman alignment (indelpost pattern).
+///
+/// Returns `true` only if the read shows evidence that could change the
+/// allele call via SW realignment:
+/// - Soft-clipping within or near the variant window
+/// - CIGAR contains indels within `[win_start, win_end)`
+///
+/// Clean M-only reads that span the variant are skipped (the vast majority
+/// at any locus), eliminating ~80-90% of unnecessary SW calls.
+fn is_worth_realignment(record: &Record, win_start: i64, win_end: i64) -> bool {
+    let cigar = record.cigar();
+    let mut ref_pos = record.pos();
+
+    for op in cigar.iter() {
+        match op {
+            Cigar::Match(len) | Cigar::Equal(len) | Cigar::Diff(len) => {
+                ref_pos += *len as i64;
+            }
+            Cigar::Ins(_) => {
+                // Insertion at this ref_pos — check if within window
+                if ref_pos >= win_start && ref_pos <= win_end {
+                    return true;
+                }
+            }
+            Cigar::Del(len) => {
+                let del_end = ref_pos + *len as i64;
+                // Deletion overlapping window
+                if ref_pos < win_end && del_end > win_start {
+                    return true;
+                }
+                ref_pos = del_end;
+            }
+            Cigar::SoftClip(_) => {
+                // Soft-clip near the variant window suggests misalignment
+                if ref_pos >= win_start - 5 && ref_pos <= win_end + 5 {
+                    return true;
+                }
+            }
+            Cigar::RefSkip(len) => {
+                ref_pos += *len as i64;
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
+/// Classify a read subsequence as REF or ALT using dual-haplotype
+/// Smith-Waterman alignment (inspired by indelpost).
+///
+/// Builds ref/alt haplotypes from `variant.ref_context`, then aligns
+/// `read_seq` against both using the provided reusable `Aligner` instances.
+///
+/// **Alignment mode**: Semiglobal — haplotype (query) must be fully aligned,
+/// read (text) has free overhangs. This answers "does this read *contain*
+/// this haplotype?" — the standard approach for pattern-in-text problems.
+///
+/// **Haplotype trimming**: When a haplotype exceeds the read length (common
+/// with large `context_padding` and complex CIGARs), the haplotype is
+/// symmetrically trimmed from flanks to fit. This ensures semiglobal alignment
+/// penalizes only allele differences, not excess length. A fixed score margin
+/// of 2 works reliably because shared flanking bases contribute equally to
+/// both allele scores — trimming preserves this invariant.
+///
+/// **Memory optimization**: Aligners are created once per variant in
+/// `count_single_variant()` and reused for all reads, avoiding repeated
+/// O(n×m) DP matrix allocation (indelpost pattern).
+///
+/// Returns `(is_ref, is_alt, base_qual)` where `base_qual` is the median
+/// quality across the read subsequence bases (GATK standard).
+fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
+    read_seq: &[u8],
+    read_quals: &[u8],
+    variant: &Variant,
+    min_baseq: u8,
+    alt_aligner: &mut Aligner<F>,
+    ref_aligner: &mut Aligner<F>,
+) -> (bool, bool, u8) {
+    let ref_context = match &variant.ref_context {
+        Some(ctx) => ctx.as_bytes(),
+        None => return (false, false, 0),
+    };
+
+    // Build haplotypes from ref_context.
+    // ref_context covers [ref_context_start, ref_context_start + len).
+    // The variant sits at variant.pos within this context.
+    let offset = (variant.pos - variant.ref_context_start) as usize;
+    let ref_len = variant.ref_allele.len();
+
+    // Guard: ensure offset is valid within ref_context
+    if offset + ref_len > ref_context.len() {
+        debug!(
+            "classify_by_alignment: offset {} + ref_len {} exceeds context len {}",
+            offset, ref_len, ref_context.len()
+        );
+        return (false, false, 0);
+    }
+
+    let left_ctx = &ref_context[..offset];
+    let right_ctx = &ref_context[offset + ref_len..];
+
+    // ref_hap = left_ctx + REF + right_ctx (should equal ref_context)
+    let mut ref_hap: Vec<u8> = left_ctx
+        .iter()
+        .chain(variant.ref_allele.as_bytes())
+        .chain(right_ctx.iter())
+        .copied()
+        .collect();
+
+    // alt_hap = left_ctx + ALT + right_ctx
+    let mut alt_hap: Vec<u8> = left_ctx
+        .iter()
+        .chain(variant.alt_allele.as_bytes())
+        .chain(right_ctx.iter())
+        .copied()
+        .collect();
+
+    // --- Haplotype trimming guard ---
+    // Semiglobal alignment requires the query (haplotype) to be fully consumed.
+    // When the haplotype is longer than the read (e.g. large context_padding
+    // with complex CIGARs that produce short raw read windows), the aligner
+    // forces gap penalties on the excess — penalizing both alleles equally
+    // and destroying the variant-discriminating signal.
+    // Fix: symmetrically trim both haplotypes from the flanks to fit within
+    // the read length, keeping the variant region at the center.
+    let max_hap_len = ref_hap.len().max(alt_hap.len());
+    let read_len = read_seq.len();
+    if max_hap_len > read_len && read_len >= ref_len {
+        let excess = max_hap_len - read_len;
+        let trim_left = excess / 2;
+        let trim_right = excess - trim_left;
+        let ref_end = ref_hap.len().saturating_sub(trim_right);
+        let alt_end = alt_hap.len().saturating_sub(trim_right);
+        ref_hap = ref_hap[trim_left..ref_end].to_vec();
+        alt_hap = alt_hap[trim_left..alt_end].to_vec();
+        trace!(
+            "classify_by_alignment: trimmed haplotypes by {}L/{}R to fit read_len={}",
+            trim_left, trim_right, read_len
+        );
+    }
+
+    // Mask low-quality bases as N so they don't bias scoring.
+    let masked_seq: Vec<u8> = read_seq
+        .iter()
+        .zip(read_quals.iter())
+        .map(|(&b, &q)| if q >= min_baseq { b } else { b'N' })
+        .collect();
+
+    // Skip if too few usable bases.
+    let usable_count = read_quals.iter().filter(|&&q| q >= min_baseq).count();
+    if usable_count < 3 {
+        debug!("classify_by_alignment: only {} usable bases — skipping", usable_count);
+        return (false, false, 0);
+    }
+
+    // Use the provided reusable aligners (created once per variant).
+    trace!(
+        "classify_by_alignment seqs: read={} alt_hap={} ref_hap={}",
+        String::from_utf8_lossy(&masked_seq),
+        String::from_utf8_lossy(&alt_hap),
+        String::from_utf8_lossy(&ref_hap)
+    );
+    // Semiglobal alignment: haplotype = query (fully aligned),
+    // read = text (free overhangs). This finds the best-scoring region
+    // within the (potentially longer) read that matches each haplotype.
+    let alt_aln = alt_aligner.semiglobal(&alt_hap, &masked_seq);
+    let ref_aln = ref_aligner.semiglobal(&ref_hap, &masked_seq);
+
+    let med_qual = median_qual(read_quals, min_baseq);
+
+    // Score margin: require at least 2 points difference to call.
+    // Uses >= (not >) because with larger context_padding, the SW aligner
+    // can find shifted alignments that reduce the score difference from 3
+    // to exactly 2. Strict > would incorrectly classify these as ambiguous.
+    let margin = 2;
+    let is_alt = alt_aln.score >= ref_aln.score + margin;
+    let is_ref = ref_aln.score >= alt_aln.score + margin;
+
+    trace!(
+        "classify_by_alignment: alt_score={} ref_score={} margin={} is_ref={} is_alt={}",
+        alt_aln.score, ref_aln.score, margin, is_ref, is_alt
+    );
+
+    if is_alt {
+        (false, true, med_qual)
+    } else if is_ref {
+        (true, false, med_qual)
+    } else {
+        // Ambiguous — scores too close
+        (false, false, 0)
+    }
+}
 
 /// Check if a read supports a complex variant (indel + substitution).
 ///
@@ -392,9 +716,16 @@ fn check_allele_with_qual(record: &Record, variant: &Variant, min_baseq: u8) -> 
 ///   ambiguity detection. If reliable bases match *both*, read is discarded.
 /// - **Case B** (`recon == alt` length only): masked comparison against ALT only.
 /// - **Case C** (`recon == ref` length only): masked comparison against REF only.
-/// Returns (is_ref, is_alt, base_qual) where base_qual is the minimum quality
+///
+/// Returns (is_ref, is_alt, base_qual) where base_qual is the median quality
 /// across the reconstructed haplotype bases, used for fragment consensus.
-fn check_complex(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool, u8) {
+fn check_complex<F: Fn(u8, u8) -> i32>(
+    record: &Record,
+    variant: &Variant,
+    min_baseq: u8,
+    alt_aligner: &mut Aligner<F>,
+    ref_aligner: &mut Aligner<F>,
+) -> (bool, bool, u8) {
     let start_pos = variant.pos;
     let end_pos = variant.pos + variant.ref_allele.len() as i64; // exclusive
 
@@ -461,7 +792,20 @@ fn check_complex(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bo
                 ref_pos += *len as i64;
             }
             Cigar::SoftClip(len) => {
-                read_pos += *len as usize;
+                let len_usize = *len as usize;
+                // P1-2: Include soft-clipped bases that overlap the variant window.
+                // Soft clips don't consume reference, so ref_pos is unchanged.
+                // This recovers evidence from reads where the aligner clipped
+                // the variant-supporting bases (inspired by VarDict's approach).
+                if ref_pos >= start_pos && ref_pos < end_pos {
+                    for i in 0..len_usize {
+                        let p = read_pos + i;
+                        if p >= seq.len() { break; }
+                        reconstructed_seq.push(seq[p]);
+                        quals_per_base.push(quals[p]);
+                    }
+                }
+                read_pos += len_usize;
             }
             Cigar::HardClip(_) | Cigar::Pad(_) => {}
         }
@@ -474,9 +818,9 @@ fn check_complex(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bo
         reconstructed_seq.len()
     );
 
-    // Minimum quality across the reconstructed haplotype for fragment consensus.
+    // Median quality across the reconstructed haplotype for fragment consensus.
     // This is the quality we return for whichever allele matches.
-    let min_haplotype_qual = quals_per_base.iter().copied().min().unwrap_or(0);
+    let med_haplotype_qual = median_qual(&quals_per_base, min_baseq);
 
     // --- Phase 2: Quality-Aware Masked Comparison ---
     // Mask out low-quality bases. Only reliable bases (qual >= min_baseq) vote.
@@ -510,12 +854,12 @@ fn check_complex(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bo
 
         // Step 3: Unambiguous match
         if mismatches_alt == 0 {
-            debug!("Matches ALT on {} reliable bases, min_qual={}", reliable_count, min_haplotype_qual);
-            return (false, true, min_haplotype_qual);
+            debug!("Matches ALT on {} reliable bases, med_qual={}", reliable_count, med_haplotype_qual);
+            return (false, true, med_haplotype_qual);
         }
         if mismatches_ref == 0 {
-            debug!("Matches REF on {} reliable bases, min_qual={}", reliable_count, min_haplotype_qual);
-            return (true, false, min_haplotype_qual);
+            debug!("Matches REF on {} reliable bases, med_qual={}", reliable_count, med_haplotype_qual);
+            return (true, false, med_haplotype_qual);
         }
 
         // Step 4: Neither matches on reliable bases
@@ -531,8 +875,8 @@ fn check_complex(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bo
         );
 
         if reliable_count > 0 && mismatches == 0 {
-            debug!("Matches ALT on {} reliable bases, min_qual={}", reliable_count, min_haplotype_qual);
-            return (false, true, min_haplotype_qual);
+            debug!("Matches ALT on {} reliable bases, med_qual={}", reliable_count, med_haplotype_qual);
+            return (false, true, med_haplotype_qual);
         }
     } else if matches_ref_len {
         // Case C: Only REF length matches — no ambiguity possible
@@ -545,8 +889,8 @@ fn check_complex(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bo
         );
 
         if reliable_count > 0 && mismatches == 0 {
-            debug!("Matches REF on {} reliable bases, min_qual={}", reliable_count, min_haplotype_qual);
-            return (true, false, min_haplotype_qual);
+            debug!("Matches REF on {} reliable bases, med_qual={}", reliable_count, med_haplotype_qual);
+            return (true, false, med_haplotype_qual);
         }
     } else {
         debug!(
@@ -555,6 +899,44 @@ fn check_complex(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bo
             alt_bytes.len(),
             ref_bytes.len()
         );
+    }
+
+    // --- Phase 3: Alignment-based fallback (indelpost approach) ---
+    // When narrow-window reconstruction fails (FM1: D-truncation, FM2: adjacent I),
+    // expand to the full ref_context window and use dual-haplotype SW alignment.
+    //
+    // CRITICAL: Use raw read window extraction (not CIGAR-projected) to preserve
+    // the true biological sequence. For complex variants (e.g. EPHA7 REF=TCC ALT=CT),
+    // BWA represents ALT reads as DEL+INS CIGARs. CIGAR-projected extraction
+    // produces a hybrid sequence matching neither REF nor ALT haplotype.
+    // Raw extraction gives the contiguous read bases that SW can correctly align.
+    //
+    // Pre-filter (indelpost pattern): only attempt SW for reads showing
+    // evidence of carrying the variant (soft-clips, indels near window).
+    // This eliminates ~80-90% of clean REF reads from expensive alignment.
+    if let Some(ref ctx) = variant.ref_context {
+        let win_start = variant.ref_context_start;
+        let win_end = win_start + ctx.len() as i64;
+
+        if !is_worth_realignment(record, win_start, win_end) {
+            trace!(
+                "Phase 3 skipped: read has clean CIGAR over [{}, {})",
+                win_start, win_end
+            );
+            return (false, false, 0);
+        }
+
+        let (sub_seq, sub_quals) = extract_raw_read_window(record, win_start, win_end);
+        if sub_seq.len() >= 3 {
+            debug!(
+                "Phase 3 fallback: extracted {} raw bases over [{}, {})",
+                sub_seq.len(), win_start, win_end
+            );
+            return classify_by_alignment(
+                &sub_seq, &sub_quals, variant, min_baseq,
+                alt_aligner, ref_aligner,
+            );
+        }
     }
 
     (false, false, 0)
@@ -614,12 +996,30 @@ fn masked_single_compare(
             continue;
         }
         reliable += 1;
-        if base.to_ascii_uppercase() != allele[i].to_ascii_uppercase() {
+        if !base.eq_ignore_ascii_case(&allele[i]) {
             mismatches += 1;
         }
     }
 
     (mismatches, reliable)
+}
+
+/// Compute the median quality of bases that pass the minimum threshold.
+///
+/// Follows the GATK `BaseQuality` annotation standard (median rather than min)
+/// to prevent a single low-quality outlier from penalizing an entire read's
+/// contribution to fragment consensus.
+///
+/// Returns 0 if no qualifying bases.
+#[inline]
+fn median_qual(quals: &[u8], min_baseq: u8) -> u8 {
+    let mut filtered: Vec<u8> = quals.iter()
+        .copied()
+        .filter(|&q| q >= min_baseq)
+        .collect();
+    if filtered.is_empty() { return 0; }
+    filtered.sort_unstable();
+    filtered[filtered.len() / 2]
 }
 
 /// Returns (is_ref, is_alt, base_qual) for SNP variants.
@@ -662,17 +1062,19 @@ fn check_snp(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool, 
 /// Returns (is_ref, is_alt, base_qual) where base_qual is the quality of the
 /// anchor base, used for fragment-level consensus scoring.
 ///
-/// Uses a single CIGAR walk with two detection strategies:
-/// 1. **Strict match (fast path):** Insertion immediately after the anchor base.
+/// Uses a single CIGAR walk with three detection strategies:
+/// 1. **Backward boundary check:** When anchor falls at the start of an M block
+///    and the previous CIGAR op was a matching insertion (fixes off-by-one at
+///    M/I/M boundaries where the aligner splits the match block).
+/// 2. **Strict match (fast path):** Insertion immediately after the anchor base.
 ///    Returns ALT immediately if length + sequence match.
-/// 2. **Windowed scan (fallback):** Any insertion within ±5bp of the anchor,
+/// 3. **Windowed scan (fallback):** Any insertion within ±5bp of the anchor,
 ///    validated by three safeguards:
-///    - S1: Inserted sequence matches expected ALT bases exactly
+///    - S1: Inserted sequence matches expected ALT bases (quality-masked)
 ///    - S2: Closest match wins (minimum |shift_pos - anchor_pos|)
 ///    - S3: Reference base at shifted anchor matches original anchor base
-///          (via variant.ref_context)
+///      (via variant.ref_context)
 fn check_insertion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool, u8) {
-    let _ = min_baseq; // Quality is read for fragment scoring, not filtering (CIGAR-based detection)
     let cigar_view = record.cigar();
     let quals = record.qual();
     let mut ref_pos = record.pos();
@@ -705,6 +1107,36 @@ fn check_insertion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, 
                     anchor_read_pos = Some(read_pos + offset);
                 }
 
+                // --- P0-2: Backward boundary check ---
+                // When anchor falls at block_end of prior M block, CIGAR geometry
+                // places it at ref_pos of THIS block (after the Ins was consumed).
+                // Check backward: was the previous op a matching insertion?
+                if anchor_pos == ref_pos && i > 0 {
+                    if let Some(Cigar::Ins(ins_len)) = cigar_view.get(i - 1) {
+                        let ins_len_usize = *ins_len as usize;
+                        if ins_len_usize == expected_ins_len {
+                            let ins_read_start = read_pos - ins_len_usize;
+                            if ins_read_start + ins_len_usize <= record.seq().len() {
+                                let ins_seq = &record.seq().as_bytes()
+                                    [ins_read_start..ins_read_start + ins_len_usize];
+                                // P1-1: Quality-aware fuzzy match
+                                let ins_quals = &quals[ins_read_start..ins_read_start + ins_len_usize];
+                                let (mismatches, reliable) = masked_single_compare(
+                                    ins_seq, ins_quals, expected_ins_seq, min_baseq
+                                );
+                                if reliable > 0 && mismatches == 0 {
+                                    let qual = if read_pos < quals.len() { quals[read_pos] } else { 0 };
+                                    debug!(
+                                        "check_insertion: backward boundary match at pos {}, qual={}",
+                                        anchor_pos, qual
+                                    );
+                                    return (false, true, qual); // ALT — backward match
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // --- Strict fast path: anchor at end of this block ---
                 if anchor_pos >= ref_pos && anchor_pos < block_end {
                     if anchor_pos == block_end - 1 {
@@ -717,7 +1149,12 @@ fn check_insertion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, 
                                 if ins_start + ins_len_usize <= record.seq().len() {
                                     let ins_seq = &record.seq().as_bytes()
                                         [ins_start..ins_start + ins_len_usize];
-                                    if ins_seq == expected_ins_seq {
+                                    // P1-1: Quality-aware fuzzy match
+                                    let ins_quals = &quals[ins_start..ins_start + ins_len_usize];
+                                    let (mismatches, reliable) = masked_single_compare(
+                                        ins_seq, ins_quals, expected_ins_seq, min_baseq
+                                    );
+                                    if reliable > 0 && mismatches == 0 {
                                         let arp = anchor_read_pos.unwrap_or(0);
                                         let qual = if arp < quals.len() { quals[arp] } else { 0 };
                                         debug!(
@@ -750,7 +1187,12 @@ fn check_insertion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, 
                             if ins_start + ins_len_usize <= record.seq().len() {
                                 let ins_seq = &record.seq().as_bytes()
                                     [ins_start..ins_start + ins_len_usize];
-                                if ins_seq == expected_ins_seq {
+                                // P1-1: Quality-aware fuzzy match
+                                let ins_quals = &quals[ins_start..ins_start + ins_len_usize];
+                                let (mismatches, reliable) = masked_single_compare(
+                                    ins_seq, ins_quals, expected_ins_seq, min_baseq
+                                );
+                                if reliable > 0 && mismatches == 0 {
                                     // Safeguard 3: verify anchor base at shifted position
                                     // The base before the insertion (ins_ref_pos - 1) should
                                     // match the original anchor base
@@ -764,7 +1206,14 @@ fn check_insertion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, 
                                                 ctx.as_bytes()[ctx_offset].to_ascii_uppercase()
                                                     == original_anchor_base
                                             } else {
-                                                false // offset out of bounds
+                                                // P2-1: Permissive on OOB — a false negative
+                                                // (rejecting valid shifted indel) is worse than
+                                                // a false positive (caught by sequence match).
+                                                debug!(
+                                                    "ref_context offset {} out of bounds (len={}), allowing",
+                                                    ctx_offset, ctx.len()
+                                                );
+                                                true
                                             }
                                         }
                                         None => true, // no ref_context → skip check
@@ -775,7 +1224,7 @@ fn check_insertion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, 
                                         let distance =
                                             (ins_ref_pos - (anchor_pos + 1)).unsigned_abs();
                                         if best_windowed_match
-                                            .map_or(true, |prev| distance < prev)
+                                            .is_none_or(|prev| distance < prev)
                                         {
                                             best_windowed_match = Some(distance);
                                         }
@@ -839,9 +1288,17 @@ fn check_insertion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, 
 ///    - S1: Deletion length matches expected
 ///    - S2: Closest match wins
 ///    - S3: Reference bases at shifted position match expected deleted sequence
-///          (via variant.ref_context)
-fn check_deletion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool, u8) {
-    let _ = min_baseq; // Quality is read for fragment scoring, not filtering (CIGAR-based detection)
+///      (via variant.ref_context)
+/// 3. **Haplotype fallback:** When CIGAR geometry doesn't match (e.g. different
+///    breakpoint placement or wrong deletion length), delegates to `check_complex`
+///    for quality-aware haplotype comparison.
+fn check_deletion<F: Fn(u8, u8) -> i32>(
+    record: &Record,
+    variant: &Variant,
+    min_baseq: u8,
+    alt_aligner: &mut Aligner<F>,
+    ref_aligner: &mut Aligner<F>,
+) -> (bool, bool, u8) {
     let cigar_view = record.cigar();
     let quals = record.qual();
     let mut ref_pos = record.pos();
@@ -886,6 +1343,15 @@ fn check_deletion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, b
                                     anchor_pos, qual
                                 );
                                 return (false, true, qual); // ALT — strict match
+                            } else {
+                                // P0-3: D found at anchor but wrong length.
+                                // Fall back to check_complex for haplotype comparison.
+                                debug!(
+                                    "check_deletion: D({}) at anchor {} but expected D({}), \
+                                     falling back to check_complex",
+                                    del_len, anchor_pos, expected_del_len
+                                );
+                                return check_complex(record, variant, min_baseq, alt_aligner, ref_aligner);
                             }
                         }
                         found_ref_coverage = true;
@@ -913,15 +1379,21 @@ fn check_deletion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, b
                                     if ctx_offset + del_len_usize <= ctx_bytes.len() {
                                         let ref_at_shift = &ctx_bytes
                                             [ctx_offset..ctx_offset + del_len_usize];
-                                        // Compare case-insensitively
-                                        ref_at_shift.iter().zip(expected_del_seq.iter()).all(
-                                            |(a, b)| {
-                                                a.to_ascii_uppercase()
-                                                    == b.to_ascii_uppercase()
-                                            },
-                                        )
+                                        // P1-1: Use masked_single_compare for consistency
+                                        // with INS paths. All bases are reference-quality
+                                        // so quality masking has no effect here.
+                                        let ref_quals = vec![u8::MAX; del_len_usize];
+                                        let (mismatches, reliable) = masked_single_compare(
+                                            ref_at_shift, &ref_quals, expected_del_seq, 0
+                                        );
+                                        reliable > 0 && mismatches == 0
                                     } else {
-                                        false // offset out of bounds
+                                        // P2-1: Permissive on OOB
+                                        debug!(
+                                            "ref_context offset {} out of bounds (len={}), allowing",
+                                            ctx_offset, ctx_bytes.len()
+                                        );
+                                        true
                                     }
                                 }
                                 None => true, // no ref_context → skip check
@@ -932,7 +1404,7 @@ fn check_deletion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, b
                                 let distance =
                                     (del_ref_pos - (anchor_pos + 1)).unsigned_abs();
                                 if best_windowed_match
-                                    .map_or(true, |prev| distance < prev)
+                                    .is_none_or(|prev| distance < prev)
                                 {
                                     best_windowed_match = Some(distance);
                                 }
@@ -953,6 +1425,12 @@ fn check_deletion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, b
             Cigar::Del(len) | Cigar::RefSkip(len) => {
                 ref_pos += *len as i64;
             }
+            Cigar::Ins(len) => {
+                read_pos += *len as usize;
+            }
+            Cigar::SoftClip(len) => {
+                read_pos += *len as usize;
+            }
             _ => {}
         }
     }
@@ -971,6 +1449,20 @@ fn check_deletion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, b
         );
         return (false, true, anchor_qual); // ALT — windowed match
     }
+
+    // P0-3: Haplotype fallback — when strict/windowed CIGAR matching found no
+    // deletion match and the read doesn't cover the anchor, try check_complex
+    // which reconstructs the read's haplotype and does quality-aware comparison.
+    // Only fall back when NOT found_ref_coverage to avoid false positives on
+    // reads that genuinely show REF at this position.
+    if !found_ref_coverage && best_windowed_match.is_none() {
+        debug!(
+            "check_deletion: no CIGAR match at pos {}, falling back to check_complex",
+            anchor_pos
+        );
+        return check_complex(record, variant, min_baseq, alt_aligner, ref_aligner);
+    }
+
     if found_ref_coverage {
         return (true, false, anchor_qual); // REF
     }
@@ -978,7 +1470,7 @@ fn check_deletion(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, b
 }
 
 /// Returns (is_ref, is_alt, base_qual) for MNP variants.
-/// Quality is the minimum base quality across all positions in the MNP.
+/// Quality is the median base quality across all positions in the MNP.
 fn check_mnp(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool, u8) {
     // MNP: REF=AT, ALT=CG. Lengths equal, > 1.
     let len = variant.ref_allele.len();
@@ -1004,7 +1496,7 @@ fn check_mnp(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool, 
 
     let mut matches_ref = true;
     let mut matches_alt = true;
-    let mut min_qual: u8 = u8::MAX; // Track minimum quality across MNP positions
+    let mut mnp_quals: Vec<u8> = Vec::with_capacity(len);
 
     for i in 0..len {
         let pos = start_read_pos + i;
@@ -1013,10 +1505,7 @@ fn check_mnp(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool, 
         if quals[pos] < min_baseq {
             return (false, false, 0);
         }
-        // Track minimum quality for fragment consensus
-        if quals[pos] < min_qual {
-            min_qual = quals[pos];
-        }
+        mnp_quals.push(quals[pos]);
 
         let base = seq_bytes[pos].to_ascii_uppercase();
         let r = ref_bytes[i].to_ascii_uppercase();
@@ -1042,8 +1531,8 @@ fn check_mnp(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool, 
     }
 
     // Return quality only for matching alleles
-    let base_qual = if matches_ref || matches_alt { min_qual } else { 0 };
-    (matches_ref, matches_alt, base_qual)
+    let med_qual = if matches_ref || matches_alt { median_qual(&mnp_quals, min_baseq) } else { 0 };
+    (matches_ref, matches_alt, med_qual)
 }
 
 /// Find the read index corresponding to a genomic position.

@@ -66,11 +66,46 @@ class VcfReader(VariantReader):
 
 
 class MafReader(VariantReader):
-    """Reads variants from a MAF file."""
+    """Reads variants from a MAF file.
+
+    Normalizes MAF-style indels and complex variants to VCF-style
+    representation by fetching anchor bases from the reference genome.
+
+    Args:
+        path: Path to the MAF file.
+        fasta_path: Optional path to reference FASTA for indel normalization.
+    """
 
     def __init__(self, path: Path, fasta_path: Path | None = None):
         self.path = path
         self.fasta = pysam.FastaFile(str(fasta_path)) if fasta_path else None
+
+    def _fetch_anchor_base(self, chrom: str, pos_0based: int) -> str | None:
+        """Fetch a single reference base, trying normalized then original chrom name.
+
+        Args:
+            chrom: Chromosome name (unnormalized).
+            pos_0based: 0-based genomic position.
+
+        Returns:
+            Uppercase base character, or None if fetch fails.
+        """
+        if not self.fasta:
+            return None
+        norm_chrom = CoordinateKernel.normalize_chromosome(chrom)
+        for name in (norm_chrom, chrom):
+            try:
+                return self.fasta.fetch(name, pos_0based, pos_0based + 1).upper()
+            except (KeyError, ValueError):
+                continue
+        logger.warning(
+            "FASTA fetch failed at %s:%d (tried '%s' and '%s')",
+            chrom,
+            pos_0based,
+            norm_chrom,
+            chrom,
+        )
+        return None
 
     def __iter__(self) -> Iterator[Variant]:
         with open(self.path) as f:
@@ -91,83 +126,56 @@ class MafReader(VariantReader):
                     ref = row["Reference_Allele"]
                     alt = row["Tumor_Seq_Allele2"]  # Standard MAF alt column
 
-                    # Normalize Indels if FASTA is available
-                    if self.fasta and (ref == "-" or alt == "-"):
+                    # Normalize indels and complex variants if FASTA is available.
+                    # Condition: normalize anything that isn't a simple SNP.
+                    is_snp = len(ref) == 1 and len(alt) == 1 and ref != "-" and alt != "-"
+                    if self.fasta and not is_snp:
                         if ref == "-":  # Insertion
-                            # MAF Start_Position is the base BEFORE the insertion (anchor)
-                            # 1-based coordinate
+                            # MAF Start_Position is the base BEFORE the insertion
                             anchor_pos_1based = start_pos
-                            anchor_pos_0based = anchor_pos_1based - 1
+                            anchor_base = self._fetch_anchor_base(chrom, anchor_pos_1based - 1)
+                            if anchor_base is None:
+                                continue
 
-                            # Fetch anchor base
-                            # Try normalized and original chromosome names
-                            norm_chrom = CoordinateKernel.normalize_chromosome(chrom)
-                            try:
-                                anchor_base = self.fasta.fetch(
-                                    norm_chrom, anchor_pos_0based, anchor_pos_0based + 1
-                                ).upper()
-                            except (KeyError, ValueError):
-                                try:
-                                    anchor_base = self.fasta.fetch(
-                                        chrom, anchor_pos_0based, anchor_pos_0based + 1
-                                    ).upper()
-                                except (KeyError, ValueError):
-                                    # FASTA fetch failed for both normalized and original chrom names
-                                    logger.warning(
-                                        "FASTA fetch failed for insertion anchor at %s:%d. "
-                                        "Tried both '%s' and '%s'. Skipping variant.",
-                                        chrom,
-                                        anchor_pos_0based,
-                                        norm_chrom,
-                                        chrom,
-                                    )
-                                    continue
-
-                            # VCF Style:
-                            # POS = anchor_pos_1based
-                            # REF = anchor_base
-                            # ALT = anchor_base + inserted_seq
+                            # VCF: POS=anchor, REF=anchor_base, ALT=anchor_base+ins
                             vcf_pos = anchor_pos_1based
                             vcf_ref = anchor_base
                             vcf_alt = anchor_base + alt
 
-                        else:  # Deletion (alt == '-')
+                        elif alt == "-":  # Deletion
                             # MAF Start_Position is the FIRST DELETED base
-                            # Anchor is the base before that
-                            first_deleted_1based = start_pos
-                            anchor_pos_1based = first_deleted_1based - 1
-                            anchor_pos_0based = anchor_pos_1based - 1
+                            anchor_pos_1based = start_pos - 1
+                            anchor_base = self._fetch_anchor_base(chrom, anchor_pos_1based - 1)
+                            if anchor_base is None:
+                                continue
 
-                            # Fetch anchor base
-                            norm_chrom = CoordinateKernel.normalize_chromosome(chrom)
-                            try:
-                                anchor_base = self.fasta.fetch(
-                                    norm_chrom, anchor_pos_0based, anchor_pos_0based + 1
-                                ).upper()
-                            except (KeyError, ValueError):
-                                try:
-                                    anchor_base = self.fasta.fetch(
-                                        chrom, anchor_pos_0based, anchor_pos_0based + 1
-                                    ).upper()
-                                except (KeyError, ValueError):
-                                    # FASTA fetch failed for both normalized and original chrom names
-                                    logger.warning(
-                                        "FASTA fetch failed for deletion anchor at %s:%d. "
-                                        "Tried both '%s' and '%s'. Skipping variant.",
-                                        chrom,
-                                        anchor_pos_0based,
-                                        norm_chrom,
-                                        chrom,
-                                    )
-                                    continue
-
-                            # VCF Style:
-                            # POS = anchor_pos_1based
-                            # REF = anchor_base + deleted_seq
-                            # ALT = anchor_base
+                            # VCF: POS=anchor, REF=anchor_base+del, ALT=anchor_base
                             vcf_pos = anchor_pos_1based
                             vcf_ref = anchor_base + ref
                             vcf_alt = anchor_base
+
+                        else:  # Complex: both non-dash, different lengths
+                            # MAF Start_Position is first changed base;
+                            # anchor is the base before that.
+                            anchor_pos_1based = start_pos - 1
+                            anchor_base = self._fetch_anchor_base(chrom, anchor_pos_1based - 1)
+                            if anchor_base is None:
+                                continue
+
+                            vcf_pos = anchor_pos_1based
+                            vcf_ref = anchor_base + ref
+                            vcf_alt = anchor_base + alt
+                            logger.debug(
+                                "Complex variant normalized: %s:%d %s>%s " "→ VCF %s:%d %s>%s",
+                                chrom,
+                                start_pos,
+                                ref,
+                                alt,
+                                chrom,
+                                vcf_pos,
+                                vcf_ref,
+                                vcf_alt,
+                            )
 
                         yield CoordinateKernel.vcf_to_internal(
                             chrom=chrom, pos=vcf_pos, ref=vcf_ref, alt=vcf_alt

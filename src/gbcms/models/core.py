@@ -125,6 +125,17 @@ class QualityThresholds(BaseModel):
             "(within threshold) are discarded to preserve VAF accuracy."
         ),
     )
+    context_padding: int = Field(
+        default=5,
+        ge=1,
+        le=50,
+        description=(
+            "Number of flanking reference bases fetched around indel/complex "
+            "variants for haplotype construction and Smith-Waterman alignment. "
+            "Larger values improve sensitivity for shifted indels in repeat "
+            "regions at minimal computational cost."
+        ),
+    )
 
 
 class OutputConfig(BaseModel):

@@ -15,6 +15,7 @@ flowchart LR
     Dispatch -->|Deletion| DEL[check_deletion]
     Dispatch -->|MNP| MNP[check_mnp]
     Dispatch -->|Complex| CPX[check_complex]
+    DEL -.->|"fallback (CIGAR mismatch)"| CPX
     SNP --> Count([📊 Update Counts]):::count
     INS --> Count
     DEL --> Count
@@ -162,29 +163,39 @@ Bases inserted after an **anchor** position. The anchor is the last reference ba
 |:---------|:------|
 | Detection | `len(REF) == 1 && len(ALT) > 1` |
 | Position | 0-based index of the **anchor** base |
-| Quality check | None (CIGAR-structural check only) |
+| Quality check | Quality-masked sequence comparison (`masked_single_compare`) |
 
 #### Algorithm Flow
 
-The insertion check uses a **single CIGAR walk** with two strategies: strict match (fast path) and windowed scan (±5bp fallback).
+The insertion check uses a **single CIGAR walk** with three detection strategies:
+
+1. **Backward boundary check** — anchor at the start of an M block where the previous CIGAR op was a matching insertion (fixes M/I/M boundary off-by-one)
+2. **Strict match (fast path)** — insertion immediately after anchor at the end of an M block
+3. **Windowed scan (±5bp fallback)** — any insertion within ±5bp, validated by three safeguards
+
+All sequence comparisons use **quality-masked matching** (`masked_single_compare`): bases below `--min-baseq` are masked, remaining reliable bases must match exactly.
 
 ```mermaid
 flowchart TD
     Start([🧬 Insertion Check]):::start --> Walk[Walk CIGAR left → right]
     Walk --> Found{Match block contains anchor?}
     Found -->|No| WindowCheck
-    Found -->|Yes| AtEnd{Anchor at end of block?}
+    Found -->|Yes| Backward{Anchor at start of block AND prev op is Ins?}
+    Backward -->|Yes| BWMatch{Length + seq match? quality-masked}
+    BWMatch -->|Yes| BWAlt([🔴 ALT - backward]):::alt
+    BWMatch -->|No| AtEnd
+    Backward -->|No| AtEnd{Anchor at end of block?}
     AtEnd -->|No| RefCov[Mark ref coverage]
     AtEnd -->|Yes| NextOp{Next op is Ins?}
     NextOp -->|No| RefCov
-    NextOp -->|Yes| Strict{Length + seq match?}
+    NextOp -->|Yes| Strict{"Length + seq match? (quality-masked)"}
     Strict -->|Yes| StrictAlt([🔴 ALT - strict]):::alt
     Strict -->|No| RefCov
     RefCov --> WindowCheck
 
     WindowCheck{Ins within ±5bp window?}
     WindowCheck -->|No| Continue[Continue CIGAR walk]
-    WindowCheck -->|Yes| S1{S1: Seq matches?}
+    WindowCheck -->|Yes| S1{"S1: Seq matches? (quality-masked)"}
     S1 -->|No| Continue
     S1 -->|Yes| S3{S3: Anchor base matches ref?}
     S3 -->|No| Continue
@@ -272,11 +283,11 @@ Bases deleted after an **anchor** position. The logic mirrors insertion but look
 |:---------|:------|
 | Detection | `len(REF) > 1 && len(ALT) == 1` |
 | Position | 0-based index of the **anchor** base |
-| Quality check | None (CIGAR-structural check only) |
+| Quality check | Quality-masked ref-context comparison (`masked_single_compare`) |
 
 #### Algorithm Flow
 
-Same single-walk strategy as insertion, with Safeguard 3 checking deleted reference bases.
+Same single-walk strategy as insertion, with Safeguard 3 checking deleted reference bases. When CIGAR geometry doesn't match (wrong deletion length or no match found), **falls back to `check_complex`** for haplotype-based comparison.
 
 ```mermaid
 flowchart TD
@@ -289,14 +300,14 @@ flowchart TD
     NextOp -->|No| RefCov
     NextOp -->|Yes| Strict{Length matches?}
     Strict -->|Yes| StrictAlt([🔴 ALT - strict]):::alt
-    Strict -->|No| RefCov
+    Strict -->|No| Fallback1(["🔄 Fallback: check_complex"]):::fallback
     RefCov --> WindowCheck
 
     WindowCheck{Del within ±5bp window?}
     WindowCheck -->|No| Continue[Continue CIGAR walk]
     WindowCheck -->|Yes| S1{S1: Del length matches?}
     S1 -->|No| Continue
-    S1 -->|Yes| S3{S3: Ref bases at shift match?}
+    S1 -->|Yes| S3{"S3: Ref bases match? (quality-masked)"}
     S3 -->|No| Continue
     S3 -->|Yes| S2[S2: Track closest match]
     S2 --> Continue
@@ -307,12 +318,13 @@ flowchart TD
     Eval -->|Yes| WinAlt([🔴 ALT - windowed]):::alt
     Eval -->|No| HasRef{Read covered anchor?}
     HasRef -->|Yes| Ref([✅ REF]):::ref
-    HasRef -->|No| Neither([Neither]):::neither
+    HasRef -->|No| Fallback2(["🔄 Fallback: check_complex"]):::fallback
 
     classDef start fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
     classDef ref fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
     classDef alt fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
     classDef neither fill:#95a5a6,color:#fff,stroke:#7f8c8d,stroke-width:2px;
+    classDef fallback fill:#f39c12,color:#fff,stroke:#d68910,stroke-width:2px;
 ```
 
 #### Visual Example
@@ -341,10 +353,11 @@ Read 3 (REF):  CIGAR = 12M
                                ↑
                           no deletion after anchor → REF ✅
 
-Read 4 (wrong length): CIGAR = 5M 3D 5M
+Read 4 (wrong length → fallback): CIGAR = 5M 3D 5M
                5'─ ...T  G  A  ──  ──  ──  A  C... ─3'
                                └────────┘
-                          3bp deletion ≠ expected 2bp → S1 reject
+                          3bp deletion ≠ expected 2bp → falls back to check_complex
+                          for haplotype comparison (may still match ALT)
 ```
 
 ---
@@ -454,12 +467,15 @@ flowchart TD
         OpType -->|"M / = / X"| Match["Append bases + quals"]
         OpType -->|"I"| InsCheck["Append inserted bases + quals"]
         OpType -->|"D / N"| AdvRef[Advance ref_pos only]
-        OpType -->|"S"| AdvRead[Advance read_pos only]
+        OpType -->|"S"| SoftClip{"Overlaps variant window?"}
+        SoftClip -->|Yes| SCRecover["Append soft-clipped bases + quals"]
+        SoftClip -->|No| SCSkip[Advance read_pos only]
         OpType -->|"H / P"| Skip[No action]
         Match --> Next[Next op]
         InsCheck --> Next
         AdvRef --> Next
-        AdvRead --> Next
+        SCRecover --> Next
+        SCSkip --> Next
         Skip --> Next
         Next --> More{More CIGAR ops?}
         More -->|Yes| Walk
@@ -510,6 +526,21 @@ flowchart TD
     under exact matching. The masked approach ignores unreliable bases, allowing the
     remaining high-quality bases to determine allele support. When masking causes both
     alleles to match (ambiguity), the read is safely discarded rather than guessed.
+
+!!! note "Phase 3: Smith-Waterman Fallback"
+    When CIGAR reconstruction (Phase 1) fails to produce a match — e.g., because
+    the aligner placed a deletion or insertion at a slightly different breakpoint —
+    the engine expands to the full `ref_context` window and performs **dual-haplotype
+    Smith-Waterman alignment** (inspired by [indelpost](https://doi.org/10.1093/bioinformatics/btab601)).
+    Both a REF and ALT haplotype are constructed, and the read is aligned against
+    each using `bio::alignment::pairwise::Aligner`. The allele with the higher
+    score wins (with a margin ≥ 2).
+
+    **Performance**: To avoid expensive O(n×m) alignment on reads that clearly
+    support REF, a **pre-filter** (`is_worth_realignment`) skips reads with clean
+    M-only CIGARs. Only reads with soft-clips, indels, or mismatches near the
+    variant window proceed to SW alignment. Aligners are created once per variant
+    and reused across all reads.
 
 #### Worked Example: Step-by-Step Reconstruction
 
