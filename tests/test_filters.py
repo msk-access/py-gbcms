@@ -94,6 +94,7 @@ def test_filters(mock_bam_with_flags):
     counts = gbcms_rs.count_bam(
         str(mock_bam_with_flags),
         rs_variants,
+        [None] * len(rs_variants),
         min_mapq=0,
         min_baseq=0,
         filter_duplicates=True,
@@ -118,6 +119,7 @@ def test_filters(mock_bam_with_flags):
     counts = gbcms_rs.count_bam(
         str(mock_bam_with_flags),
         rs_variants,
+        [None] * len(rs_variants),
         min_mapq=0,
         min_baseq=0,
         filter_duplicates=True,
@@ -135,6 +137,7 @@ def test_filters(mock_bam_with_flags):
     counts = gbcms_rs.count_bam(
         str(mock_bam_with_flags),
         rs_variants,
+        [None] * len(rs_variants),
         min_mapq=0,
         min_baseq=0,
         filter_duplicates=True,
@@ -152,6 +155,7 @@ def test_filters(mock_bam_with_flags):
     counts = gbcms_rs.count_bam(
         str(mock_bam_with_flags),
         rs_variants,
+        [None] * len(rs_variants),
         min_mapq=0,
         min_baseq=0,
         filter_duplicates=True,
@@ -169,6 +173,7 @@ def test_filters(mock_bam_with_flags):
     counts = gbcms_rs.count_bam(
         str(mock_bam_with_flags),
         rs_variants,
+        [None] * len(rs_variants),
         min_mapq=0,
         min_baseq=0,
         filter_duplicates=True,
@@ -186,6 +191,7 @@ def test_filters(mock_bam_with_flags):
     counts = gbcms_rs.count_bam(
         str(mock_bam_with_flags),
         rs_variants,
+        [None] * len(rs_variants),
         min_mapq=0,
         min_baseq=0,
         filter_duplicates=True,

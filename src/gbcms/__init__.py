@@ -8,7 +8,7 @@ Example usage:
     $ gbcms run -v variants.vcf -b sample.bam -f reference.fa -o output/
 """
 
-__version__ = "2.5.0"
+__version__ = "2.6.0"
 
 from .models.core import GbcmsConfig, OutputFormat, Variant, VariantType
 from .pipeline import Pipeline

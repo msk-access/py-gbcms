@@ -25,6 +25,9 @@ gbcms run [OPTIONS] --variants <FILE> --bam <NAME:PATH>... --fasta <FILE>
 | `--suffix` | `''` | Suffix for output filenames |
 | `--column-prefix` | `''` | Prefix for gbcms count columns in MAF output |
 | `--preserve-barcode` | `false` | Keep original Tumor_Sample_Barcode from input MAF |
+| `--show-normalization` | `false` | Append `norm_*` columns showing left-aligned coordinates |
+| `--context-padding` | `5` | Minimum flanking bases for haplotype construction (auto-increased in repeats) |
+| `--adaptive-context` | `true` | Dynamically increase context padding in [tandem repeat regions](../reference/variant-normalization.md#adaptive-context-padding) |
 | `--threads` | `1` | Number of threads |
 
 ## Filtering Options
@@ -39,6 +42,7 @@ gbcms run [OPTIONS] --variants <FILE> --bam <NAME:PATH>... --fasta <FILE>
 | `--filter-qc-failed` | `false` | Filter QC failed reads |
 | `--filter-improper-pair` | `false` | Filter improperly paired reads |
 | `--filter-indel` | `false` | Filter reads with indels |
+| `--fragment-qual-threshold` | `10` | Quality difference threshold for fragment consensus (see [Fragment Counting](../reference/counting-metrics.md#fragment-counting)) |
 
 ## Examples
 
@@ -74,6 +78,17 @@ gbcms run \
     --min-mapq 30
 ```
 
+### With Normalization Columns
+
+```bash
+gbcms run \
+    --variants mutations.maf \
+    --bam sample:sample.bam \
+    --fasta reference.fa \
+    --format maf \
+    --show-normalization
+```
+
 ## Output
 
 The command produces a VCF or MAF file with:
@@ -82,10 +97,13 @@ The command produces a VCF or MAF file with:
 - **VAF** (variant allele frequency)
 - **Strand bias** (Fisher's exact test)
 - **Fragment counts** (deduplicated)
+- **Validation status** (`PASS`, `PASS_WARN_HOMOPOLYMER_DECOMP`, `REF_MISMATCH`, or `FETCH_FAILED`)
+- **Normalization columns** (with `--show-normalization`): left-aligned position, REF, and ALT
 
 ## Related
 
 - [Quick Start](../getting-started/quickstart.md) — Common patterns
+- [gbcms normalize](normalize.md) — Standalone normalization (no counting)
 - [Nextflow Pipeline](../nextflow/index.md) — For many samples
 - [Input Formats](../reference/input-formats.md) — VCF/MAF specs
-- [Variant Counting](../reference/variant-counting.md) — How each variant type is counted
+- [Variant Counting](../reference/allele-classification.md) — How each variant type is counted

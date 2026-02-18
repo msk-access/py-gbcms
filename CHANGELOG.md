@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-02-18
+
+### ✨ Added
+- **Adaptive context padding**: Dynamically increases `ref_context` flanking in tandem repeat regions (homopolymer through hexanucleotide). Formula: `max(default, repeat_span/2 + 3)`, capped at 50bp. Enabled by default (`--adaptive-context/--no-adaptive-context`)
+- **`gbcms normalize` command**: Standalone variant normalization (left-align + REF validate) without counting, outputs TSV with original and normalized coordinates
+- **Nextflow parameters**: `fragment_qual_threshold`, `context_padding`, `show_normalization`, `adaptive_context` now configurable in `nextflow.config`
+- **Docs restructure**: Split monolithic `variant-counting.md` into 4 focused pages: Variant Normalization, Allele Classification, Counting Metrics, Read Filters
+- **HPC install docs**: Micromamba-based source install with Python 3.13
+
+### 🔧 Fixed
+- **Interior REF guard** for large deletions (>50bp): Reads falling entirely within a deleted region are now correctly classified as REF instead of ALT by Smith-Waterman
+- **Windowed reciprocal overlap**: Improved shifted indel detection using bidirectional overlap scoring
+- **Complex variant counting** (EPHA7 `TCC→CT`): Fixed base quality extraction for all variant-type handlers (`check_insertion`, `check_deletion`, `check_mnp`, `check_complex`)
+- **MAF VCF-style conversion**: Corrected complex variant handling in MAF→internal coordinate conversion
+- **Lint**: Fixed ruff I001/E402/B905 and black formatting in `pipeline.py`
+
+### 🔄 Changed
+- **Dead code removed**: `GenomicInterval` class, `Variant.interval` property, `fragment_counting` config field
+- **`fetch_single_base()` refactored**: Delegates to `fetch_region()`, removing 33 lines of duplicated chr-prefix retry logic
+- **Release guide**: Updated version locations table with exact line numbers and verification command
+- **Nextflow pipeline diagram** added to docs index
+
 ## [2.5.0] - 2026-02-12
 
 ### ✨ Added

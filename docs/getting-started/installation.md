@@ -10,12 +10,12 @@
     
     !!! info "System Requirements"
         PyPI wheels require **glibc 2.34+** (Ubuntu 22.04+, RHEL 9+, Debian 12+).
-        For older systems, see [Legacy Linux](#legacy-linux-rhel-8).
+        For older systems, see [Legacy Linux](#legacy-linux-rhel-8-hpc).
 
 === "Docker"
     ```bash
-    docker pull ghcr.io/msk-access/py-gbcms:2.5.0
-    docker run --rm ghcr.io/msk-access/py-gbcms:2.5.0 gbcms --help
+    docker pull ghcr.io/msk-access/py-gbcms:2.6.0
+    docker run --rm ghcr.io/msk-access/py-gbcms:2.6.0 gbcms --help
     ```
 
 === "From Source"
@@ -46,12 +46,12 @@
 
 For RHEL 8, CentOS 8, or HPC systems with glibc < 2.34:
 
-=== "Conda + Source (Recommended)"
+=== "Micromamba (Recommended)"
     ```bash
-    # Create conda environment with build dependencies
+    # Create environment with build dependencies
     # Note: clangdev (not clang) provides headers needed by bindgen
-    conda create -n gbcms python=3.11 clangdev rust -c conda-forge
-    conda activate gbcms
+    micromamba create -n py_gbcms_env python=3.13 clangdev rust -c conda-forge
+    micromamba activate py_gbcms_env
     
     # Set libclang path for the Rust build
     export LIBCLANG_PATH=$CONDA_PREFIX/lib
@@ -62,21 +62,32 @@ For RHEL 8, CentOS 8, or HPC systems with glibc < 2.34:
     pip install .
     ```
 
+=== "Conda"
+    ```bash
+    conda create -n py_gbcms_env python=3.13 clangdev rust -c conda-forge
+    conda activate py_gbcms_env
+    export LIBCLANG_PATH=$CONDA_PREFIX/lib
+    
+    git clone https://github.com/msk-access/py-gbcms.git
+    cd py-gbcms
+    pip install .
+    ```
+
 === "Singularity (HPC)"
     ```bash
-    singularity pull docker://ghcr.io/msk-access/py-gbcms:2.5.0
-    singularity exec py-gbcms_2.5.0.sif gbcms --help
+    singularity pull docker://ghcr.io/msk-access/py-gbcms:2.6.0
+    singularity exec py-gbcms_2.6.0.sif gbcms --help
     
     # With data binding
-    singularity exec -B /path/to/data:/data py-gbcms_2.5.0.sif gbcms run \
+    singularity exec -B /path/to/data:/data py-gbcms_2.6.0.sif gbcms run \
       --variants /data/variants.vcf --bam /data/sample.bam \
       --fasta /data/ref.fa --output-dir /data/results/
     ```
 
 === "Docker"
     ```bash
-    docker pull ghcr.io/msk-access/py-gbcms:2.5.0
-    docker run --rm -v $(pwd):/data ghcr.io/msk-access/py-gbcms:2.5.0 gbcms --help
+    docker pull ghcr.io/msk-access/py-gbcms:2.6.0
+    docker run --rm -v $(pwd):/data ghcr.io/msk-access/py-gbcms:2.6.0 gbcms --help
     ```
 
 !!! note "Why not pip install?"
@@ -91,7 +102,7 @@ For RHEL 8, CentOS 8, or HPC systems with glibc < 2.34:
 ```bash
 # Check installation
 gbcms --version
-# Expected: 2.5.0
+# Expected: 2.6.0
 
 # Test help
 gbcms --help
@@ -104,7 +115,7 @@ gbcms --help
 ```bash
 docker run --rm \
   -v $(pwd):/data \
-  ghcr.io/msk-access/py-gbcms:2.5.0 \
+  ghcr.io/msk-access/py-gbcms:2.6.0 \
   gbcms run \
     --variants /data/variants.vcf \
     --bam /data/sample.bam \
@@ -135,7 +146,7 @@ sudo usermod -aG docker $USER && newgrp docker
 ```
 
 ### glibc Version Error
-If you see `GLIBC_2.34 not found`, use the [Legacy Linux](#legacy-linux-rhel-8) instructions.
+If you see `GLIBC_2.34 not found`, use the [Legacy Linux](#legacy-linux-rhel-8-hpc) instructions.
 
 ---
 

@@ -188,6 +188,7 @@ def test_snp_accuracy(synthetic_bam):
     results = count_bam(
         synthetic_bam,
         [variant],
+        decomposed=[None],
         min_mapq=20,
         min_baseq=20,
         filter_duplicates=True,
@@ -238,6 +239,7 @@ def test_insertion_accuracy(synthetic_bam):
     results = count_bam(
         synthetic_bam,
         [variant],
+        decomposed=[None],
         min_mapq=20,
         min_baseq=20,
         filter_duplicates=True,
@@ -351,6 +353,7 @@ def test_complex_accuracy(synthetic_bam):
     counts = gbcms_rs.count_bam(
         bam_path="test_complex.sorted.bam",
         variants=variants,
+        decomposed=[None] * len(variants),
         min_mapq=20,
         min_baseq=20,
         filter_duplicates=True,
@@ -395,6 +398,7 @@ def test_deletion_accuracy(synthetic_bam):
     results = count_bam(
         synthetic_bam,
         [variant],
+        decomposed=[None],
         min_mapq=20,
         min_baseq=20,
         filter_duplicates=True,
@@ -422,6 +426,7 @@ def test_mnp_accuracy(synthetic_bam):
     results = count_bam(
         synthetic_bam,
         [variant],
+        decomposed=[None],
         min_mapq=20,
         min_baseq=20,
         filter_duplicates=True,

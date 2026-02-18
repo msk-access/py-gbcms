@@ -98,22 +98,15 @@ Delete `CG` at chr1:101–102 (where the reference base at position 100 is `A`):
 
 ## Variant Left-Normalization
 
-py-gbcms uses **windowed indel detection** (±5bp) to handle cases where aligners place indels at different positions in repetitive regions. For this to work correctly, input variants should be **left-aligned** (left-normalized).
+py-gbcms automatically **left-aligns** indels and complex variants during the preparation step. For full details on the normalization algorithm, homopolymer decomposition detection, and REF validation, see [Variant Normalization](variant-normalization.md).
 
 !!! important "Left-Align Your Variants"
     Inconsistently normalized variants reduce the effectiveness of windowed indel detection. While the ±5bp window will catch most aligner-shifted indels, left-alignment ensures the anchor position is consistent with standard conventions.
 
-### VCF Normalization
-
-Use `bcftools norm` to left-align and normalize VCF variants:
-
-```bash
-bcftools norm -f reference.fa -o normalized.vcf input.vcf
-```
-
-### MAF Normalization
-
-MAF files are automatically converted to VCF-style anchor-based coordinates by py-gbcms (see above). Ensure your MAF variants are already left-aligned before input — most variant annotation pipelines (e.g., `vcf2maf`) produce left-aligned output by default.
+    ```bash
+    # VCF: use bcftools norm
+    bcftools norm -f reference.fa -o normalized.vcf input.vcf
+    ```
 
 ## Reference FASTA
 
@@ -134,5 +127,6 @@ samtools faidx reference.fa
 ## Related
 
 - [CLI Run Command](../cli/run.md) — Usage examples
-- [Architecture](architecture.md) — How counting works
+- [Variant Normalization](variant-normalization.md) — How variants are prepared
+- [Allele Classification](allele-classification.md) — How counting works
 - [Glossary](glossary.md) — Term definitions

@@ -1,11 +1,13 @@
 """
 Integration test for gbcms v2 pipeline.
+
+Tests the full flow: read variants → prepare (validate+normalize) → count → write output.
 """
 
 from pathlib import Path
 
 from gbcms import _rs as gbcms_rs
-from gbcms.io.input import ReferenceChecker, VcfReader
+from gbcms.io.input import VcfReader
 from gbcms.io.output import MafWriter
 
 
@@ -23,23 +25,23 @@ def test_pipeline_v2(tmp_path):
 
     assert len(variants) > 0
 
-    # 2. Validate against Reference
-    ref_checker = ReferenceChecker(Path(fasta_path))
-    for v in variants:
-        ref_checker.validate(v)
-        # Note: Some test variants might be artificial/invalid, so we just log or check specific ones
-        # assert is_valid, f"Variant {v} does not match reference"
-    ref_checker.close()
-
-    # 3. Convert to Rust Variants
-    rs_variants = [
+    # 2. Prepare variants (validate + normalize + ref_context)
+    #    Note: The test reference FASTA is only 20kb, but the VCF variants are at
+    #    chr1:11M+, so validation returns FETCH_FAILED. This is expected — this test
+    #    verifies counting correctness, not validation. We use all variants.
+    rs_input = [
         gbcms_rs.Variant(v.chrom, v.pos, v.ref, v.alt, v.variant_type.value) for v in variants
     ]
+    prepared = gbcms_rs.prepare_variants(rs_input, fasta_path, context_padding=5, is_maf=False)
+    rs_variants = [p.variant for p in prepared]
 
-    # 4. Run Rust Engine
+    assert len(rs_variants) > 0, "No variants after preparation"
+
+    # 3. Run Rust Engine
     results = gbcms_rs.count_bam(
         bam_path,
         rs_variants,
+        [None] * len(rs_variants),
         min_mapq=20,
         min_baseq=10,
         filter_duplicates=True,
@@ -51,15 +53,17 @@ def test_pipeline_v2(tmp_path):
         threads=1,
     )
 
-    assert len(results) == len(variants)
+    assert len(results) == len(rs_variants)
 
-    # 5. Write Output
+    # 4. Write Output
     writer = MafWriter(output_path)
-    for v, counts in zip(variants, results, strict=False):
-        writer.write(v, counts)
+    for pv, counts in zip(prepared, results, strict=True):
+        # Use the original variant for output coords
+        v = next(v for v in variants if v.chrom == pv.variant.chrom and v.pos == pv.original_pos)
+        writer.write(v, counts, validation_status=pv.validation_status)
     writer.close()
 
-    # 6. Verify Output
+    # 5. Verify Output
     assert output_path.exists()
     with open(output_path) as f:
         lines = f.readlines()
@@ -70,3 +74,4 @@ def test_pipeline_v2(tmp_path):
         assert "vaf_fragment" in header
         assert "ref_count_forward" in header
         assert "alt_count_reverse" in header
+        assert "validation_status" in header

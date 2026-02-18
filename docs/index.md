@@ -101,7 +101,7 @@ flowchart TB
     class Rust rustStyle;
 ```
 
-**→ [Technical Details](reference/architecture.md)** | **→ [Variant Counting](reference/variant-counting.md)**
+**→ [Technical Details](reference/architecture.md)** | **→ [How It Works](reference/allele-classification.md)**
 
 ---
 
@@ -112,6 +112,5 @@ flowchart TB
 | [Getting Started](getting-started/index.md) | Installation and first run |
 | [CLI Reference](cli/index.md) | Command-line usage |
 | [Nextflow Pipeline](nextflow/index.md) | HPC workflow |
-| [Reference](reference/architecture.md) | Architecture and formats |
-| [Variant Counting](reference/variant-counting.md) | How each variant type is counted |
+| [How It Works](reference/architecture.md) | Architecture, algorithms, and formats |
 | [Development](development/developer-guide.md) | Contributing guide |

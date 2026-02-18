@@ -76,16 +76,19 @@ Guide for contributing to py-gbcms.
 flowchart LR
     subgraph Python["src/gbcms/"]
         CLI[cli.py] --> Pipeline[pipeline.py]
+        CLI --> Normalize[normalize.py]
         Pipeline --> IO[io/]
         Pipeline --> Models[models/]
     end
     
     subgraph Rust["rust/src/"]
         Lib[lib.rs] --> Count[counting.rs]
+        Lib --> Norm[normalize.rs]
         Count --> Stats[stats.rs]
     end
     
     Pipeline --> Rust
+    Normalize --> Rust
 ```
 
 ---
@@ -138,12 +141,12 @@ gitGraph
     commit id: "work"
     checkout develop
     merge feature/new-thing
-    branch release/2.5.0
+    branch release/2.6.0
     commit id: "bump"
     checkout main
-    merge release/2.5.0 tag: "2.5.0"
+    merge release/2.6.0 tag: "2.6.0"
     checkout develop
-    merge release/2.5.0
+    merge release/2.6.0
 ```
 
 | Branch | Purpose |

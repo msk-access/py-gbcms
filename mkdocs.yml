@@ -69,6 +69,7 @@ nav:
   - CLI Reference:
     - Overview: cli/index.md
     - Run Command: cli/run.md
+    - Normalize Command: cli/normalize.md
   
   - Nextflow Pipeline:
     - Overview: nextflow/index.md
@@ -76,10 +77,13 @@ nav:
     - Parameters: nextflow/parameters.md
     - Examples: nextflow/examples.md
   
-  - Reference:
+  - How It Works:
     - Architecture: reference/architecture.md
-    - Variant Counting: reference/variant-counting.md
     - Input Formats: reference/input-formats.md
+    - Variant Normalization: reference/variant-normalization.md
+    - Read Filters: reference/read-filters.md
+    - Allele Classification: reference/allele-classification.md
+    - Counting & Metrics: reference/counting-metrics.md
     - Glossary: reference/glossary.md
   
   - Development:

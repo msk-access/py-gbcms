@@ -37,6 +37,24 @@ Technical terms used throughout the documentation.
 | **ctDNA** | Circulating tumor DNA — tumor-derived cfDNA |
 | **Duplex** | Reads from both strands of original molecule |
 
+## Fragment Metrics
+
+| Term | Definition |
+|:-----|:-----------|
+| **DPF** | Fragment depth — total unique fragments (including discarded) |
+| **RDF** | Reference fragment count — fragments resolved to REF |
+| **ADF** | Alternate fragment count — fragments resolved to ALT |
+| **Fragment consensus** | Quality-weighted method to resolve R1/R2 disagreements within a fragment |
+
+## Validation Status
+
+| Status | Meaning |
+|:-------|:--------|
+| **PASS** | Variant validated against reference, ready for counting |
+| **PASS_WARN_HOMOPOLYMER_DECOMP** | Variant spans a homopolymer; dual-counted with corrected allele (corrected won) |
+| **REF_MISMATCH** | REF allele does not match the reference genome at the stated position |
+| **FETCH_FAILED** | Could not fetch the reference region (chromosome not found, etc.) |
+
 ## Related
 
 - [Architecture](architecture.md) — System design

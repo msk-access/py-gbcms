@@ -40,7 +40,7 @@ flowchart LR
     
     subgraph Process
         Load[Load Variants]
-        Validate[Validate vs Ref]
+        Prepare["Prepare (validate + left-align + decomp detect)"]
         Count[Count Reads]
     end
     
@@ -48,9 +48,9 @@ flowchart LR
         Result[VCF/MAF + Counts]
     end
     
-    VCF --> Load --> Validate
-    FASTA --> Validate
-    Validate --> Count
+    VCF --> Load --> Prepare
+    FASTA --> Prepare
+    Prepare --> Count
     BAM --> Count
     Count --> Result
 ```
@@ -111,6 +111,7 @@ Low p-value (< 0.05) indicates potential strand bias artifact.
 src/gbcms/
 ├── cli.py           # Typer CLI
 ├── pipeline.py      # Orchestration
+├── normalize.py     # Standalone normalization workflow
 ├── core/
 │   └── kernel.py    # Coordinate normalization
 ├── io/
@@ -123,7 +124,8 @@ src/gbcms/
 
 rust/src/
 ├── lib.rs           # PyO3 module (_rs)
-├── counting.rs      # BAM processing, FragmentEvidence, QNAME hashing
+├── counting.rs      # BAM processing, FragmentEvidence, dual-counting
+├── normalize.rs     # Variant preparation, left-alignment, homopolymer detection
 ├── stats.rs         # Fisher's exact test
 └── types.rs         # Variant, BaseCounts
 ```
@@ -208,6 +210,7 @@ sequenceDiagram
 
 ## Related
 
-- [Variant Counting](variant-counting.md) — How each variant type is counted
+- [Allele Classification](allele-classification.md) — How each variant type is counted
+- [Variant Normalization](variant-normalization.md) — How variants are prepared before counting
 - [Input Formats](input-formats.md) — VCF and MAF specifications
 - [Glossary](glossary.md) — Term definitions

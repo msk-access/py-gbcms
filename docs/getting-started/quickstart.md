@@ -104,7 +104,7 @@ gbcms run \
 ## Docker
 
 ```bash
-docker run --rm -v $(pwd):/data ghcr.io/msk-access/py-gbcms:2.5.0 \
+docker run --rm -v $(pwd):/data ghcr.io/msk-access/py-gbcms:2.6.0 \
     gbcms run \
     --variants /data/variants.vcf \
     --bam /data/sample.bam \
@@ -137,4 +137,4 @@ gbcms run --help
 
 - **[Nextflow](../nextflow/index.md)** — Process many samples in parallel
 - **[Architecture](../reference/architecture.md)** — How it works
-- **[Variant Counting](../reference/variant-counting.md)** — How each variant type is counted
+- **[Allele Classification](../reference/allele-classification.md)** — How each variant type is counted

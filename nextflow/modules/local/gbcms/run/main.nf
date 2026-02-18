@@ -4,7 +4,7 @@ process GBCMS_RUN {
 
     publishDir "${params.outdir}/gbcms", mode: params.publish_dir_mode
 
-    container "ghcr.io/msk-access/py-gbcms:2.5.0"
+    container "ghcr.io/msk-access/py-gbcms:2.6.0"
 
     input:
     tuple val(meta), path(bam), path(bai), path(variants)
@@ -32,6 +32,12 @@ process GBCMS_RUN {
 
     // Preserve original Tumor_Sample_Barcode from input MAF
     def preserve_barcode_arg = params.preserve_barcode ? "--preserve-barcode" : ""
+
+    // Show normalization columns in output
+    def show_norm_arg = params.show_normalization ? "--show-normalization" : ""
+
+    // Adaptive context padding in repeat regions
+    def adaptive_arg = params.adaptive_context ? "" : "--no-adaptive-context"
     
     // Construct filter arguments
     def filters = ""
@@ -52,9 +58,13 @@ process GBCMS_RUN {
         ${suffix_arg} \\
         ${col_prefix_arg} \\
         ${preserve_barcode_arg} \\
+        ${show_norm_arg} \\
+        ${adaptive_arg} \\
         --threads ${task.cpus} \\
         --min-mapq ${params.min_mapq} \\
         --min-baseq ${params.min_baseq} \\
+        --fragment-qual-threshold ${params.fragment_qual_threshold} \\
+        --context-padding ${params.context_padding} \\
         ${filters} \\
         ${args}
 

@@ -18,7 +18,7 @@ from .models.core import (
 from .pipeline import Pipeline
 from .utils import setup_logging
 
-__all__ = ["app", "run"]
+__all__ = ["app", "run", "normalize"]
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +97,20 @@ def run(
             "the difference exceeds this threshold; otherwise the fragment is discarded."
         ),
     ),
+    context_padding: int = typer.Option(
+        5,
+        "--context-padding",
+        help=(
+            "Minimum flanking reference bases around indel/complex variants for "
+            "haplotype construction and SW alignment (1-50). "
+            "Auto-increased in repeat regions when --adaptive-context is enabled."
+        ),
+    ),
+    adaptive_context: bool = typer.Option(
+        True,
+        "--adaptive-context/--no-adaptive-context",
+        help="Dynamically increase context padding in tandem repeat regions.",
+    ),
     # Read filters
     filter_duplicates: bool = typer.Option(True, help="Filter duplicate reads"),
     filter_secondary: bool = typer.Option(False, help="Filter secondary alignments"),
@@ -104,6 +118,12 @@ def run(
     filter_qc_failed: bool = typer.Option(False, help="Filter reads failing QC"),
     filter_improper_pair: bool = typer.Option(False, help="Filter improperly paired reads"),
     filter_indel: bool = typer.Option(False, help="Filter reads containing indels"),
+    # Normalization
+    show_normalization: bool = typer.Option(
+        False,
+        "--show-normalization",
+        help="Add norm_* columns showing left-aligned coordinates in output.",
+    ),
     # Performance
     threads: int = typer.Option(
         1, "--threads", "-t", help="Number of threads for parallel processing"
@@ -139,6 +159,8 @@ def run(
             min_mapping_quality=min_mapq,
             min_base_quality=min_baseq,
             fragment_qual_threshold=fragment_qual_threshold,
+            context_padding=context_padding,
+            adaptive_context=adaptive_context,
         )
 
         filter_config = ReadFilters(
@@ -158,6 +180,7 @@ def run(
             quality=quality_config,
             filters=filter_config,
             threads=threads,
+            show_normalization=show_normalization,
         )
 
         pipeline = Pipeline(config)
@@ -166,6 +189,36 @@ def run(
     except Exception as e:
         logger.exception("Pipeline failed: %s", e)
         raise typer.Exit(code=1) from e
+
+
+@app.command()
+def normalize(
+    variant_file: Path = typer.Option(
+        ..., "--variants", "-v", help="Path to VCF or MAF file containing variants"
+    ),
+    reference: Path = typer.Option(..., "--fasta", "-f", help="Path to reference FASTA file"),
+    output: Path = typer.Option(
+        ..., "--output", "-o", help="Output file path (TSV with normalization results)"
+    ),
+    threads: int = typer.Option(1, "--threads", "-t", help="Number of threads"),
+    verbose: bool = typer.Option(False, "--verbose", "-V", help="Enable verbose debug logging"),
+):
+    """
+    Normalize variants (left-align + validate REF) without counting.
+
+    Reads variants from a VCF or MAF file, applies MAF anchor resolution,
+    REF validation, and bcftools-style left-alignment, then writes results
+    to a TSV file showing original and normalized coordinates.
+    """
+    from .normalize import normalize_variants
+
+    setup_logging(verbose=verbose)
+    normalize_variants(
+        variant_file=variant_file,
+        reference=reference,
+        output=output,
+        threads=threads,
+    )
 
 
 def _parse_bam_inputs(bam_files: list[Path] | None, bam_list: Path | None) -> dict[str, Path]:

@@ -100,4 +100,10 @@ pub struct BaseCounts {
     pub fsb_pval: f64,
     #[pyo3(get)]
     pub fsb_or: f64,
+
+    // Homopolymer decomposition
+    /// True if the decomposed (corrected) allele was used because it
+    /// produced a higher alt_count than the original allele.
+    #[pyo3(get)]
+    pub used_decomposed: bool,
 }
