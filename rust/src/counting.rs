@@ -619,6 +619,14 @@ fn is_worth_realignment(record: &Record, win_start: i64, win_end: i64) -> bool {
 ///
 /// Returns `(is_ref, is_alt, base_qual)` where `base_qual` is the median
 /// quality across the read subsequence bases (GATK standard).
+///
+/// # Alignment semantics
+/// Uses semiglobal(read, haplotype): the read is the pattern (globally consumed,
+/// no free overhangs) and the haplotype is the text (free leading/trailing gaps).
+/// This allows the aligner to find the best-scoring window within a longer
+/// haplotype that matches the read — critical for large deletions where the
+/// REF haplotype (e.g. 501bp for a 500bp deletion) far exceeds the read length
+/// (~150bp), and for off-center reads that don't symmetrically overlap the variant.
 fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
     read_seq: &[u8],
     read_quals: &[u8],
@@ -651,7 +659,7 @@ fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
     let right_ctx = &ref_context[offset + ref_len..];
 
     // ref_hap = left_ctx + REF + right_ctx (should equal ref_context)
-    let mut ref_hap: Vec<u8> = left_ctx
+    let ref_hap: Vec<u8> = left_ctx
         .iter()
         .chain(variant.ref_allele.as_bytes())
         .chain(right_ctx.iter())
@@ -659,57 +667,12 @@ fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
         .collect();
 
     // alt_hap = left_ctx + ALT + right_ctx
-    let mut alt_hap: Vec<u8> = left_ctx
+    let alt_hap: Vec<u8> = left_ctx
         .iter()
         .chain(variant.alt_allele.as_bytes())
         .chain(right_ctx.iter())
         .copied()
         .collect();
-
-    // --- Haplotype trimming guard ---
-    // Semiglobal alignment requires the query (haplotype) to be fully consumed.
-    // When the haplotype is longer than the read (e.g. large context_padding
-    // with complex CIGARs that produce short raw read windows), the aligner
-    // forces gap penalties on the excess — penalizing both alleles equally
-    // and destroying the variant-discriminating signal.
-    // Fix: trim each haplotype independently so we never create an invalid slice.
-    let read_len = read_seq.len();
-    if read_len < ref_len {
-        // Read is shorter than the REF allele itself — can't classify.
-        debug!(
-            "classify_by_alignment: read_len {} < ref_len {} — skipping",
-            read_len, ref_len
-        );
-        return (false, false, 0);
-    }
-
-    fn trim_haplotype(hap: &mut Vec<u8>, read_len: usize) {
-        if hap.len() > read_len {
-            let excess = hap.len() - read_len;
-            let trim_left = excess / 2;
-            let trim_right = excess - trim_left;
-            let end = hap.len().saturating_sub(trim_right);
-            if trim_left >= end {
-                // Haplotype too short after trimming — truncate to read_len from center
-                let center = hap.len() / 2;
-                let half = read_len / 2;
-                let start = center.saturating_sub(half);
-                let actual_end = (start + read_len).min(hap.len());
-                let actual_start = actual_end.saturating_sub(read_len);
-                *hap = hap[actual_start..actual_end].to_vec();
-            } else {
-                *hap = hap[trim_left..end].to_vec();
-            }
-        }
-    }
-
-    trim_haplotype(&mut ref_hap, read_len);
-    trim_haplotype(&mut alt_hap, read_len);
-
-    if ref_hap.is_empty() || alt_hap.is_empty() {
-        debug!("classify_by_alignment: haplotype empty after trimming — skipping");
-        return (false, false, 0);
-    }
 
     // Mask low-quality bases as N so they don't bias scoring.
     let masked_seq: Vec<u8> = read_seq
@@ -719,6 +682,7 @@ fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
         .collect();
 
     // Skip if too few usable bases.
+    let read_len = read_seq.len();
     let usable_count = read_quals.iter().filter(|&&q| q >= min_baseq).count();
     if usable_count < 3 {
         debug!("classify_by_alignment: only {} usable bases — skipping", usable_count);
@@ -727,16 +691,25 @@ fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
 
     // Use the provided reusable aligners (created once per variant).
     trace!(
+        "classify_by_alignment: read_len={} ref_hap_len={} alt_hap_len={} usable={}",
+        read_len, ref_hap.len(), alt_hap.len(), usable_count
+    );
+    trace!(
         "classify_by_alignment seqs: read={} alt_hap={} ref_hap={}",
         String::from_utf8_lossy(&masked_seq),
         String::from_utf8_lossy(&alt_hap),
         String::from_utf8_lossy(&ref_hap)
     );
-    // Semiglobal alignment: haplotype = query (fully aligned),
-    // read = text (free overhangs). This finds the best-scoring region
-    // within the (potentially longer) read that matches each haplotype.
-    let alt_aln = alt_aligner.semiglobal(&alt_hap, &masked_seq);
-    let ref_aln = ref_aligner.semiglobal(&ref_hap, &masked_seq);
+
+    // Semiglobal alignment: read = pattern (fully consumed, every base must
+    // participate), haplotype = text (free leading/trailing overhangs).
+    // The aligner slides the read along the haplotype to find the best window.
+    // This correctly handles:
+    //  - Large deletions: 150bp read vs 501bp REF haplotype
+    //  - Off-center reads: no symmetric trimming needed
+    //  - Short ALT haplotypes: read may overhang, but all read bases align
+    let alt_aln = alt_aligner.semiglobal(&masked_seq, &alt_hap);
+    let ref_aln = ref_aligner.semiglobal(&masked_seq, &ref_hap);
 
     let med_qual = median_qual(read_quals, min_baseq);
 
@@ -748,9 +721,11 @@ fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
     let is_alt = alt_aln.score >= ref_aln.score + margin;
     let is_ref = ref_aln.score >= alt_aln.score + margin;
 
-    trace!(
-        "classify_by_alignment: alt_score={} ref_score={} margin={} is_ref={} is_alt={}",
-        alt_aln.score, ref_aln.score, margin, is_ref, is_alt
+    debug!(
+        "classify_by_alignment: alt_score={} ref_score={} margin={} is_ref={} is_alt={} \
+         read_len={} ref_hap={} alt_hap={}",
+        alt_aln.score, ref_aln.score, margin, is_ref, is_alt,
+        read_len, ref_hap.len(), alt_hap.len()
     );
 
     if is_alt {
