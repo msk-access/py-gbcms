@@ -2,6 +2,12 @@
 
 How allele classifications become counts — read-level metrics, fragment counting, strand bias, and output columns.
 
+!!! info "Visual Overview"
+    <figure markdown="span">
+      ![Read filter and counting metrics poster](../assets/posters/Read_Filter_and_Counting_Metrics.jpg){ loading=lazy width="100%" }
+      <figcaption>The read-filter cascade and counting metrics — click to enlarge</figcaption>
+    </figure>
+
 ## Overview
 
 After each read is [classified](allele-classification.md) as REF, ALT, or neither, py-gbcms accumulates counts at **two levels**: individual reads and collapsed fragments. It then computes strand bias statistics using Fisher's exact test.

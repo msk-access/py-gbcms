@@ -2,6 +2,12 @@
 
 How py-gbcms prepares variants before counting — validation, left-alignment, and homopolymer decomposition.
 
+!!! info "Visual Overview"
+    <figure markdown="span">
+      ![Normalization pipeline poster](../assets/posters/gbcms_normalize_poster.jpg){ loading=lazy width="100%" }
+      <figcaption>The 5-step variant normalization pipeline — click to enlarge</figcaption>
+    </figure>
+
 ## Overview
 
 Before counting any reads, every variant passes through the **preparation pipeline** in `prepare_variants()`. This ensures consistent, biologically correct coordinates regardless of how the input was generated.
