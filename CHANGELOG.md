@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0] - 2026-02-19
+
+### ✨ Added
+- **Phase 2.5 edit distance fallback**: When read reconstruction length matches neither REF nor ALT (e.g., incomplete MAF definition), Levenshtein distance discriminates the closest allele with >1 edit margin safety guard
+- **Phase 3 local SW fallback**: Complex variants where semiglobal alignment produces confident-but-wrong calls (e.g., EPHA7 `TCC→CT`) are now rescued via local Smith-Waterman that soft-clips mismatched flanks. Dual-trigger requires both score reversal and ≥2-point margin
+
+### 🔧 Fixed
+- **Allele-based dispatch** (`check_allele_with_qual`): Routes by `ref_len × alt_len` instead of unreliable `variant_type` string labels. SNP (1×1), insertion (1×N), deletion (N×1), MNP (N×N equal), complex (N×M unequal) — eliminates misrouting when callers emit inconsistent type annotations
+- **SW semiglobal argument order**: Fixed `ref_hap`/`alt_hap` argument swap in semiglobal alignment that was scoring reads against the wrong haplotype
+- **Haplotype trimming removed**: Eliminated shared symmetric trim that caused `slice index starts at 7 but ends at 6` panics on asymmetric indels; replaced with validated per-haplotype bounds
+- **MNP fallback**: MNP reads now correctly fall through to SW alignment instead of silently returning "neither" on partial mismatches
+- **Dual-count guard**: Prevents a single read from being counted as both REF and ALT when SW scores are exactly equal
+- **Soft-clip restriction**: Soft-clipped bases no longer incorrectly contribute to variant region reconstruction
+- **Strand bias orientation**: Strand bias (Fisher's exact) now couples to the winning allele, not the raw alignment orientation
+- **Interior REF quality proxy**: Reads falling entirely within a large deletion (>50bp) now use median base quality instead of 0
+- **Interior REF guard removed**: Eliminated the `has_large_cigar_del` guard that massively overcounted REF for large deletions by misclassifying ALT-supporting reads
+
+### 🧹 Chores
+- **Clippy**: Removed unused `has_large_cigar_del` variable
+- **Tests**: Updated `test_fuzzy_complex::TestLengthMismatch` expectation to reflect Phase 3 local SW fallback behavior
+
 ## [2.6.1] - 2026-02-19
 
 ### 🔧 Fixed

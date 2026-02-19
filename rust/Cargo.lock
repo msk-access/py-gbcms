@@ -421,7 +421,7 @@ dependencies = [
 
 [[package]]
 name = "gbcms_rs"
-version = "2.6.1"
+version = "2.7.0"
 dependencies = [
  "anyhow",
  "bio",

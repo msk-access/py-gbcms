@@ -332,4 +332,3 @@ class TestLengthMismatch:
         assert counts.rd == 0
         # Phase 3 SW local fallback classifies this as ALT
         assert counts.ad == 1
-
