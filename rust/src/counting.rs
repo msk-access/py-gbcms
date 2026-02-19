@@ -164,7 +164,7 @@ pub fn count_bam(
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to build thread pool: {}", e)))?;
 
     // Zip variants with their decomposed counterparts for parallel iteration
-    let paired: Vec<_> = variants.into_iter().zip(decomposed.into_iter()).collect();
+    let paired: Vec<_> = variants.into_iter().zip(decomposed).collect();
 
     // Release GIL for parallel execution
     #[allow(deprecated)]
