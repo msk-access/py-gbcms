@@ -2,6 +2,12 @@
 
 How py-gbcms prepares variants before counting — validation, left-alignment, and homopolymer decomposition.
 
+!!! info "Visual Overview"
+    <figure markdown="span">
+      ![Normalization pipeline poster](../assets/posters/gbcms_normalize_poster.jpg){ loading=lazy width="100%" }
+      <figcaption>The 5-step variant normalization pipeline — click to enlarge</figcaption>
+    </figure>
+
 ## Overview
 
 Before counting any reads, every variant passes through the **preparation pipeline** in `prepare_variants()`. This ensures consistent, biologically correct coordinates regardless of how the input was generated.
@@ -42,23 +48,33 @@ MAF files represent indels using `-` dashes. py-gbcms converts them to VCF-style
 
 ## Step 2: REF Validation
 
-The REF allele is compared against the reference genome at the stated position. If they don't match, the variant is flagged and excluded from counting.
+The REF allele is compared against the reference genome at the stated position. An exact match passes immediately. If the exact match fails, a **similarity score** is computed — variants with ≥90% base match are corrected to the FASTA REF and proceed to counting.
 
 ```mermaid
-flowchart LR
-    Fetch["Fetch ref bases at pos"] --> Compare{"REF == genome?"}
-    Compare -- "Yes" --> Pass([✅ PASS]):::pass
-    Compare -- "No" --> Fail([❌ REF_MISMATCH]):::fail
+flowchart TD
+    Fetch["Fetch ref bases at pos"] --> Exact{"Exact match?"}
+    Exact -- "Yes" --> Pass([✅ PASS]):::pass
+    Exact -- "No" --> Sim["Compute similarity\n(matching bases / max length)"]
+    Sim --> Thresh{"≥ 90%?"}
+    Thresh -- "Yes" --> Corrected(["⚠️ PASS_WARN_REF_CORRECTED\n(use FASTA REF)"]):::warn
+    Thresh -- "No" --> Fail([❌ REF_MISMATCH]):::fail
 
     classDef pass fill:#27ae60,color:#fff;
+    classDef warn fill:#f39c12,color:#fff;
     classDef fail fill:#e74c3c,color:#fff;
 ```
+
+When a variant receives `PASS_WARN_REF_CORRECTED`, the MAF's REF allele is **replaced with the FASTA sequence** for all downstream steps (left-alignment, haplotype construction). The original MAF REF is preserved in `original_ref` for auditing.
+
+!!! example "Real-World Example: EGFR Exon 19 Deletion"
+    A 27bp complex EGFR deletion had 26/27 bases matching the FASTA (96%), with only the last base differing due to a MAF annotation artifact. Without tolerance, this variant was silently rejected with zero counts. With tolerant validation, it receives `PASS_WARN_REF_CORRECTED` and produces valid counts.
 
 !!! important "Common Causes of REF_MISMATCH"
     - Wrong reference genome version (GRCh37 vs GRCh38)
     - Chromosome naming mismatch (`chr1` vs `1`)
     - Variant was called against a different reference build
     - Upstream normalization changed coordinates incorrectly
+    - MAF annotation artifact (trailing base error) — now handled by tolerant validation
 
 ---
 
@@ -221,13 +237,14 @@ Every `PreparedVariant` carries a `validation_status` string:
 
 | Status | Meaning | Counted? |
 |:-------|:--------|:--------:|
-| `PASS` | Validated successfully | ✅ |
+| `PASS` | REF matches FASTA exactly | ✅ |
+| `PASS_WARN_REF_CORRECTED` | REF ≥90% match; corrected to FASTA REF | ✅ |
 | `PASS_WARN_HOMOPOLYMER_DECOMP` | Passed, but corrected allele was used (see above) | ✅ |
-| `REF_MISMATCH` | REF allele doesn't match reference genome | ❌ |
+| `REF_MISMATCH` | REF allele <90% match against reference genome | ❌ |
 | `FETCH_FAILED` | Could not fetch reference region | ❌ |
 
 !!! note "Filtering Behavior"
-    The pipeline filters on `validation_status.startswith("PASS")`, so both `PASS` and `PASS_WARN_*` variants proceed to counting. `REF_MISMATCH` and `FETCH_FAILED` variants are logged as rejected.
+    The pipeline filters on `validation_status.startswith("PASS")`, so all `PASS` and `PASS_WARN_*` variants proceed to counting. `REF_MISMATCH` and `FETCH_FAILED` variants are logged as rejected.
 
 ---
 

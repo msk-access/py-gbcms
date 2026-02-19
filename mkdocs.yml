@@ -43,6 +43,7 @@ plugins:
       separator: '[\s\-,:!=\[\]()"/]+|(?!\b)(?=[A-Z][a-z])|\,(?!\d)|&[lg]t;'
   - mermaid2:
       version: "11.4.0"
+  - mkdocs-pdf
   - glightbox:
       touchNavigation: true
       loop: false

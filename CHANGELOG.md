@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.1] - 2026-02-19
+
+### 🔧 Fixed
+- **Per-haplotype trimming**: Fixed `slice index starts at 7 but ends at 6` panic in `counting.rs` on asymmetric indels. Replaced shared symmetric trim with independent per-haplotype `trim_haplotype()` function that calculates bounds safely for each allele
+
+### ✨ Added
+- **Tolerant REF validation**: Variants with ≥90% REF match against the FASTA are now counted (status `PASS_WARN_REF_CORRECTED`) instead of being silently rejected. The FASTA REF is used for haplotype construction. Variants with <90% match are still rejected as `REF_MISMATCH`
+
+### 📚 Documentation
+- **Visual posters**: Added overview, normalization, and read-filter/counting-metrics posters (JPG) to reference documentation pages with lightbox support
+- **Embedded PDFs**: Added inline PDF viewer for allele classification guide and detailed overview presentation via `mkdocs-pdf` plugin
+- **Variant normalization**: Updated REF validation docs with 3-tier flowchart, `PASS_WARN_REF_CORRECTED` status, and EGFR exon 19 real-world example
+
+### 🔧 CI
+- **`deploy-docs.yml`**: Added `mkdocs-pdf` to docs CI pip install dependencies
+
 ## [2.6.0] - 2026-02-18
 
 ### ✨ Added

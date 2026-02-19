@@ -2,7 +2,6 @@
 Benchmark script for gbcms v2 (Rust) vs v1 (Python).
 """
 
-import sys
 import time
 from pathlib import Path
 

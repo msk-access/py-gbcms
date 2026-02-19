@@ -2,6 +2,12 @@
 
 Which reads are excluded before allele classification — the filter cascade, CLI flags, and defaults.
 
+!!! info "Visual Overview"
+    <figure markdown="span">
+      ![Read filter and counting metrics poster](../assets/posters/Read_Filter_and_Counting_Metrics.jpg){ loading=lazy width="100%" }
+      <figcaption>The read-filter cascade and counting metrics — click to enlarge</figcaption>
+    </figure>
+
 ## Filter Cascade
 
 Every read from the BAM passes through a **filter cascade** before being checked for allele support. Reads failing any enabled filter are discarded. The order matches the Rust engine implementation.

@@ -2,6 +2,9 @@
 
 How py-gbcms classifies each read as supporting the **reference** allele, the **alternate** allele, or **neither**.
 
+!!! tip "Detailed Visual Reference (PDF)"
+    ![Allele Classification Visual Guide](../assets/posters/Allele_Classification_factory_cmp.pdf){ type=application/pdf style="min-height:75vh;width:100%" }
+
 ## Dispatch
 
 After passing [read filters](read-filters.md), each read is dispatched to a **type-specific** allele checker based on the variant's type string (assigned during [normalization](variant-normalization.md)):

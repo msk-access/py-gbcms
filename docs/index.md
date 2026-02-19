@@ -28,6 +28,17 @@ flowchart LR
     Engine --> Metrics
 ```
 
+## Visual Overview
+
+<figure markdown="span">
+  ![py-gbcms overview poster](assets/posters/py-gbcms-overview-poster.jpg){ loading=lazy width="100%" }
+  <figcaption>py-gbcms end-to-end pipeline — click to enlarge</figcaption>
+</figure>
+
+### Detailed Overview (PDF)
+
+![Detailed overview of py-gbcms](assets/posters/High_Performance_cfDNA_Variant_Counting_cmp.pdf){ type=application/pdf style="min-height:75vh;width:100%" }
+
 ### Key Metrics
 
 | Metric | Formula | Description |

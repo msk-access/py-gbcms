@@ -672,22 +672,43 @@ fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
     // with complex CIGARs that produce short raw read windows), the aligner
     // forces gap penalties on the excess — penalizing both alleles equally
     // and destroying the variant-discriminating signal.
-    // Fix: symmetrically trim both haplotypes from the flanks to fit within
-    // the read length, keeping the variant region at the center.
-    let max_hap_len = ref_hap.len().max(alt_hap.len());
+    // Fix: trim each haplotype independently so we never create an invalid slice.
     let read_len = read_seq.len();
-    if max_hap_len > read_len && read_len >= ref_len {
-        let excess = max_hap_len - read_len;
-        let trim_left = excess / 2;
-        let trim_right = excess - trim_left;
-        let ref_end = ref_hap.len().saturating_sub(trim_right);
-        let alt_end = alt_hap.len().saturating_sub(trim_right);
-        ref_hap = ref_hap[trim_left..ref_end].to_vec();
-        alt_hap = alt_hap[trim_left..alt_end].to_vec();
-        trace!(
-            "classify_by_alignment: trimmed haplotypes by {}L/{}R to fit read_len={}",
-            trim_left, trim_right, read_len
+    if read_len < ref_len {
+        // Read is shorter than the REF allele itself — can't classify.
+        debug!(
+            "classify_by_alignment: read_len {} < ref_len {} — skipping",
+            read_len, ref_len
         );
+        return (false, false, 0);
+    }
+
+    fn trim_haplotype(hap: &mut Vec<u8>, read_len: usize) {
+        if hap.len() > read_len {
+            let excess = hap.len() - read_len;
+            let trim_left = excess / 2;
+            let trim_right = excess - trim_left;
+            let end = hap.len().saturating_sub(trim_right);
+            if trim_left >= end {
+                // Haplotype too short after trimming — truncate to read_len from center
+                let center = hap.len() / 2;
+                let half = read_len / 2;
+                let start = center.saturating_sub(half);
+                let actual_end = (start + read_len).min(hap.len());
+                let actual_start = actual_end.saturating_sub(read_len);
+                *hap = hap[actual_start..actual_end].to_vec();
+            } else {
+                *hap = hap[trim_left..end].to_vec();
+            }
+        }
+    }
+
+    trim_haplotype(&mut ref_hap, read_len);
+    trim_haplotype(&mut alt_hap, read_len);
+
+    if ref_hap.is_empty() || alt_hap.is_empty() {
+        debug!("classify_by_alignment: haplotype empty after trimming — skipping");
+        return (false, false, 0);
     }
 
     // Mask low-quality bases as N so they don't bias scoring.
