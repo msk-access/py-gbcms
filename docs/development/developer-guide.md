@@ -141,12 +141,12 @@ gitGraph
     commit id: "work"
     checkout develop
     merge feature/new-thing
-    branch release/2.6.0
+    branch release/2.6.1
     commit id: "bump"
     checkout main
-    merge release/2.6.0 tag: "2.6.0"
+    merge release/2.6.1 tag: "2.6.1"
     checkout develop
-    merge release/2.6.0
+    merge release/2.6.1
 ```
 
 | Branch | Purpose |

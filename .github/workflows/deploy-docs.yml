@@ -40,7 +40,7 @@ jobs:
         run: |
           pip install mkdocs-material mkdocs-mermaid2-plugin \
             mkdocs-glightbox mkdocs-git-revision-date-localized-plugin \
-            mkdocs-panzoom-plugin pillow cairosvg mike
+            mkdocs-panzoom-plugin pillow cairosvg mike mkdocs-pdf
 
       - name: Build documentation (PR check only)
         if: github.event_name == 'pull_request'
