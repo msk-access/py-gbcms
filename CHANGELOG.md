@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 📚 Documentation
 - **Visual posters**: Added overview, normalization, and read-filter/counting-metrics posters (JPG) to reference documentation pages with lightbox support
 - **Embedded PDFs**: Added inline PDF viewer for allele classification guide and detailed overview presentation via `mkdocs-pdf` plugin
+- **Variant normalization**: Updated REF validation docs with 3-tier flowchart, `PASS_WARN_REF_CORRECTED` status, and EGFR exon 19 real-world example
 
 ### 🔧 CI
 - **`deploy-docs.yml`**: Added `mkdocs-pdf` to docs CI pip install dependencies
