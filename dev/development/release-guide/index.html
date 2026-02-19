@@ -29,7 +29,7 @@
             body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
             body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
         </style><meta name="panzoom-theme" content="material">
-<meta name="panzoom-data" content='{"selectors": [".d2", ".mermaid"], "initial_zoom_level": 1.0}'> </head>
+<meta name="panzoom-data" content='{"selectors": [".mermaid", ".d2"], "initial_zoom_level": 1.0}'> </head>
 <body data-md-color-accent="custom" data-md-color-primary="custom" data-md-color-scheme="default" dir="ltr">
 <input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox">
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox">
@@ -1074,7 +1074,7 @@
 </ol>
 </nav>
 <article class="md-content__inner md-typeset">
-<h1 id="release-guide">Release Guide<a class="headerlink" href="#release-guide" title="Permanent link">¶</a></h1>
+<div><h1 id="release-guide">Release Guide<a class="headerlink" href="#release-guide" title="Permanent link">¶</a></h1>
 <p>This guide documents the complete release process for py-gbcms using git-flow workflow.</p>
 <h2 id="pre-release-checklist">Pre-Release Checklist<a class="headerlink" href="#pre-release-checklist" title="Permanent link">¶</a></h2>
 <p>Before starting a release, ensure:</p>
@@ -1151,7 +1151,7 @@
 <p>After updating, run this to ensure no stale versions remain:
 </p><div class="highlight"><pre><span></span><code><a href="#__codelineno-0-1" id="__codelineno-0-1" name="__codelineno-0-1"></a>grep<span class="w"> </span>-rn<span class="w"> </span><span class="s2">"OLD_VERSION"</span><span class="w"> </span>--include<span class="o">=</span><span class="s2">"*.py"</span><span class="w"> </span>--include<span class="o">=</span><span class="s2">"*.toml"</span><span class="w"> </span>--include<span class="o">=</span><span class="s2">"*.nf"</span><span class="w"> </span>--include<span class="o">=</span><span class="s2">"*.md"</span><span class="w"> </span>.<span class="w"> </span><span class="se">\</span>
 <a href="#__codelineno-0-2" id="__codelineno-0-2" name="__codelineno-0-2"></a><span class="w">  </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-v<span class="w"> </span><span class="s2">".git/"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-v<span class="w"> </span><span class="s2">"site/"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-v<span class="w"> </span><span class="s2">"CHANGELOG"</span>
-</code></pre></div><p></p>
+</code></pre></div>
 </div>
 <hr>
 <h2 id="release-workflow">Release Workflow<a class="headerlink" href="#release-workflow" title="Permanent link">¶</a></h2>
@@ -1370,6 +1370,7 @@ Use mouse to pan and zoom
 </ul>
 <!-- Abbreviation definitions for py-gbcms documentation -->
 <!-- These provide hover tooltips for technical acronyms -->
+<p><span hidden="">abbreviations</span></p></div>
 <aside class="md-source-file">
 <span class="md-source-file__fact">
 <span class="md-icon" title="Last update">

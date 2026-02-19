@@ -75,7 +75,7 @@
             body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
             body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
         </style><meta name="panzoom-theme" content="material">
-<meta name="panzoom-data" content='{"selectors": [".d2", ".mermaid"], "initial_zoom_level": 1.0}'> </head>
+<meta name="panzoom-data" content='{"selectors": [".mermaid", ".d2"], "initial_zoom_level": 1.0}'> </head>
   
   
     
@@ -1746,7 +1746,7 @@
   
 
 
-<h1 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">¶</a></h1>
+<div><h1 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">¶</a></h1>
 <p>Common issues and solutions for py-gbcms.</p>
 <h2 id="installation-issues">Installation Issues<a class="headerlink" href="#installation-issues" title="Permanent link">¶</a></h2>
 <h3 id="rust-compilation-fails">Rust Compilation Fails<a class="headerlink" href="#rust-compilation-fails" title="Permanent link">¶</a></h3>
@@ -1760,19 +1760,19 @@
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="c1"># CentOS/RHEL</span>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>yum<span class="w"> </span>groupinstall<span class="w"> </span><span class="s2">"Development Tools"</span>
-</code></pre></div><p></p>
+</code></pre></div>
 <h3 id="htslib-linking-error">htslib Linking Error<a class="headerlink" href="#htslib-linking-error" title="Permanent link">¶</a></h3>
 <p><strong>Error:</strong> <code>cannot find -lhts</code></p>
 <p><strong>Solution:</strong> The Rust backend compiles htslib statically. Ensure you have:
 </p><div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Dependencies</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>apt-get<span class="w"> </span>install<span class="w"> </span>zlib1g-dev<span class="w"> </span>libbz2-dev<span class="w"> </span>liblzma-dev<span class="w"> </span>libcurl4-openssl-dev
-</code></pre></div><p></p>
+</code></pre></div>
 <h2 id="runtime-issues">Runtime Issues<a class="headerlink" href="#runtime-issues" title="Permanent link">¶</a></h2>
 <h3 id="bai-not-found"><abbr title="BAM Index - Index file for rapid BAM access">BAI</abbr> Not Found<a class="headerlink" href="#bai-not-found" title="Permanent link">¶</a></h3>
 <p><strong>Error:</strong> <code>BAI index not found for sample.bam</code></p>
 <p><strong>Solution:</strong> Create or verify index:
 </p><div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>samtools<span class="w"> </span>index<span class="w"> </span>sample.bam
-</code></pre></div><p></p>
+</code></pre></div>
 <h3 id="chromosome-mismatch">Chromosome Mismatch<a class="headerlink" href="#chromosome-mismatch" title="Permanent link">¶</a></h3>
 <p><strong>Error:</strong> <code>Chromosome X not found in reference</code></p>
 <p><strong>Solution:</strong> Ensure chromosome naming matches between <abbr title="Variant Call Format - Standard variant call file format">VCF</abbr>/<abbr title="Mutation Annotation Format - Standard mutation annotation file format">MAF</abbr>, <abbr title="Binary Alignment Map - Compressed sequence alignment file format">BAM</abbr>, and <abbr title="FASTA format - Reference genome sequence file">FASTA</abbr> (e.g., <code>chr1</code> vs <code>1</code>).</p>
@@ -1783,7 +1783,7 @@
 </p><div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>docker<span class="w"> </span>pull<span class="w"> </span>ghcr.io/msk-access/py-gbcms:latest
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="c1"># or</span>
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>singularity<span class="w"> </span>pull<span class="w"> </span>docker://ghcr.io/msk-access/py-gbcms:latest
-</code></pre></div><p></p>
+</code></pre></div>
 <h3 id="task-metrics-error">Task Metrics Error<a class="headerlink" href="#task-metrics-error" title="Permanent link">¶</a></h3>
 <p><strong>Error:</strong> <code>Command 'ps' required by nextflow to collect task metrics</code></p>
 <p>This occurs when running containers that lack <code>procps</code>. Use a newer image with procps installed.</p>
@@ -1794,6 +1794,7 @@
 </ul>
 <!-- Abbreviation definitions for py-gbcms documentation -->
 <!-- These provide hover tooltips for technical acronyms -->
+<p><span hidden>abbreviations</span></p></div>
 
 
 
