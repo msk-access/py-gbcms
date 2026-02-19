@@ -17,15 +17,24 @@ use bio::alignment::pairwise::Aligner;
 /// Evidence accumulated for a single fragment (read pair) at a variant site.
 /// Tracks the best base quality seen for each allele across both reads,
 /// enabling quality-weighted consensus to resolve R1-vs-R2 conflicts.
+///
+/// Orientation tracking is per-allele: the strand direction stored for each
+/// allele is the orientation of the read that provided the best-quality
+/// evidence for that allele. This ensures Fisher's Strand Bias (FSB)
+/// reflects the actual strand of the evidence, not just R1's strand.
 #[derive(Debug, Clone)]
 struct FragmentEvidence {
     /// Best base quality seen supporting REF across reads in this fragment
     best_ref_qual: u8,
     /// Best base quality seen supporting ALT across reads in this fragment
     best_alt_qual: u8,
-    /// Orientation of read 1 (true = forward, false = reverse), if seen
+    /// Orientation of the read providing best REF evidence
+    best_ref_orientation: Option<bool>,
+    /// Orientation of the read providing best ALT evidence
+    best_alt_orientation: Option<bool>,
+    /// Orientation of read 1 (fallback for orientation when allele-specific is unavailable)
     read1_orientation: Option<bool>,
-    /// Orientation of read 2 (true = forward, false = reverse), if seen
+    /// Orientation of read 2 (fallback)
     read2_orientation: Option<bool>,
 }
 
@@ -34,19 +43,28 @@ impl FragmentEvidence {
         FragmentEvidence {
             best_ref_qual: 0,
             best_alt_qual: 0,
+            best_ref_orientation: None,
+            best_alt_orientation: None,
             read1_orientation: None,
             read2_orientation: None,
         }
     }
 
     /// Record a read's allele call and orientation into this fragment's evidence.
+    ///
+    /// Tracks per-allele orientation: when a new best-quality observation is
+    /// recorded for REF or ALT, the orientation of THAT read is stored.
+    /// This couples the strand direction to the winning evidence, not just R1.
     fn observe(&mut self, is_ref: bool, is_alt: bool, base_qual: u8, is_read1: bool, is_forward: bool) {
         if is_ref && base_qual > self.best_ref_qual {
             self.best_ref_qual = base_qual;
+            self.best_ref_orientation = Some(is_forward);
         }
         if is_alt && base_qual > self.best_alt_qual {
             self.best_alt_qual = base_qual;
+            self.best_alt_orientation = Some(is_forward);
         }
+        // Track R1/R2 orientation as fallback
         if is_read1 {
             self.read1_orientation = Some(is_forward);
         } else {
@@ -82,10 +100,20 @@ impl FragmentEvidence {
         }
     }
 
-    /// Get the fragment orientation. Prefers read 1 orientation when both reads present.
-    fn orientation(&self) -> Option<bool> {
-        // Prefer read 1 orientation (consistent with original behavior)
-        self.read1_orientation.or(self.read2_orientation)
+    /// Get orientation for REF allele. Uses the strand of the read that provided
+    /// the best REF evidence, falling back to R1 > R2 if not available.
+    fn ref_orientation(&self) -> Option<bool> {
+        self.best_ref_orientation
+            .or(self.read1_orientation)
+            .or(self.read2_orientation)
+    }
+
+    /// Get orientation for ALT allele. Uses the strand of the read that provided
+    /// the best ALT evidence, falling back to R1 > R2 if not available.
+    fn alt_orientation(&self) -> Option<bool> {
+        self.best_alt_orientation
+            .or(self.read1_orientation)
+            .or(self.read2_orientation)
     }
 }
 
@@ -349,14 +377,13 @@ fn count_single_variant(
     // Each fragment contributes exactly ONE allele call (REF xor ALT),
     // preventing the double-counting bug where R1=REF + R2=ALT
     // inflated both rdf and adf.
+    //
+    // Strand bias uses allele-specific orientation: the strand of the read
+    // that provided the best evidence for the winning allele, not just R1.
+    // Example: R1=Fwd/REF(Q10) + R2=Rev/ALT(Q30) → ALT wins, counted as
+    // adf_rev (not adf_fwd).
     for evidence in fragments.values() {
         let (frag_ref, frag_alt) = evidence.resolve(qual_diff_threshold);
-
-        // Get fragment orientation (prefer read 1)
-        let orientation = match evidence.orientation() {
-            Some(o) => o,
-            None => continue, // No orientation data (should not happen)
-        };
 
         // Count every fragment in dpf regardless of consensus outcome.
         // Discarded fragments (ambiguous R1-vs-R2 within quality threshold)
@@ -366,17 +393,23 @@ fn count_single_variant(
 
         if frag_ref {
             counts.rdf += 1;
-            if orientation {
-                counts.rdf_fwd += 1;
-            } else {
-                counts.rdf_rev += 1;
+            // Use REF-specific orientation (strand of best REF evidence)
+            if let Some(ori) = evidence.ref_orientation() {
+                if ori {
+                    counts.rdf_fwd += 1;
+                } else {
+                    counts.rdf_rev += 1;
+                }
             }
         } else if frag_alt {
             counts.adf += 1;
-            if orientation {
-                counts.adf_fwd += 1;
-            } else {
-                counts.adf_rev += 1;
+            // Use ALT-specific orientation (strand of best ALT evidence)
+            if let Some(ori) = evidence.alt_orientation() {
+                if ori {
+                    counts.adf_fwd += 1;
+                } else {
+                    counts.adf_rev += 1;
+                }
             }
         }
     }
