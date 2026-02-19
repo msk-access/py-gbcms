@@ -34,8 +34,8 @@ pub struct PreparedVariant {
     #[pyo3(get)]
     pub variant: Variant,
 
-    /// Validation result: "PASS", "PASS_WARN_HOMOPOLYMER_DECOMP",
-    /// "REF_MISMATCH", or "FETCH_FAILED".
+    /// Validation result: "PASS", "PASS_WARN_REF_CORRECTED",
+    /// "PASS_WARN_HOMOPOLYMER_DECOMP", "REF_MISMATCH", or "FETCH_FAILED".
     #[pyo3(get, set)]
     pub validation_status: String,
 
@@ -345,33 +345,61 @@ fn fetch_single_base(
 
 /// Validate that the REF allele matches the reference genome.
 ///
-/// Case-insensitive comparison. Tries both the given chromosome name
-/// and with/without "chr" prefix.
+/// Case-insensitive comparison with tolerance for partial mismatches.
+/// Tries both the given chromosome name and with/without "chr" prefix.
 ///
 /// # Returns
-/// - `"PASS"` if REF matches the genome
-/// - `"REF_MISMATCH"` if REF does not match
-/// - `"FETCH_FAILED"` if the region cannot be fetched
+/// Tuple of `(status, Option<fasta_ref>)`:
+/// - `("PASS", None)` — exact match
+/// - `("PASS_WARN_REF_CORRECTED", Some(fasta_ref))` — ≥90% match, corrected
+/// - `("REF_MISMATCH", None)` — <90% match, rejected
+/// - `("FETCH_FAILED", None)` — region could not be fetched
 fn validate_ref(
     reader: &mut fasta::IndexedReader<File>,
     chrom: &str,
     pos_0based: i64,
     ref_allele: &str,
-) -> String {
+) -> (String, Option<String>) {
     let ref_len = ref_allele.len() as u64;
     let pos = pos_0based as u64;
 
     let fetch_result = fetch_region(reader, chrom, pos, pos + ref_len);
     match fetch_result {
         Ok(ref_seq) => {
-            if ref_seq.eq_ignore_ascii_case(ref_allele.as_bytes())
-            {
-                "PASS".to_string()
+            // Fast path: exact match
+            if ref_seq.eq_ignore_ascii_case(ref_allele.as_bytes()) {
+                ("PASS".to_string(), None)
             } else {
-                "REF_MISMATCH".to_string()
+                // Compute similarity: count matching bases (case-insensitive)
+                let max_len = ref_seq.len().max(ref_allele.len());
+                if max_len == 0 {
+                    return ("REF_MISMATCH".to_string(), None);
+                }
+                let matches = ref_seq
+                    .iter()
+                    .zip(ref_allele.as_bytes())
+                    .filter(|(a, b)| a.eq_ignore_ascii_case(b))
+                    .count();
+                let similarity = matches as f64 / max_len as f64;
+
+                if similarity >= 0.90 {
+                    let fasta_ref = String::from_utf8_lossy(&ref_seq).to_uppercase();
+                    warn!(
+                        "REF partially mismatched at {}:{} — {}/{} bases match ({:.1}%), \
+                         correcting to FASTA REF",
+                        chrom,
+                        pos + 1,
+                        matches,
+                        max_len,
+                        similarity * 100.0,
+                    );
+                    ("PASS_WARN_REF_CORRECTED".to_string(), Some(fasta_ref))
+                } else {
+                    ("REF_MISMATCH".to_string(), None)
+                }
             }
         }
-        Err(_) => "FETCH_FAILED".to_string(),
+        Err(_) => ("FETCH_FAILED".to_string(), None),
     }
 }
 
@@ -716,9 +744,15 @@ fn prepare_single_variant(
         )
     };
 
-    // Step 2: REF validation
-    let status = validate_ref(reader, &variant.chrom, pos, &ref_al);
-    if status != "PASS" {
+    // Step 2: REF validation (with tolerance for partial mismatches)
+    let (status, corrected_ref) = validate_ref(reader, &variant.chrom, pos, &ref_al);
+
+    // If REF was partially mismatched but ≥90% similar, correct it to the FASTA REF
+    if let Some(fasta_ref) = corrected_ref {
+        ref_al = fasta_ref;
+    }
+
+    if !status.starts_with("PASS") {
         debug!(
             "REF validation {}: {}:{} {}>{} ({})",
             status,

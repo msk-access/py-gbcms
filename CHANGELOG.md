@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 🔧 Fixed
 - **Per-haplotype trimming**: Fixed `slice index starts at 7 but ends at 6` panic in `counting.rs` on asymmetric indels. Replaced shared symmetric trim with independent per-haplotype `trim_haplotype()` function that calculates bounds safely for each allele
 
+### ✨ Added
+- **Tolerant REF validation**: Variants with ≥90% REF match against the FASTA are now counted (status `PASS_WARN_REF_CORRECTED`) instead of being silently rejected. The FASTA REF is used for haplotype construction. Variants with <90% match are still rejected as `REF_MISMATCH`
+
 ### 📚 Documentation
 - **Visual posters**: Added overview, normalization, and read-filter/counting-metrics posters (JPG) to reference documentation pages with lightbox support
 - **Embedded PDFs**: Added inline PDF viewer for allele classification guide and detailed overview presentation via `mkdocs-pdf` plugin
