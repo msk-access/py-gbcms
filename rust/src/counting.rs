@@ -218,10 +218,22 @@ pub fn count_bam(
                             )?;
 
                             if counts_decomp.ad > counts_orig.ad {
+                                // Sanity: both hypotheses count the same reads at the
+                                // same locus, so DP should be nearly identical. A large
+                                // divergence indicates a counting bug.
+                                debug_assert!(
+                                    (counts_decomp.dp as i64 - counts_orig.dp as i64).abs() <= 2,
+                                    "DP mismatch in dual-counting: decomp={} orig={} at {}:{} {}→{}",
+                                    counts_decomp.dp, counts_orig.dp,
+                                    variant.chrom, variant.pos + 1,
+                                    variant.ref_allele, decomp.alt_allele
+                                );
                                 debug!(
                                     "Homopolymer decomp: corrected allele wins \
-                                     (ad={} vs orig ad={}) for {}:{} {}→{}",
+                                     (ad={} vs orig ad={}, dp_decomp={}, dp_orig={}) \
+                                     for {}:{} {}→{}",
                                     counts_decomp.ad, counts_orig.ad,
+                                    counts_decomp.dp, counts_orig.dp,
                                     variant.chrom, variant.pos + 1,
                                     variant.ref_allele, decomp.alt_allele,
                                 );
@@ -458,8 +470,18 @@ fn check_allele_with_qual<F: Fn(u8, u8) -> i32>(
         "INSERTION" => check_insertion(record, variant, min_baseq, alt_aligner, ref_aligner),
         "DELETION" => check_deletion(record, variant, min_baseq, alt_aligner, ref_aligner),
         "MNP" => {
-            debug!("Dispatching to check_mnp");
-            check_mnp(record, variant, min_baseq)
+            // MNP strict match first; fall back to quality-masked haplotype
+            // comparison (check_complex → Phase 3 SW) if inconclusive.
+            // Without this fallback, a single low-quality base in the MNP
+            // block would hard-reject the read, reducing sensitivity in
+            // noisy samples (ctDNA, FFPE).
+            let (is_ref, is_alt, qual) = check_mnp(record, variant, min_baseq);
+            if !is_ref && !is_alt {
+                debug!("check_mnp inconclusive, falling back to check_complex");
+                check_complex(record, variant, min_baseq, alt_aligner, ref_aligner)
+            } else {
+                (is_ref, is_alt, qual)
+            }
         },
         "COMPLEX" => check_complex(record, variant, min_baseq, alt_aligner, ref_aligner),
         _ => {
@@ -468,7 +490,13 @@ fn check_allele_with_qual<F: Fn(u8, u8) -> i32>(
                 && variant.ref_allele.len() > 1
             {
                 debug!("Auto-detected MNP");
-                check_mnp(record, variant, min_baseq)
+                let (is_ref, is_alt, qual) = check_mnp(record, variant, min_baseq);
+                if !is_ref && !is_alt {
+                    debug!("Auto-detected MNP inconclusive, falling back to check_complex");
+                    check_complex(record, variant, min_baseq, alt_aligner, ref_aligner)
+                } else {
+                    (is_ref, is_alt, qual)
+                }
             } else {
                 // Fallback to complex check for anything else (e.g. DelIns)
                 check_complex(record, variant, min_baseq, alt_aligner, ref_aligner)
@@ -503,10 +531,16 @@ fn check_allele_with_qual<F: Fn(u8, u8) -> i32>(
 /// 3. Return `seq[first_read_pos..=last_read_pos]`
 ///
 /// Returns `(bases, quals)` — empty if the read doesn't overlap the window.
+///
+/// `variant_pos` and `variant_ref_len` restrict soft-clip inclusion to clips
+/// adjacent to the variant site, preventing adapter/chimeric garbage from
+/// large leading clips from polluting Phase 3 alignment.
 fn extract_raw_read_window(
     record: &Record,
     win_start: i64,
     win_end: i64,
+    variant_pos: i64,
+    variant_ref_len: usize,
 ) -> (Vec<u8>, Vec<u8>) {
     let cigar = record.cigar();
     let mut ref_pos = record.pos();
@@ -557,8 +591,14 @@ fn extract_raw_read_window(
             }
             Cigar::SoftClip(len) => {
                 let len_usize = *len as usize;
-                // Soft clips near the window may carry variant evidence.
-                if ref_pos >= win_start && ref_pos < win_end {
+                // Only include soft clips adjacent to the variant position
+                // itself (within ±1bp), not the broad fetching window.
+                // Large leading clips (e.g. 100S) at the window boundary
+                // would inject garbage adapter/chimeric sequence into Phase 3
+                // SW alignment, dragging down scores and causing valid reads
+                // to fail the alt_score >= ref_score + margin check.
+                let var_end = variant_pos + variant_ref_len as i64;
+                if ref_pos >= variant_pos - 1 && ref_pos <= var_end + 1 {
                     let rp_end = read_pos + len_usize - 1;
                     if first_read_pos.is_none() {
                         first_read_pos = Some(read_pos);
@@ -1010,7 +1050,9 @@ fn check_complex<F: Fn(u8, u8) -> i32>(
             return (false, false, 0);
         }
 
-        let (sub_seq, sub_quals) = extract_raw_read_window(record, win_start, win_end);
+        let (sub_seq, sub_quals) = extract_raw_read_window(
+            record, win_start, win_end, variant.pos, variant.ref_allele.len()
+        );
         if sub_seq.len() >= 3 {
             debug!(
                 "Phase 3 fallback: extracted {} raw bases over [{}, {})",
