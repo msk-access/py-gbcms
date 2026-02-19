@@ -1681,66 +1681,53 @@ fn check_deletion<F: Fn(u8, u8) -> i32>(
         return (false, true, anchor_qual); // ALT — windowed match
     }
 
-    // Fix 3: Interior REF guard for large deletions.
-    //
-    // For large deletions (≥50bp), reads that start *inside* the expected
-    // deletion span are reference reads — they align to sequence that would
-    // be absent in the ALT allele. These reads won't cover the anchor
-    // (found_ref_coverage == false) and have no matching deletion CIGAR,
-    // so without this guard they fall back to check_complex → Phase 3
-    // Smith-Waterman alignment.
-    //
-    // In Phase 3, the REF haplotype (e.g. 1044bp for a 1023bp deletion)
-    // far exceeds the read length (~100bp), causing semiglobal alignment
-    // to penalize it with gaps. The short ALT haplotype (~21bp) fits
-    // easily, producing a higher score → false ALT call.
-    //
-    // Fix: detect reads starting inside the deletion span and classify
-    // them as REF directly. Only applied for large deletions (≥50bp)
-    // where the semiglobal alignment length mismatch is significant.
-    //
-    // Quality note: these interior reads don't cover the anchor base,
-    // so anchor_qual is 0. Using 0 would cause FragmentEvidence::resolve()
-    // to discard this fragment (has_ref = best_ref_qual > 0 fails),
-    // silently inflating ALT VAF. Instead, use the read's median base
-    // quality as proxy evidence — the read's physical presence inside the
-    // deletion span IS the evidence for REF support.
-    let read_start = record.pos();
-    let del_region_end = anchor_pos + expected_del_len as i64;
-
-    if expected_del_len >= 50
-        && read_start > anchor_pos
-        && read_start < del_region_end
-        && !found_ref_coverage
-        && !has_large_cigar_del  // exclude reads carrying the actual deletion
-    {
-        // Use median read quality as proxy since anchor isn't covered.
-        // Floor at 1 to guarantee FragmentEvidence counts this fragment.
-        let proxy_qual = median_qual(record.qual(), min_baseq);
-        let interior_qual = if proxy_qual > 0 { proxy_qual } else { 1 };
-        debug!(
-            "check_deletion: read at pos {} starts inside deletion span \
-             [{}, {}), calling REF (interior read, del_len={}, proxy_qual={})",
-            read_start,
-            anchor_pos + 1,
-            del_region_end,
-            expected_del_len,
-            interior_qual
-        );
-        return (true, false, interior_qual);
-    }
+    // Note: an earlier version had an "interior REF guard" here that classified
+    // any read starting inside a large deletion span as REF. This was REMOVED
+    // because it massively overcounted: for a 1023bp deletion (TP53), it claimed
+    // ~4,000 reads mapping anywhere in the 1kb interior as REF evidence, when
+    // IGV shows only ~770 reads at the anchor. Reads that don't cover the anchor
+    // have no information about whether the deletion is present and must not be
+    // counted. With the SW swap fix (Issue #1), Phase 3 correctly handles large
+    // deletions: the read (pattern) slides along the longer haplotype (text)
+    // without gap penalty, so false ALT calls no longer occur.
 
     // P0-3: Haplotype fallback — when strict/windowed CIGAR matching found no
     // deletion match and the read doesn't cover the anchor, try check_complex
     // which reconstructs the read's haplotype and does quality-aware comparison.
     // Only fall back when NOT found_ref_coverage to avoid false positives on
     // reads that genuinely show REF at this position.
+    //
+    // CRITICAL: Only attempt Phase 3 if the read actually overlaps the anchor
+    // position (variant.pos). Reads that map entirely inside a large deletion
+    // span (e.g., a 1023bp TP53 deletion) have no information about the variant
+    // and must not be counted. Without this guard, the SW aligner would classify
+    // interior reads as REF, massively inflating ref_count.
     if !found_ref_coverage && best_windowed_match.is_none() {
-        debug!(
-            "check_deletion: no CIGAR match at pos {}, falling back to check_complex",
-            anchor_pos
-        );
-        return check_complex(record, variant, min_baseq, alt_aligner, ref_aligner);
+        // Compute the read's reference span end from CIGAR
+        let read_ref_end = {
+            let mut rend = record.pos();
+            for op in record.cigar().iter() {
+                match op {
+                    Cigar::Match(len) | Cigar::Equal(len) | Cigar::Diff(len)
+                    | Cigar::Del(len) | Cigar::RefSkip(len) => {
+                        rend += *len as i64;
+                    }
+                    _ => {}
+                }
+            }
+            rend
+        };
+
+        // Read must span the anchor position to have variant information.
+        // anchor_pos is the 0-based position of the base before the deletion.
+        if record.pos() <= anchor_pos && read_ref_end > anchor_pos {
+            debug!(
+                "check_deletion: no CIGAR match at pos {}, falling back to check_complex",
+                anchor_pos
+            );
+            return check_complex(record, variant, min_baseq, alt_aligner, ref_aligner);
+        }
+        // Otherwise: read doesn't overlap the anchor → no variant info
     }
 
     if found_ref_coverage {
