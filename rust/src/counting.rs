@@ -1546,7 +1546,7 @@ fn check_deletion<F: Fn(u8, u8) -> i32>(
     let mut found_ref_coverage = false;
     let mut anchor_read_pos: Option<usize> = None; // read position of anchor base
     let mut best_windowed_match: Option<u64> = None;
-    let mut has_large_cigar_del = false; // tracks if read carries a large deletion
+
 
     for (i, op) in cigar_view.iter().enumerate() {
         match op {
@@ -1657,8 +1657,7 @@ fn check_deletion<F: Fn(u8, u8) -> i32>(
                                     del_len_usize, expected_del_len,
                                     del_ref_pos, overlap
                                 );
-                                // Track that this read carries a large deletion
-                                has_large_cigar_del = true;
+
                                 true
                             } else {
                                 false
