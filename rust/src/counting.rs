@@ -12,6 +12,7 @@ use rayon::prelude::*;
 
 use anyhow::{Context, Result};
 use log::{debug, trace};
+use bio::alignment::distance::levenshtein;
 use bio::alignment::pairwise::Aligner;
 
 /// Evidence accumulated for a single fragment (read pair) at a variant site.
@@ -462,46 +463,43 @@ fn check_allele_with_qual<F: Fn(u8, u8) -> i32>(
     alt_aligner: &mut Aligner<F>,
     ref_aligner: &mut Aligner<F>,
 ) -> (bool, bool, u8) {
-    let variant_type = &variant.variant_type;
-    debug!("check_allele type={} pos={} ref={} alt={}", variant_type, variant.pos, variant.ref_allele, variant.alt_allele);
+    // Dispatch based on allele lengths rather than the variant_type string.
+    // This is more robust than relying on upstream type labels, which can be
+    // inconsistent (e.g., a caller emitting "COMPLEX" for what is really a
+    // pure deletion after normalization).
+    let ref_len = variant.ref_allele.len();
+    let alt_len = variant.alt_allele.len();
+    debug!(
+        "check_allele ref_len={} alt_len={} pos={} ref={} alt={}",
+        ref_len, alt_len, variant.pos, variant.ref_allele, variant.alt_allele
+    );
 
-    match variant_type.as_str() {
-        "SNP" => check_snp(record, variant, min_baseq),
-        "INSERTION" => check_insertion(record, variant, min_baseq, alt_aligner, ref_aligner),
-        "DELETION" => check_deletion(record, variant, min_baseq, alt_aligner, ref_aligner),
-        "MNP" => {
-            // MNP strict match first; fall back to quality-masked haplotype
-            // comparison (check_complex → Phase 3 SW) if inconclusive.
-            // Without this fallback, a single low-quality base in the MNP
-            // block would hard-reject the read, reducing sensitivity in
-            // noisy samples (ctDNA, FFPE).
-            let (is_ref, is_alt, qual) = check_mnp(record, variant, min_baseq);
-            if !is_ref && !is_alt {
-                debug!("check_mnp inconclusive, falling back to check_complex");
-                check_complex(record, variant, min_baseq, alt_aligner, ref_aligner)
-            } else {
-                (is_ref, is_alt, qual)
-            }
-        },
-        "COMPLEX" => check_complex(record, variant, min_baseq, alt_aligner, ref_aligner),
-        _ => {
-            // Auto-detect MNP if type is not explicit but looks like one
-            if variant.ref_allele.len() == variant.alt_allele.len()
-                && variant.ref_allele.len() > 1
-            {
-                debug!("Auto-detected MNP");
-                let (is_ref, is_alt, qual) = check_mnp(record, variant, min_baseq);
-                if !is_ref && !is_alt {
-                    debug!("Auto-detected MNP inconclusive, falling back to check_complex");
-                    check_complex(record, variant, min_baseq, alt_aligner, ref_aligner)
-                } else {
-                    (is_ref, is_alt, qual)
-                }
-            } else {
-                // Fallback to complex check for anything else (e.g. DelIns)
-                check_complex(record, variant, min_baseq, alt_aligner, ref_aligner)
-            }
+    if ref_len == 1 && alt_len == 1 {
+        // SNP: single base substitution
+        check_snp(record, variant, min_baseq)
+    } else if ref_len == alt_len {
+        // MNP: equal-length multi-base substitution.
+        // Strict match first; fall back to quality-masked haplotype
+        // comparison (check_complex → Phase 3 SW) if inconclusive.
+        // Without this fallback, a single low-quality base in the MNP
+        // block would hard-reject the read, reducing sensitivity in
+        // noisy samples (ctDNA, FFPE).
+        let (is_ref, is_alt, qual) = check_mnp(record, variant, min_baseq);
+        if !is_ref && !is_alt {
+            debug!("MNP inconclusive, falling back to check_complex");
+            check_complex(record, variant, min_baseq, alt_aligner, ref_aligner)
+        } else {
+            (is_ref, is_alt, qual)
         }
+    } else if ref_len == 1 {
+        // Pure insertion: anchor + inserted bases (ref_len=1, alt_len>1)
+        check_insertion(record, variant, min_baseq, alt_aligner, ref_aligner)
+    } else if alt_len == 1 {
+        // Pure deletion: anchor + deleted bases (ref_len>1, alt_len=1)
+        check_deletion(record, variant, min_baseq, alt_aligner, ref_aligner)
+    } else {
+        // Complex: ref_len != alt_len, both > 1 (e.g., DelIns)
+        check_complex(record, variant, min_baseq, alt_aligner, ref_aligner)
     }
 }
 
@@ -774,7 +772,7 @@ fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
         String::from_utf8_lossy(&ref_hap)
     );
 
-    // Semiglobal alignment: read = pattern (fully consumed, every base must
+    // Semiglobal alignment: read = query (fully consumed, every base must
     // participate), haplotype = text (free leading/trailing overhangs).
     // The aligner slides the read along the haplotype to find the best window.
     // This correctly handles:
@@ -791,8 +789,8 @@ fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
     // can find shifted alignments that reduce the score difference from 3
     // to exactly 2. Strict > would incorrectly classify these as ambiguous.
     let margin = 2;
-    let is_alt = alt_aln.score >= ref_aln.score + margin;
-    let is_ref = ref_aln.score >= alt_aln.score + margin;
+    let mut is_alt = alt_aln.score >= ref_aln.score + margin;
+    let mut is_ref = ref_aln.score >= alt_aln.score + margin;
 
     debug!(
         "classify_by_alignment: alt_score={} ref_score={} margin={} is_ref={} is_alt={} \
@@ -801,12 +799,61 @@ fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
         read_len, ref_hap.len(), alt_hap.len()
     );
 
+    // Dual-trigger local fallback for indel/complex variants.
+    //
+    // When the MAF/VCF definition is incomplete (e.g., TCC→CT missing an
+    // adjacent SNV), the ALT haplotype has a "frameshifted flank": bases in
+    // the right context that don't match the biological read. Semiglobal
+    // alignment forces gap penalties through this invalid flank, producing
+    // confident but WRONG calls (e.g., EPHA7: alt=-4 ref=-2 → REF).
+    //
+    // Local alignment soft-clips the bad flank, finding the best matching
+    // substring without penalizing overhangs on either side.
+    //
+    // Two triggers detect low-confidence semiglobal results:
+    //  - Borderline: score difference is within margin+1 (barely decisive)
+    //  - Poor quality: best score is < half the "perfect" score (both
+    //    haplotypes are fighting severe penalties)
+    //
+    // Only applied to **complex** variants (both alleles > 1bp), where the
+    // MAF definition is most likely to be incomplete. Pure insertions and
+    // deletions are well-handled by semiglobal alignment.
+    let ref_allele_len = variant.ref_allele.len();
+    let alt_allele_len = variant.alt_allele.len();
+    let is_complex = ref_allele_len > 1 && alt_allele_len > 1
+        && ref_allele_len != alt_allele_len;
+
+    if is_complex {
+        let diff = (alt_aln.score - ref_aln.score).abs();
+        let max_score = std::cmp::max(alt_aln.score, ref_aln.score);
+        let perfect_score = read_len as i32;
+        let is_borderline = diff <= margin + 1;
+        let is_poor = max_score < perfect_score / 2;
+
+        if is_borderline || is_poor {
+            debug!(
+                "Phase 3 low-confidence (diff={}, max_score={}/{}, borderline={}, poor={}) \
+                 → local fallback",
+                diff, max_score, perfect_score, is_borderline, is_poor
+            );
+            let alt_local = alt_aligner.local(&masked_seq, &alt_hap);
+            let ref_local = ref_aligner.local(&masked_seq, &ref_hap);
+
+            is_alt = alt_local.score >= ref_local.score + margin;
+            is_ref = ref_local.score >= alt_local.score + margin;
+
+            debug!(
+                "Phase 3 local result: alt_local={} ref_local={} is_alt={} is_ref={}",
+                alt_local.score, ref_local.score, is_alt, is_ref
+            );
+        }
+    }
+
     if is_alt {
         (false, true, med_qual)
     } else if is_ref {
         (true, false, med_qual)
     } else {
-        // Ambiguous — scores too close
         (false, false, 0)
     }
 }
@@ -1023,6 +1070,28 @@ fn check_complex<F: Fn(u8, u8) -> i32>(
             alt_bytes.len(),
             ref_bytes.len()
         );
+
+        // Phase 2.5: Fuzzy edit distance fallback.
+        // When reconstruction length doesn't match REF or ALT exactly
+        // (e.g., incomplete MAF definition drops an adjacent SNV),
+        // Levenshtein distance can still discriminate the closest allele.
+        // Requires >1 edit margin for safety on very short strings.
+        if recon_len >= 2 {
+            let d_ref = levenshtein(&reconstructed_seq, ref_bytes);
+            let d_alt = levenshtein(&reconstructed_seq, alt_bytes);
+            debug!(
+                "Phase 2.5: edit_dist to_ref={} to_alt={} recon_len={}",
+                d_ref, d_alt, recon_len
+            );
+            if d_alt + 1 < d_ref {
+                debug!("Phase 2.5 → ALT (edit distance margin)");
+                return (false, true, med_haplotype_qual);
+            } else if d_ref + 1 < d_alt {
+                debug!("Phase 2.5 → REF (edit distance margin)");
+                return (true, false, med_haplotype_qual);
+            }
+            // else: ambiguous, fall through to Phase 3
+        }
     }
 
     // --- Phase 3: Alignment-based fallback (indelpost approach) ---
