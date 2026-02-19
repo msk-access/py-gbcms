@@ -104,7 +104,7 @@ gbcms run \
 ## Docker
 
 ```bash
-docker run --rm -v $(pwd):/data ghcr.io/msk-access/py-gbcms:2.6.1 \
+docker run --rm -v $(pwd):/data ghcr.io/msk-access/py-gbcms:2.7.0 \
     gbcms run \
     --variants /data/variants.vcf \
     --bam /data/sample.bam \

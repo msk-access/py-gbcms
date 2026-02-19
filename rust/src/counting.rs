@@ -12,20 +12,30 @@ use rayon::prelude::*;
 
 use anyhow::{Context, Result};
 use log::{debug, trace};
+use bio::alignment::distance::levenshtein;
 use bio::alignment::pairwise::Aligner;
 
 /// Evidence accumulated for a single fragment (read pair) at a variant site.
 /// Tracks the best base quality seen for each allele across both reads,
 /// enabling quality-weighted consensus to resolve R1-vs-R2 conflicts.
+///
+/// Orientation tracking is per-allele: the strand direction stored for each
+/// allele is the orientation of the read that provided the best-quality
+/// evidence for that allele. This ensures Fisher's Strand Bias (FSB)
+/// reflects the actual strand of the evidence, not just R1's strand.
 #[derive(Debug, Clone)]
 struct FragmentEvidence {
     /// Best base quality seen supporting REF across reads in this fragment
     best_ref_qual: u8,
     /// Best base quality seen supporting ALT across reads in this fragment
     best_alt_qual: u8,
-    /// Orientation of read 1 (true = forward, false = reverse), if seen
+    /// Orientation of the read providing best REF evidence
+    best_ref_orientation: Option<bool>,
+    /// Orientation of the read providing best ALT evidence
+    best_alt_orientation: Option<bool>,
+    /// Orientation of read 1 (fallback for orientation when allele-specific is unavailable)
     read1_orientation: Option<bool>,
-    /// Orientation of read 2 (true = forward, false = reverse), if seen
+    /// Orientation of read 2 (fallback)
     read2_orientation: Option<bool>,
 }
 
@@ -34,19 +44,28 @@ impl FragmentEvidence {
         FragmentEvidence {
             best_ref_qual: 0,
             best_alt_qual: 0,
+            best_ref_orientation: None,
+            best_alt_orientation: None,
             read1_orientation: None,
             read2_orientation: None,
         }
     }
 
     /// Record a read's allele call and orientation into this fragment's evidence.
+    ///
+    /// Tracks per-allele orientation: when a new best-quality observation is
+    /// recorded for REF or ALT, the orientation of THAT read is stored.
+    /// This couples the strand direction to the winning evidence, not just R1.
     fn observe(&mut self, is_ref: bool, is_alt: bool, base_qual: u8, is_read1: bool, is_forward: bool) {
         if is_ref && base_qual > self.best_ref_qual {
             self.best_ref_qual = base_qual;
+            self.best_ref_orientation = Some(is_forward);
         }
         if is_alt && base_qual > self.best_alt_qual {
             self.best_alt_qual = base_qual;
+            self.best_alt_orientation = Some(is_forward);
         }
+        // Track R1/R2 orientation as fallback
         if is_read1 {
             self.read1_orientation = Some(is_forward);
         } else {
@@ -82,10 +101,20 @@ impl FragmentEvidence {
         }
     }
 
-    /// Get the fragment orientation. Prefers read 1 orientation when both reads present.
-    fn orientation(&self) -> Option<bool> {
-        // Prefer read 1 orientation (consistent with original behavior)
-        self.read1_orientation.or(self.read2_orientation)
+    /// Get orientation for REF allele. Uses the strand of the read that provided
+    /// the best REF evidence, falling back to R1 > R2 if not available.
+    fn ref_orientation(&self) -> Option<bool> {
+        self.best_ref_orientation
+            .or(self.read1_orientation)
+            .or(self.read2_orientation)
+    }
+
+    /// Get orientation for ALT allele. Uses the strand of the read that provided
+    /// the best ALT evidence, falling back to R1 > R2 if not available.
+    fn alt_orientation(&self) -> Option<bool> {
+        self.best_alt_orientation
+            .or(self.read1_orientation)
+            .or(self.read2_orientation)
     }
 }
 
@@ -136,7 +165,7 @@ pub fn count_bam(
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to build thread pool: {}", e)))?;
 
     // Zip variants with their decomposed counterparts for parallel iteration
-    let paired: Vec<_> = variants.into_iter().zip(decomposed.into_iter()).collect();
+    let paired: Vec<_> = variants.into_iter().zip(decomposed).collect();
 
     // Release GIL for parallel execution
     #[allow(deprecated)]
@@ -190,10 +219,22 @@ pub fn count_bam(
                             )?;
 
                             if counts_decomp.ad > counts_orig.ad {
+                                // Sanity: both hypotheses count the same reads at the
+                                // same locus, so DP should be nearly identical. A large
+                                // divergence indicates a counting bug.
+                                debug_assert!(
+                                    (counts_decomp.dp as i64 - counts_orig.dp as i64).abs() <= 2,
+                                    "DP mismatch in dual-counting: decomp={} orig={} at {}:{} {}→{}",
+                                    counts_decomp.dp, counts_orig.dp,
+                                    variant.chrom, variant.pos + 1,
+                                    variant.ref_allele, decomp.alt_allele
+                                );
                                 debug!(
                                     "Homopolymer decomp: corrected allele wins \
-                                     (ad={} vs orig ad={}) for {}:{} {}→{}",
+                                     (ad={} vs orig ad={}, dp_decomp={}, dp_orig={}) \
+                                     for {}:{} {}→{}",
                                     counts_decomp.ad, counts_orig.ad,
+                                    counts_decomp.dp, counts_orig.dp,
                                     variant.chrom, variant.pos + 1,
                                     variant.ref_allele, decomp.alt_allele,
                                 );
@@ -349,14 +390,13 @@ fn count_single_variant(
     // Each fragment contributes exactly ONE allele call (REF xor ALT),
     // preventing the double-counting bug where R1=REF + R2=ALT
     // inflated both rdf and adf.
+    //
+    // Strand bias uses allele-specific orientation: the strand of the read
+    // that provided the best evidence for the winning allele, not just R1.
+    // Example: R1=Fwd/REF(Q10) + R2=Rev/ALT(Q30) → ALT wins, counted as
+    // adf_rev (not adf_fwd).
     for evidence in fragments.values() {
         let (frag_ref, frag_alt) = evidence.resolve(qual_diff_threshold);
-
-        // Get fragment orientation (prefer read 1)
-        let orientation = match evidence.orientation() {
-            Some(o) => o,
-            None => continue, // No orientation data (should not happen)
-        };
 
         // Count every fragment in dpf regardless of consensus outcome.
         // Discarded fragments (ambiguous R1-vs-R2 within quality threshold)
@@ -366,17 +406,23 @@ fn count_single_variant(
 
         if frag_ref {
             counts.rdf += 1;
-            if orientation {
-                counts.rdf_fwd += 1;
-            } else {
-                counts.rdf_rev += 1;
+            // Use REF-specific orientation (strand of best REF evidence)
+            if let Some(ori) = evidence.ref_orientation() {
+                if ori {
+                    counts.rdf_fwd += 1;
+                } else {
+                    counts.rdf_rev += 1;
+                }
             }
         } else if frag_alt {
             counts.adf += 1;
-            if orientation {
-                counts.adf_fwd += 1;
-            } else {
-                counts.adf_rev += 1;
+            // Use ALT-specific orientation (strand of best ALT evidence)
+            if let Some(ori) = evidence.alt_orientation() {
+                if ori {
+                    counts.adf_fwd += 1;
+                } else {
+                    counts.adf_rev += 1;
+                }
             }
         }
     }
@@ -417,30 +463,43 @@ fn check_allele_with_qual<F: Fn(u8, u8) -> i32>(
     alt_aligner: &mut Aligner<F>,
     ref_aligner: &mut Aligner<F>,
 ) -> (bool, bool, u8) {
-    let variant_type = &variant.variant_type;
-    debug!("check_allele type={} pos={} ref={} alt={}", variant_type, variant.pos, variant.ref_allele, variant.alt_allele);
+    // Dispatch based on allele lengths rather than the variant_type string.
+    // This is more robust than relying on upstream type labels, which can be
+    // inconsistent (e.g., a caller emitting "COMPLEX" for what is really a
+    // pure deletion after normalization).
+    let ref_len = variant.ref_allele.len();
+    let alt_len = variant.alt_allele.len();
+    debug!(
+        "check_allele ref_len={} alt_len={} pos={} ref={} alt={}",
+        ref_len, alt_len, variant.pos, variant.ref_allele, variant.alt_allele
+    );
 
-    match variant_type.as_str() {
-        "SNP" => check_snp(record, variant, min_baseq),
-        "INSERTION" => check_insertion(record, variant, min_baseq, alt_aligner, ref_aligner),
-        "DELETION" => check_deletion(record, variant, min_baseq, alt_aligner, ref_aligner),
-        "MNP" => {
-            debug!("Dispatching to check_mnp");
-            check_mnp(record, variant, min_baseq)
-        },
-        "COMPLEX" => check_complex(record, variant, min_baseq, alt_aligner, ref_aligner),
-        _ => {
-            // Auto-detect MNP if type is not explicit but looks like one
-            if variant.ref_allele.len() == variant.alt_allele.len()
-                && variant.ref_allele.len() > 1
-            {
-                debug!("Auto-detected MNP");
-                check_mnp(record, variant, min_baseq)
-            } else {
-                // Fallback to complex check for anything else (e.g. DelIns)
-                check_complex(record, variant, min_baseq, alt_aligner, ref_aligner)
-            }
+    if ref_len == 1 && alt_len == 1 {
+        // SNP: single base substitution
+        check_snp(record, variant, min_baseq)
+    } else if ref_len == alt_len {
+        // MNP: equal-length multi-base substitution.
+        // Strict match first; fall back to quality-masked haplotype
+        // comparison (check_complex → Phase 3 SW) if inconclusive.
+        // Without this fallback, a single low-quality base in the MNP
+        // block would hard-reject the read, reducing sensitivity in
+        // noisy samples (ctDNA, FFPE).
+        let (is_ref, is_alt, qual) = check_mnp(record, variant, min_baseq);
+        if !is_ref && !is_alt {
+            debug!("MNP inconclusive, falling back to check_complex");
+            check_complex(record, variant, min_baseq, alt_aligner, ref_aligner)
+        } else {
+            (is_ref, is_alt, qual)
         }
+    } else if ref_len == 1 {
+        // Pure insertion: anchor + inserted bases (ref_len=1, alt_len>1)
+        check_insertion(record, variant, min_baseq, alt_aligner, ref_aligner)
+    } else if alt_len == 1 {
+        // Pure deletion: anchor + deleted bases (ref_len>1, alt_len=1)
+        check_deletion(record, variant, min_baseq, alt_aligner, ref_aligner)
+    } else {
+        // Complex: ref_len != alt_len, both > 1 (e.g., DelIns)
+        check_complex(record, variant, min_baseq, alt_aligner, ref_aligner)
     }
 }
 
@@ -470,10 +529,16 @@ fn check_allele_with_qual<F: Fn(u8, u8) -> i32>(
 /// 3. Return `seq[first_read_pos..=last_read_pos]`
 ///
 /// Returns `(bases, quals)` — empty if the read doesn't overlap the window.
+///
+/// `variant_pos` and `variant_ref_len` restrict soft-clip inclusion to clips
+/// adjacent to the variant site, preventing adapter/chimeric garbage from
+/// large leading clips from polluting Phase 3 alignment.
 fn extract_raw_read_window(
     record: &Record,
     win_start: i64,
     win_end: i64,
+    variant_pos: i64,
+    variant_ref_len: usize,
 ) -> (Vec<u8>, Vec<u8>) {
     let cigar = record.cigar();
     let mut ref_pos = record.pos();
@@ -524,8 +589,14 @@ fn extract_raw_read_window(
             }
             Cigar::SoftClip(len) => {
                 let len_usize = *len as usize;
-                // Soft clips near the window may carry variant evidence.
-                if ref_pos >= win_start && ref_pos < win_end {
+                // Only include soft clips adjacent to the variant position
+                // itself (within ±1bp), not the broad fetching window.
+                // Large leading clips (e.g. 100S) at the window boundary
+                // would inject garbage adapter/chimeric sequence into Phase 3
+                // SW alignment, dragging down scores and causing valid reads
+                // to fail the alt_score >= ref_score + margin check.
+                let var_end = variant_pos + variant_ref_len as i64;
+                if ref_pos >= variant_pos - 1 && ref_pos <= var_end + 1 {
                     let rp_end = read_pos + len_usize - 1;
                     if first_read_pos.is_none() {
                         first_read_pos = Some(read_pos);
@@ -619,6 +690,14 @@ fn is_worth_realignment(record: &Record, win_start: i64, win_end: i64) -> bool {
 ///
 /// Returns `(is_ref, is_alt, base_qual)` where `base_qual` is the median
 /// quality across the read subsequence bases (GATK standard).
+///
+/// # Alignment semantics
+/// Uses semiglobal(read, haplotype): the read is the pattern (globally consumed,
+/// no free overhangs) and the haplotype is the text (free leading/trailing gaps).
+/// This allows the aligner to find the best-scoring window within a longer
+/// haplotype that matches the read — critical for large deletions where the
+/// REF haplotype (e.g. 501bp for a 500bp deletion) far exceeds the read length
+/// (~150bp), and for off-center reads that don't symmetrically overlap the variant.
 fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
     read_seq: &[u8],
     read_quals: &[u8],
@@ -651,7 +730,7 @@ fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
     let right_ctx = &ref_context[offset + ref_len..];
 
     // ref_hap = left_ctx + REF + right_ctx (should equal ref_context)
-    let mut ref_hap: Vec<u8> = left_ctx
+    let ref_hap: Vec<u8> = left_ctx
         .iter()
         .chain(variant.ref_allele.as_bytes())
         .chain(right_ctx.iter())
@@ -659,57 +738,12 @@ fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
         .collect();
 
     // alt_hap = left_ctx + ALT + right_ctx
-    let mut alt_hap: Vec<u8> = left_ctx
+    let alt_hap: Vec<u8> = left_ctx
         .iter()
         .chain(variant.alt_allele.as_bytes())
         .chain(right_ctx.iter())
         .copied()
         .collect();
-
-    // --- Haplotype trimming guard ---
-    // Semiglobal alignment requires the query (haplotype) to be fully consumed.
-    // When the haplotype is longer than the read (e.g. large context_padding
-    // with complex CIGARs that produce short raw read windows), the aligner
-    // forces gap penalties on the excess — penalizing both alleles equally
-    // and destroying the variant-discriminating signal.
-    // Fix: trim each haplotype independently so we never create an invalid slice.
-    let read_len = read_seq.len();
-    if read_len < ref_len {
-        // Read is shorter than the REF allele itself — can't classify.
-        debug!(
-            "classify_by_alignment: read_len {} < ref_len {} — skipping",
-            read_len, ref_len
-        );
-        return (false, false, 0);
-    }
-
-    fn trim_haplotype(hap: &mut Vec<u8>, read_len: usize) {
-        if hap.len() > read_len {
-            let excess = hap.len() - read_len;
-            let trim_left = excess / 2;
-            let trim_right = excess - trim_left;
-            let end = hap.len().saturating_sub(trim_right);
-            if trim_left >= end {
-                // Haplotype too short after trimming — truncate to read_len from center
-                let center = hap.len() / 2;
-                let half = read_len / 2;
-                let start = center.saturating_sub(half);
-                let actual_end = (start + read_len).min(hap.len());
-                let actual_start = actual_end.saturating_sub(read_len);
-                *hap = hap[actual_start..actual_end].to_vec();
-            } else {
-                *hap = hap[trim_left..end].to_vec();
-            }
-        }
-    }
-
-    trim_haplotype(&mut ref_hap, read_len);
-    trim_haplotype(&mut alt_hap, read_len);
-
-    if ref_hap.is_empty() || alt_hap.is_empty() {
-        debug!("classify_by_alignment: haplotype empty after trimming — skipping");
-        return (false, false, 0);
-    }
 
     // Mask low-quality bases as N so they don't bias scoring.
     let masked_seq: Vec<u8> = read_seq
@@ -719,6 +753,7 @@ fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
         .collect();
 
     // Skip if too few usable bases.
+    let read_len = read_seq.len();
     let usable_count = read_quals.iter().filter(|&&q| q >= min_baseq).count();
     if usable_count < 3 {
         debug!("classify_by_alignment: only {} usable bases — skipping", usable_count);
@@ -727,16 +762,25 @@ fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
 
     // Use the provided reusable aligners (created once per variant).
     trace!(
+        "classify_by_alignment: read_len={} ref_hap_len={} alt_hap_len={} usable={}",
+        read_len, ref_hap.len(), alt_hap.len(), usable_count
+    );
+    trace!(
         "classify_by_alignment seqs: read={} alt_hap={} ref_hap={}",
         String::from_utf8_lossy(&masked_seq),
         String::from_utf8_lossy(&alt_hap),
         String::from_utf8_lossy(&ref_hap)
     );
-    // Semiglobal alignment: haplotype = query (fully aligned),
-    // read = text (free overhangs). This finds the best-scoring region
-    // within the (potentially longer) read that matches each haplotype.
-    let alt_aln = alt_aligner.semiglobal(&alt_hap, &masked_seq);
-    let ref_aln = ref_aligner.semiglobal(&ref_hap, &masked_seq);
+
+    // Semiglobal alignment: read = query (fully consumed, every base must
+    // participate), haplotype = text (free leading/trailing overhangs).
+    // The aligner slides the read along the haplotype to find the best window.
+    // This correctly handles:
+    //  - Large deletions: 150bp read vs 501bp REF haplotype
+    //  - Off-center reads: no symmetric trimming needed
+    //  - Short ALT haplotypes: read may overhang, but all read bases align
+    let alt_aln = alt_aligner.semiglobal(&masked_seq, &alt_hap);
+    let ref_aln = ref_aligner.semiglobal(&masked_seq, &ref_hap);
 
     let med_qual = median_qual(read_quals, min_baseq);
 
@@ -745,20 +789,71 @@ fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
     // can find shifted alignments that reduce the score difference from 3
     // to exactly 2. Strict > would incorrectly classify these as ambiguous.
     let margin = 2;
-    let is_alt = alt_aln.score >= ref_aln.score + margin;
-    let is_ref = ref_aln.score >= alt_aln.score + margin;
+    let mut is_alt = alt_aln.score >= ref_aln.score + margin;
+    let mut is_ref = ref_aln.score >= alt_aln.score + margin;
 
-    trace!(
-        "classify_by_alignment: alt_score={} ref_score={} margin={} is_ref={} is_alt={}",
-        alt_aln.score, ref_aln.score, margin, is_ref, is_alt
+    debug!(
+        "classify_by_alignment: alt_score={} ref_score={} margin={} is_ref={} is_alt={} \
+         read_len={} ref_hap={} alt_hap={}",
+        alt_aln.score, ref_aln.score, margin, is_ref, is_alt,
+        read_len, ref_hap.len(), alt_hap.len()
     );
+
+    // Dual-trigger local fallback for indel/complex variants.
+    //
+    // When the MAF/VCF definition is incomplete (e.g., TCC→CT missing an
+    // adjacent SNV), the ALT haplotype has a "frameshifted flank": bases in
+    // the right context that don't match the biological read. Semiglobal
+    // alignment forces gap penalties through this invalid flank, producing
+    // confident but WRONG calls (e.g., EPHA7: alt=-4 ref=-2 → REF).
+    //
+    // Local alignment soft-clips the bad flank, finding the best matching
+    // substring without penalizing overhangs on either side.
+    //
+    // Two triggers detect low-confidence semiglobal results:
+    //  - Borderline: score difference is within margin+1 (barely decisive)
+    //  - Poor quality: best score is < half the "perfect" score (both
+    //    haplotypes are fighting severe penalties)
+    //
+    // Only applied to **complex** variants (both alleles > 1bp), where the
+    // MAF definition is most likely to be incomplete. Pure insertions and
+    // deletions are well-handled by semiglobal alignment.
+    let ref_allele_len = variant.ref_allele.len();
+    let alt_allele_len = variant.alt_allele.len();
+    let is_complex = ref_allele_len > 1 && alt_allele_len > 1
+        && ref_allele_len != alt_allele_len;
+
+    if is_complex {
+        let diff = (alt_aln.score - ref_aln.score).abs();
+        let max_score = std::cmp::max(alt_aln.score, ref_aln.score);
+        let perfect_score = read_len as i32;
+        let is_borderline = diff <= margin + 1;
+        let is_poor = max_score < perfect_score / 2;
+
+        if is_borderline || is_poor {
+            debug!(
+                "Phase 3 low-confidence (diff={}, max_score={}/{}, borderline={}, poor={}) \
+                 → local fallback",
+                diff, max_score, perfect_score, is_borderline, is_poor
+            );
+            let alt_local = alt_aligner.local(&masked_seq, &alt_hap);
+            let ref_local = ref_aligner.local(&masked_seq, &ref_hap);
+
+            is_alt = alt_local.score >= ref_local.score + margin;
+            is_ref = ref_local.score >= alt_local.score + margin;
+
+            debug!(
+                "Phase 3 local result: alt_local={} ref_local={} is_alt={} is_ref={}",
+                alt_local.score, ref_local.score, is_alt, is_ref
+            );
+        }
+    }
 
     if is_alt {
         (false, true, med_qual)
     } else if is_ref {
         (true, false, med_qual)
     } else {
-        // Ambiguous — scores too close
         (false, false, 0)
     }
 }
@@ -975,6 +1070,28 @@ fn check_complex<F: Fn(u8, u8) -> i32>(
             alt_bytes.len(),
             ref_bytes.len()
         );
+
+        // Phase 2.5: Fuzzy edit distance fallback.
+        // When reconstruction length doesn't match REF or ALT exactly
+        // (e.g., incomplete MAF definition drops an adjacent SNV),
+        // Levenshtein distance can still discriminate the closest allele.
+        // Requires >1 edit margin for safety on very short strings.
+        if recon_len >= 2 {
+            let d_ref = levenshtein(&reconstructed_seq, ref_bytes);
+            let d_alt = levenshtein(&reconstructed_seq, alt_bytes);
+            debug!(
+                "Phase 2.5: edit_dist to_ref={} to_alt={} recon_len={}",
+                d_ref, d_alt, recon_len
+            );
+            if d_alt + 1 < d_ref {
+                debug!("Phase 2.5 → ALT (edit distance margin)");
+                return (false, true, med_haplotype_qual);
+            } else if d_ref + 1 < d_alt {
+                debug!("Phase 2.5 → REF (edit distance margin)");
+                return (true, false, med_haplotype_qual);
+            }
+            // else: ambiguous, fall through to Phase 3
+        }
     }
 
     // --- Phase 3: Alignment-based fallback (indelpost approach) ---
@@ -1002,7 +1119,9 @@ fn check_complex<F: Fn(u8, u8) -> i32>(
             return (false, false, 0);
         }
 
-        let (sub_seq, sub_quals) = extract_raw_read_window(record, win_start, win_end);
+        let (sub_seq, sub_quals) = extract_raw_read_window(
+            record, win_start, win_end, variant.pos, variant.ref_allele.len()
+        );
         if sub_seq.len() >= 3 {
             debug!(
                 "Phase 3 fallback: extracted {} raw bases over [{}, {})",
@@ -1427,7 +1546,7 @@ fn check_deletion<F: Fn(u8, u8) -> i32>(
     let mut found_ref_coverage = false;
     let mut anchor_read_pos: Option<usize> = None; // read position of anchor base
     let mut best_windowed_match: Option<u64> = None;
-    let mut has_large_cigar_del = false; // tracks if read carries a large deletion
+
 
     for (i, op) in cigar_view.iter().enumerate() {
         match op {
@@ -1538,8 +1657,7 @@ fn check_deletion<F: Fn(u8, u8) -> i32>(
                                     del_len_usize, expected_del_len,
                                     del_ref_pos, overlap
                                 );
-                                // Track that this read carries a large deletion
-                                has_large_cigar_del = true;
+
                                 true
                             } else {
                                 false
@@ -1631,54 +1749,53 @@ fn check_deletion<F: Fn(u8, u8) -> i32>(
         return (false, true, anchor_qual); // ALT — windowed match
     }
 
-    // Fix 3: Interior REF guard for large deletions.
-    //
-    // For large deletions (≥50bp), reads that start *inside* the expected
-    // deletion span are reference reads — they align to sequence that would
-    // be absent in the ALT allele. These reads won't cover the anchor
-    // (found_ref_coverage == false) and have no matching deletion CIGAR,
-    // so without this guard they fall back to check_complex → Phase 3
-    // Smith-Waterman alignment.
-    //
-    // In Phase 3, the REF haplotype (e.g. 1044bp for a 1023bp deletion)
-    // far exceeds the read length (~100bp), causing semiglobal alignment
-    // to penalize it with gaps. The short ALT haplotype (~21bp) fits
-    // easily, producing a higher score → false ALT call.
-    //
-    // Fix: detect reads starting inside the deletion span and classify
-    // them as REF directly. Only applied for large deletions (≥50bp)
-    // where the semiglobal alignment length mismatch is significant.
-    let read_start = record.pos();
-    let del_region_end = anchor_pos + expected_del_len as i64;
-
-    if expected_del_len >= 50
-        && read_start > anchor_pos
-        && read_start < del_region_end
-        && !found_ref_coverage
-        && !has_large_cigar_del  // exclude reads carrying the actual deletion
-    {
-        debug!(
-            "check_deletion: read at pos {} starts inside deletion span \
-             [{}, {}), calling REF (interior read, del_len={})",
-            read_start,
-            anchor_pos + 1,
-            del_region_end,
-            expected_del_len
-        );
-        return (true, false, anchor_qual);
-    }
+    // Note: an earlier version had an "interior REF guard" here that classified
+    // any read starting inside a large deletion span as REF. This was REMOVED
+    // because it massively overcounted: for a 1023bp deletion (TP53), it claimed
+    // ~4,000 reads mapping anywhere in the 1kb interior as REF evidence, when
+    // IGV shows only ~770 reads at the anchor. Reads that don't cover the anchor
+    // have no information about whether the deletion is present and must not be
+    // counted. With the SW swap fix (Issue #1), Phase 3 correctly handles large
+    // deletions: the read (pattern) slides along the longer haplotype (text)
+    // without gap penalty, so false ALT calls no longer occur.
 
     // P0-3: Haplotype fallback — when strict/windowed CIGAR matching found no
     // deletion match and the read doesn't cover the anchor, try check_complex
     // which reconstructs the read's haplotype and does quality-aware comparison.
     // Only fall back when NOT found_ref_coverage to avoid false positives on
     // reads that genuinely show REF at this position.
+    //
+    // CRITICAL: Only attempt Phase 3 if the read actually overlaps the anchor
+    // position (variant.pos). Reads that map entirely inside a large deletion
+    // span (e.g., a 1023bp TP53 deletion) have no information about the variant
+    // and must not be counted. Without this guard, the SW aligner would classify
+    // interior reads as REF, massively inflating ref_count.
     if !found_ref_coverage && best_windowed_match.is_none() {
-        debug!(
-            "check_deletion: no CIGAR match at pos {}, falling back to check_complex",
-            anchor_pos
-        );
-        return check_complex(record, variant, min_baseq, alt_aligner, ref_aligner);
+        // Compute the read's reference span end from CIGAR
+        let read_ref_end = {
+            let mut rend = record.pos();
+            for op in record.cigar().iter() {
+                match op {
+                    Cigar::Match(len) | Cigar::Equal(len) | Cigar::Diff(len)
+                    | Cigar::Del(len) | Cigar::RefSkip(len) => {
+                        rend += *len as i64;
+                    }
+                    _ => {}
+                }
+            }
+            rend
+        };
+
+        // Read must span the anchor position to have variant information.
+        // anchor_pos is the 0-based position of the base before the deletion.
+        if record.pos() <= anchor_pos && read_ref_end > anchor_pos {
+            debug!(
+                "check_deletion: no CIGAR match at pos {}, falling back to check_complex",
+                anchor_pos
+            );
+            return check_complex(record, variant, min_baseq, alt_aligner, ref_aligner);
+        }
+        // Otherwise: read doesn't overlap the anchor → no variant info
     }
 
     if found_ref_coverage {

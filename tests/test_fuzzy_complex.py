@@ -309,17 +309,26 @@ class TestCaseC_RefOnly:
 
 
 class TestLengthMismatch:
-    """Reconstruction length matches neither REF nor ALT."""
+    """Reconstruction length matches neither REF nor ALT.
 
-    def test_no_match_either(self, tmp_path):
-        """Variant REF=ATG (3bp), ALT=CC (2bp). Read shows 4-base reconstruction → Neither.
+    With Phase 3 local SW fallback (added for EPHA7-style complex variants),
+    reads that fail Phase 2 length matching can still be classified via
+    Smith-Waterman alignment against REF/ALT haplotypes.
+    """
+
+    def test_length_mismatch_falls_through_to_sw(self, tmp_path):
+        """Variant REF=ATG (3bp), ALT=CC (2bp). Read shows 4-base reconstruction.
         Read: 4M 1I 6M start at 96. Insertion adds a base in the region.
         4M covers 96-99. 1I at pos 100 (1 inserted base). 6M covers 100-105.
         Reconstruction for [100, 103): the inserted base + 100 + 101 + 102 = 4 bases.
-        Neither 3 (REF) nor 2 (ALT).
+        Neither 3 (REF) nor 2 (ALT) by length.
+
+        Phase 2 and Phase 2.5 cannot decide, so Phase 3 SW alignment kicks in.
+        The local fallback soft-clips the extra base and finds an ALT match.
         """
         reads = [_make_read("r1", "AAAATCCAAAA", 96, ((0, 4), (1, 1), (0, 6)))]
         bam = _build_bam(tmp_path, reads)
         counts = _count_one(bam, DELINS_VARIANT)
         assert counts.rd == 0
-        assert counts.ad == 0
+        # Phase 3 SW local fallback classifies this as ALT
+        assert counts.ad == 1

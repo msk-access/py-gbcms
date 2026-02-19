@@ -7,17 +7,18 @@ How py-gbcms classifies each read as supporting the **reference** allele, the **
 
 ## Dispatch
 
-After passing [read filters](read-filters.md), each read is dispatched to a **type-specific** allele checker based on the variant's type string (assigned during [normalization](variant-normalization.md)):
+After passing [read filters](read-filters.md), each read is dispatched to a **type-specific** allele checker based on the variant's **allele lengths** (`ref_len` × `alt_len`), not on the `variant_type` string. This makes dispatch robust against inconsistent upstream type labels:
 
 ```mermaid
 flowchart LR
     Fetch([📥 Fetch Reads]):::fetch --> Filter([🔍 Apply Filters]):::filter
-    Filter --> Dispatch{Variant Type?}
-    Dispatch -->|SNP| SNP[check_snp]
-    Dispatch -->|Insertion| INS[check_insertion]
-    Dispatch -->|Deletion| DEL[check_deletion]
-    Dispatch -->|MNP| MNP[check_mnp]
-    Dispatch -->|Complex| CPX[check_complex]
+    Filter --> Dispatch{"ref_len × alt_len?"}
+    Dispatch -->|"1 × 1"| SNP[check_snp]
+    Dispatch -->|"N × N"| MNP[check_mnp]
+    Dispatch -->|"1 × N"| INS[check_insertion]
+    Dispatch -->|"N × 1"| DEL[check_deletion]
+    Dispatch -->|"else"| CPX[check_complex]
+    MNP -.->|"inconclusive"| CPX
     INS -.->|"Phase 3 fallback"| CPX
     DEL -.->|"fallback (CIGAR mismatch)"| CPX
     SNP --> Count([📊 Update Counts]):::count
@@ -31,8 +32,8 @@ flowchart LR
     classDef count fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
 ```
 
-!!! info "Auto-Detection"
-    If a variant's type string is unknown, py-gbcms auto-detects **MNPs** (equal-length REF/ALT with length > 1) and falls back to `check_complex` for everything else. This ensures every variant gets classified.
+!!! info "Allele-Length Routing"
+    Dispatch uses `ref_allele.len()` and `alt_allele.len()` to determine the variant class. This means even if upstream callers emit inconsistent type strings (e.g., `"COMPLEX"` for what is really a pure deletion after normalization), the correct checker is always selected.
 
 ---
 
@@ -409,8 +410,21 @@ flowchart TD
     RefMatch -->|Yes| Ref2([✅ REF]):::ref
     RefMatch -->|No| NoMatch
 
-    SkipP2 --> Phase3
-    NoMatch --> Phase3
+    SkipP2 --> Phase25
+    NoMatch --> Phase25
+
+    subgraph Phase25 ["Phase 2.5: Edit Distance"]
+        direction TB
+        ReconLen{"recon_len ≥ 2?"}
+        ReconLen -->|No| SkipED[Skip to Phase 3]
+        ReconLen -->|Yes| EditDist["Compute Levenshtein distance<br/>to REF and ALT alleles"]
+        EditDist --> EDMargin{">1 edit margin?"}
+        EDMargin -->|"ALT closer"| Alt25([🔴 ALT]):::alt
+        EDMargin -->|"REF closer"| Ref25([✅ REF]):::ref
+        EDMargin -->|"Ambiguous"| SkipED
+    end
+
+    SkipED --> Phase3
 
     subgraph Phase3 ["Phase 3: Smith-Waterman Fallback"]
         direction TB
@@ -419,9 +433,20 @@ flowchart TD
         PreFilter -->|Yes| Extract[Extract raw read window]
         Extract --> SW["Semiglobal SW alignment<br/>vs REF and ALT haplotypes"]
         SW --> Margin{"Score difference ≥ 2?"}
-        Margin -->|ALT wins| Alt3([🔴 ALT]):::alt
-        Margin -->|REF wins| Ref3([✅ REF]):::ref
-        Margin -->|Within margin| Neither3([Neither]):::neither
+        Margin -->|"Confident call"| ConfCheck
+        Margin -->|"Within margin"| Neither3([Neither]):::neither
+
+        ConfCheck{"Dual trigger?<br/>(borderline OR poor)"}
+        ConfCheck -->|"No"| ConfResult
+        ConfCheck -->|"Yes"| LocalSW["Local SW alignment<br/>(soft-clips bad flanks)"]
+        LocalSW --> LocalMargin{"Score difference ≥ 2?"}
+        LocalMargin -->|ALT wins| Alt3b([🔴 ALT]):::alt
+        LocalMargin -->|REF wins| Ref3b([✅ REF]):::ref
+        LocalMargin -->|"Within margin"| Neither4([Neither]):::neither
+
+        ConfResult{Which allele wins?}
+        ConfResult -->|ALT| Alt3([🔴 ALT]):::alt
+        ConfResult -->|REF| Ref3([✅ REF]):::ref
     end
 
     classDef start fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
@@ -458,15 +483,27 @@ Instead of exact matching, bases with quality below `--min-baseq` are **masked o
 !!! warning "Large-REF Guard"
     For variants with REF >50bp, if the reconstruction is <10% of the REF length (e.g., 1bp recon for a 1024bp deletion), Phase 2 is skipped entirely. A tiny reconstruction would trivially match a short ALT allele, causing overcounting. Phase 3 SW handles these correctly.
 
+### Phase 2.5: Edit Distance
+
+When Phase 2's strict length comparison fails (Case A/B/C don't match), py-gbcms measures the **Levenshtein edit distance** between the reconstruction and each allele. This catches cases where the reconstruction is off by 1-2 bases due to an incomplete variant definition:
+
+| Parameter | Value | Rationale |
+|:----------|:------|:----------|
+| Margin | >1 edit | Prevents noise on very short strings |
+| Min recon length | 2 bases | Single-base reconstructions are too short for reliable edit distance |
+
+!!! note "Phase 2.5 is Supplementary"
+    Phase 2.5 helps edge cases with longer reconstructions. For variants like EPHA7 where the strict reconstruction is only 1bp (`"C"`), the `recon_len >= 2` guard skips Phase 2.5 entirely — the fix comes from Phase 3's local fallback instead.
+
 ### Phase 3: Smith-Waterman Fallback
 
-When Phase 2 fails, the engine expands to the full `ref_context` window and performs **dual-haplotype Smith-Waterman alignment** (inspired by [indelpost](https://doi.org/10.1093/bioinformatics/btab601)):
+When Phase 2 and Phase 2.5 both fail, the engine expands to the full `ref_context` window and performs **dual-haplotype Smith-Waterman alignment** (inspired by [indelpost](https://doi.org/10.1093/bioinformatics/btab601)):
 
 1. **Build haplotypes**: `REF_hap = left_ctx + REF + right_ctx`, `ALT_hap = left_ctx + ALT + right_ctx`
-2. **Trim**: If haplotype exceeds read length, symmetrically trim flanks
-3. **Mask**: Replace low-quality bases with `N` (scores 0 against any base)
-4. **Align**: Semiglobal alignment — haplotype (query) must be fully consumed, read (text) has free overhangs
-5. **Score**: ALT wins if `alt_score ≥ ref_score + 2`; REF wins if `ref_score ≥ alt_score + 2`
+2. **Mask**: Replace low-quality bases with `N` (scores 0 against any base)
+3. **Align**: Semiglobal alignment — read (query) is fully consumed, haplotype (text) has free overhangs
+4. **Score**: ALT wins if `alt_score ≥ ref_score + 2`; REF wins if `ref_score ≥ alt_score + 2`
+5. **Dual-trigger check**: For indel/complex variants, if the semiglobal result is low-confidence, retry with local alignment
 
 | Parameter | Value | Rationale |
 |:----------|:------|:----------|
@@ -476,6 +513,22 @@ When Phase 2 fails, the engine expands to the full `ref_context` window and perf
 | Gap extend | −1 | Affine gap penalties |
 | Score margin | ≥2 | Prevents ambiguous calls |
 | Min usable bases | 3 | Reads with <3 usable bases are skipped |
+
+#### Dual-Trigger Local Fallback
+
+For **complex variants** (both alleles > 1bp with different lengths), semiglobal alignment can produce confident but incorrect calls when the MAF/VCF definition is incomplete (e.g., a complex variant missing an adjacent SNV). The ALT haplotype then has a "frameshifted flank" — right-context bases that don't match the biological read. Semiglobal forces gap penalties through this invalid flank.
+
+> [!NOTE]
+> The dual-trigger only applies to **complex** variants (e.g., `TCC→CT`, `ATGA→CATG`), not to pure insertions or deletions. Pure indels are well-handled by semiglobal alignment, and applying local fallback would risk false positives in homopolymer regions.
+
+Two conditions detect low-confidence semiglobal results:
+
+| Trigger | Condition | Purpose |
+|:--------|:----------|:--------|
+| **Borderline** | `abs(alt_score - ref_score) ≤ margin + 1` | Score difference barely decisive |
+| **Poor quality** | `max(scores) < read_len / 2` | Both haplotypes heavily penalized |
+
+When **either** trigger fires, the engine retries with **local alignment** (`Aligner::local()`), which soft-clips the bad flank and finds the best matching substring without penalizing overhangs on either side.
 
 !!! tip "Performance: Pre-Filter"
     To avoid expensive O(n×m) alignment on clean REF reads (~80-90% at any locus), `is_worth_realignment()` checks if the read has soft-clips, indels, or mismatches near the variant window. Clean M-only reads are skipped.
@@ -497,6 +550,8 @@ When Phase 2 fails, the engine expands to the full `ref_context` window and perf
 3. **Soft-clip recovery** — Phase 1 includes soft-clipped bases that overlap the variant window, but only when `ref_pos` is within the variant region. Soft clips at the edge of reads far from the variant are not considered.
 
 4. **MNP strict matching** — MNPs use all-or-nothing matching. Partial matches (some bases match ALT, others match REF) are classified as neither, even if most positions match.
+
+5. **Incomplete variant definitions** — When the MAF/VCF represents a complex event incompletely (e.g., `TCC→CT` omitting an adjacent SNV), reads may carry a different CIGAR signature than expected. The dual-trigger local fallback in Phase 3 mitigates this by soft-clipping "frameshifted flanks" caused by the definition mismatch.
 
 ---
 
