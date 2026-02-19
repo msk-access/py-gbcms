@@ -311,9 +311,9 @@ Multiple adjacent bases substituted simultaneously.
 flowchart TD
     Start([🧬 MNP Check]):::start --> Find[Find read position of first base]
     Find --> Found{Position found?}
-    Found -->|No| Neither1([Neither]):::neither
+    Found -->|No| Fallback1([Fallback → check_complex]):::fallback
     Found -->|Yes| Cover{Read covers entire MNP region?}
-    Cover -->|No| Neither2([Neither]):::neither
+    Cover -->|No| Fallback2([Fallback → check_complex]):::fallback
     Cover -->|Yes| Loop[For each position in MNP region]
 
     subgraph PerBase [Per-Base Validation]
@@ -324,26 +324,26 @@ flowchart TD
     end
 
     Loop --> BQ
-    BQ -->|No| Neither3([Neither]):::neither
+    BQ -->|No| Fallback3([Fallback → check_complex]):::fallback
     BQ -->|Yes| Track
     Track --> More
     More -->|Yes| BQ
     More -->|No| Contig{No indels within MNP region?}
 
-    Contig -->|Indel found| Neither4([Neither]):::neither
+    Contig -->|Indel found| Fallback4([Fallback → check_complex]):::fallback
     Contig -->|Contiguous| Final{All bases match?}
     Final -->|All match ALT| Alt([🔴 ALT]):::alt
     Final -->|All match REF| Ref([✅ REF]):::ref
-    Final -->|Mixed| Neither5([Neither]):::neither
+    Final -->|Mixed| Fallback5([Fallback → check_complex]):::fallback
 
     classDef start fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
     classDef ref fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
     classDef alt fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
-    classDef neither fill:#95a5a6,color:#fff,stroke:#7f8c8d,stroke-width:2px;
+    classDef fallback fill:#f39c12,color:#fff,stroke:#e67e22,stroke-width:2px;
 ```
 
-!!! warning "Strict Matching"
-    MNP matching is **all-or-nothing**: every base must match either REF or ALT. A read with `C T` at a `AT→CG` variant (first base matches ALT, second matches REF) is classified as **neither**.
+!!! info "Strict Matching with Complex Fallback"
+    MNP strict matching is **all-or-nothing**: every base must match either REF or ALT. A read with `C T` at a `AT→CG` variant (first base matches ALT, second matches REF) is **inconclusive** in the strict check. However, instead of being discarded, the read **falls back to `check_complex`** (Phase 2 quality-masked comparison → Phase 2.5 edit distance → Phase 3 local SW). This prevents sensitivity loss in noisy samples (ctDNA, FFPE) where a single low-quality base would otherwise reject the entire read.
 
 ### Contiguity Check
 
@@ -549,7 +549,7 @@ When **either** trigger fires, the engine retries with **local alignment** (`Ali
 
 3. **Soft-clip recovery** — Phase 1 includes soft-clipped bases that overlap the variant window, but only when `ref_pos` is within the variant region. Soft clips at the edge of reads far from the variant are not considered.
 
-4. **MNP strict matching** — MNPs use all-or-nothing matching. Partial matches (some bases match ALT, others match REF) are classified as neither, even if most positions match.
+4. **MNP strict matching** — MNP strict matching is all-or-nothing, but inconclusive reads fall back to the complex variant classification chain (Phase 2 → 2.5 → 3). The fallback rescues reads with low-quality bases or partial matches that strict matching would reject.
 
 5. **Incomplete variant definitions** — When the MAF/VCF represents a complex event incompletely (e.g., `TCC→CT` omitting an adjacent SNV), reads may carry a different CIGAR signature than expected. The dual-trigger local fallback in Phase 3 mitigates this by soft-clipping "frameshifted flanks" caused by the definition mismatch.
 
