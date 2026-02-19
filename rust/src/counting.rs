@@ -1623,6 +1623,13 @@ fn check_deletion<F: Fn(u8, u8) -> i32>(
     // Fix: detect reads starting inside the deletion span and classify
     // them as REF directly. Only applied for large deletions (≥50bp)
     // where the semiglobal alignment length mismatch is significant.
+    //
+    // Quality note: these interior reads don't cover the anchor base,
+    // so anchor_qual is 0. Using 0 would cause FragmentEvidence::resolve()
+    // to discard this fragment (has_ref = best_ref_qual > 0 fails),
+    // silently inflating ALT VAF. Instead, use the read's median base
+    // quality as proxy evidence — the read's physical presence inside the
+    // deletion span IS the evidence for REF support.
     let read_start = record.pos();
     let del_region_end = anchor_pos + expected_del_len as i64;
 
@@ -1632,15 +1639,20 @@ fn check_deletion<F: Fn(u8, u8) -> i32>(
         && !found_ref_coverage
         && !has_large_cigar_del  // exclude reads carrying the actual deletion
     {
+        // Use median read quality as proxy since anchor isn't covered.
+        // Floor at 1 to guarantee FragmentEvidence counts this fragment.
+        let proxy_qual = median_qual(record.qual(), min_baseq);
+        let interior_qual = if proxy_qual > 0 { proxy_qual } else { 1 };
         debug!(
             "check_deletion: read at pos {} starts inside deletion span \
-             [{}, {}), calling REF (interior read, del_len={})",
+             [{}, {}), calling REF (interior read, del_len={}, proxy_qual={})",
             read_start,
             anchor_pos + 1,
             del_region_end,
-            expected_del_len
+            expected_del_len,
+            interior_qual
         );
-        return (true, false, anchor_qual);
+        return (true, false, interior_qual);
     }
 
     // P0-3: Haplotype fallback — when strict/windowed CIGAR matching found no
