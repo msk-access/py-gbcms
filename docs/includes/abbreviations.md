@@ -1,5 +1,6 @@
 <!-- Abbreviation definitions for py-gbcms documentation -->
 <!-- These provide hover tooltips for technical acronyms -->
+<span hidden>abbreviations</span>
 
 *[VAF]: Variant Allele Frequency - Fraction of reads supporting the variant allele
 *[MAF]: Mutation Annotation Format - Standard mutation annotation file format
