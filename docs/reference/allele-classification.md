@@ -347,7 +347,7 @@ flowchart TD
 
 ### Contiguity Check
 
-After checking all bases, py-gbcms verifies that no **indels** exist within the MNP region by comparing the read positions of the first and last MNP base. If the distance doesn't equal `len - 1`, an insertion or deletion interrupted the MNP → classified as **neither**.
+After checking all bases, py-gbcms verifies that no **indels** exist within the MNP region by comparing the read positions of the first and last MNP base. If the distance doesn't equal `len - 1`, an insertion or deletion interrupted the MNP → the strict check returns inconclusive and **falls back to `check_complex`** for haplotype-based resolution.
 
 ---
 
@@ -549,6 +549,38 @@ When **either** trigger fires, the engine retries with **local alignment** (`Ali
 For small Complex and MNP variants, biological reads heavily affected by surrounding genetic polymorphism can result in 50% partial matches against the Alternate array. Mathematically, this scores an exact numerical **tie** between the `REF` and `ALT` haplotypes (`alt_score = 11, ref_score = 11`). 
 
 Instead of discarding these cleanly mapped (but structurally inconclusive) elements, the engine algorithmically captures any read where `max(scores) >= read_len/2` and safely routes them to the denominator metric via `is_ref = true`. This explicitly protects global `DP` (Total Depth) arrays from catastrophic collapse in variants like TERT / MLH1 where almost the entire read-set consists of a background polymorphism.
+
+---
+
+## Multi-Allelic Behavior
+
+When multiple variants have overlapping REF spans at the same locus, reads carrying one variant's ALT allele could be incorrectly counted as REF for another variant. The engine addresses this with a two-phase approach:
+
+### Phase 1: Annotation
+
+During normalization, `assign_multi_allelic_groups()` identifies overlapping variants using a **sweep-line algorithm** over sorted `(chrom, pos)` coordinates. Variants whose REF spans intersect receive a shared `multi_allelic_group` ID, and their `validation_status` is appended with `_MULTI_ALLELIC` (e.g., `PASS_MULTI_ALLELIC`).
+
+### Phase 2: Sibling ALT Exclusion
+
+During counting, reads classified as **REF** for a variant are additionally checked against all **sibling variants** in the same group. For each sibling, the full `check_allele_with_qual()` pipeline (including CIGAR reconstruction and SW alignment) determines if the read actually carries the sibling's ALT allele. If so, the read is **excluded from REF** for the current variant.
+
+!!! important "This prevents systematic REF inflation at multi-allelic loci, preserving unbiased VAF estimation."
+
+---
+
+## Dynamic SW Gap Penalties
+
+Phase 3's Smith-Waterman aligners use **adaptive affine gap penalties** tuned by the local repeat context:
+
+| Context | `gap_extend` | Rationale |
+|:--------|:------------|:----------|
+| Stable DNA (`repeat_span < 10bp`) | -1 | Standard penalty — prevents spurious gap extension |
+| Tandem repeat (`repeat_span ≥ 10bp`) | 0 (free) | Absorbs polymerase slippage noise — prevents undercounting in MSI regions |
+
+The `repeat_span` is computed during normalization using `find_tandem_repeat()` and stored on the `Variant` struct. `gap_open` remains fixed at -5 in all cases.
+
+!!! tip "MSI-High Tumors"
+    In microsatellite-unstable tumors, insertions/deletions within long homopolymer or dinucleotide repeats are common. The free gap extension ensures these slippage-like variants get correctly classified rather than artificially rejected by high gap penalties.
 
 ---
 

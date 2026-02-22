@@ -255,6 +255,28 @@ class Pipeline:
             # Build decomposed variants list for dual-counting
             decomposed = [prepared[i].decomposed_variant for i in valid_indices]
 
+            # Build sibling Variant objects for multi-allelic exclusion (Gap 1A)
+            # For each variant in a multi-allelic group, collect the full Variant
+            # objects of all OTHER variants in the same group. This allows the
+            # Rust-side guard to run the complete classification pipeline
+            # (check_allele_with_qual) for indels/complex/MNPs, not just SNPs.
+            group_map: dict[int, list[int]] = {}
+            for vi_pos, vi in enumerate(valid_indices):
+                grp = prepared[vi].multi_allelic_group
+                if grp is not None:
+                    group_map.setdefault(grp, []).append(vi_pos)
+
+            sibling_variants: list[list] = []
+            for vi_pos, vi in enumerate(valid_indices):
+                grp = prepared[vi].multi_allelic_group
+                if grp is not None and grp in group_map:
+                    siblings = [
+                        prepared[valid_indices[j]].variant for j in group_map[grp] if j != vi_pos
+                    ]
+                    sibling_variants.append(siblings)
+                else:
+                    sibling_variants.append([])
+
             rust_start = time.perf_counter()
             counts_list = _get_rs().count_bam(
                 str(bam_path),
@@ -270,6 +292,7 @@ class Pipeline:
                 filter_indel=self.config.filters.indel,
                 threads=self.config.threads,
                 fragment_qual_threshold=self.config.quality.fragment_qual_threshold,
+                sibling_variants=sibling_variants,
             )
             rust_time = time.perf_counter() - rust_start
             logger.debug("Rust count_bam completed in %.3fs", rust_time)

@@ -21,16 +21,37 @@ pytest tests/test_accuracy.py -v
 
 | Category | Files | Purpose |
 |:---------|:------|:--------|
-| Accuracy | `test_accuracy.py` | SNP, indel, complex variant counting |
+| Accuracy | `test_accuracy.py` | SNP, indel, complex variant counting, DP invariant |
 | Shifted Indels | `test_shifted_indels.py` | Windowed indel detection (±5bp), 3-layer safeguards |
-| Complex Masking | `test_fuzzy_complex.py` | Quality-aware masked comparison, ambiguity detection |
-| Fragment Consensus | `test_fragment_consensus.py` | Quality-weighted R1/R2 conflict resolution |
-| Normalization | `test_normalization.py` | Left-alignment, REF validation, homopolymer detection |
+| Complex Masking | `test_fuzzy_complex.py` | Quality-aware masked comparison, ambiguity detection, MSI gap penalties |
+| Fragment Consensus | `test_fragment_consensus.py` | Quality-weighted R1/R2 conflict resolution, DPF invariant |
+| Normalization | `test_normalization.py` | Left-alignment, REF validation, homopolymer detection, dynamic window expansion |
+| DP Neither | `test_dp_neither.py` | Gap 1D: DP includes third-allele/neither reads |
+| Multi-Allelic | `test_multi_allelic.py` | Gap 1A: Sibling ALT exclusion, overlapping indel DP |
 | CLI | `test_cli_sample_id.py` | Command-line parsing |
 | Filters | `test_filters.py` | Read filtering logic |
 | MAF | `test_maf_*.py` | MAF column preservation, reader |
 | Pipeline | `test_pipeline_v2.py` | End-to-end workflow |
 | Strand | `test_strand_counts.py` | Strand-specific counts |
+
+### Rust-Level Tests
+
+```bash
+# Run Rust unit tests (normalize + counting inline tests)
+cd rust && cargo test
+
+# Run a specific Rust test
+cargo test test_window_expansion_long_homopolymer
+```
+
+Rust tests live inside `#[cfg(test)]` modules in `normalize.rs` (20 tests) and cover:
+
+| Area | Tests | Purpose |
+|:-----|:------|:--------|
+| Left-alignment | 10+ | SNP passthrough, homopolymer shifts, offset handling |
+| Repeat detection | 3 | `find_tandem_repeat()` edge cases |
+| Adaptive padding | 3 | Context padding from repeat spans |
+| Window expansion | 1 | Gap 1B: >100bp repeat normalization |
 
 ---
 
@@ -38,17 +59,19 @@ pytest tests/test_accuracy.py -v
 
 ```
 tests/
-├── test_accuracy.py           # Variant type accuracy
-├── test_cli_sample_id.py      # CLI argument parsing
-├── test_filters.py            # Read filtering
-├── test_fragment_consensus.py # Fragment-level quality consensus
-├── test_fuzzy_complex.py      # Quality-aware masked complex matching
-├── test_maf_preservation.py   # MAF column preservation
-├── test_maf_reader.py         # MAF input parsing
-├── test_normalization.py      # Left-alignment, REF validation
-├── test_pipeline_v2.py        # End-to-end pipeline
-├── test_shifted_indels.py     # Windowed indel detection (±5bp)
-└── test_strand_counts.py      # Strand-specific counts
+├── test_accuracy.py             # Variant type accuracy + DP invariant
+├── test_cli_sample_id.py        # CLI argument parsing
+├── test_dp_neither.py           # Gap 1D: DP includes third-allele reads
+├── test_filters.py              # Read filtering
+├── test_fragment_consensus.py   # Fragment-level quality consensus + DPF invariant
+├── test_fuzzy_complex.py        # Quality-aware masked complex matching + MSI penalties
+├── test_maf_preservation.py     # MAF column preservation
+├── test_maf_reader.py           # MAF input parsing
+├── test_multi_allelic.py        # Gap 1A: Sibling ALT exclusion
+├── test_normalization.py        # Left-alignment, REF validation, window expansion
+├── test_pipeline_v2.py          # End-to-end pipeline
+├── test_shifted_indels.py       # Windowed indel detection (±5bp)
+└── test_strand_counts.py        # Strand-specific counts
 ```
 
 ---
@@ -84,12 +107,40 @@ def test_snp_accuracy():
     variant = Variant("chr1", 100, "A", "T", "SNP")
     
     # Run counting
-    results = count_bam(bam_path, [variant], fasta_path)
+    results = count_bam(bam_path, [variant], decomposed=[None], ...)
     
-    # Validate
-    assert results[0].ref_count == 50
-    assert results[0].alt_count == 10
+    # Validate allele counts
+    assert results[0].rd == 50
+    assert results[0].ad == 10
+    # Gap 1D invariant: DP includes ALL reads (including 'neither')
+    assert results[0].dp >= results[0].rd + results[0].ad
 ```
+
+### Multi-Allelic Test Template
+
+```python
+def test_with_siblings():
+    """Verify sibling ALT exclusion at multi-allelic sites."""
+    v1 = Variant("chr1", 100, "A", "T", "SNP")
+    v2 = Variant("chr1", 100, "A", "C", "SNP")
+    
+    results = count_bam(
+        bam_path, [v1, v2], decomposed=[None, None],
+        sibling_variants=[[v2], [v1]],  # Gap 1A: sibling info
+        ...
+    )
+```
+
+### Key Invariants to Assert
+
+All counting tests should verify:
+
+| Invariant | Description |
+|:----------|:------------|
+| `dp >= rd + ad` | DP includes 'neither' reads (Gap 1D) |
+| `dpf >= rdf + adf` | DPF includes discarded ambiguous fragments |
+| `rd == rd_fwd + rd_rev` | Strand consistency |
+| `ad == ad_fwd + ad_rev` | Strand consistency |
 
 ---
 
@@ -128,7 +179,12 @@ awk -F'\t' 'NR==2 {print "REF="$41, "ALT="$42}' output/*.maf
 | Complex | `test_complex_accuracy` | ✅ |
 | MNP | `test_mnp_accuracy` | ✅ |
 | Shifted Indels | `test_shifted_indels.py` (15 cases) | ✅ |
-| Complex Masking | `test_fuzzy_complex.py` (14 cases) | ✅ |
+| Complex Masking | `test_fuzzy_complex.py` (15 cases) | ✅ |
+| DP Neither | `test_dp_neither.py` (3 cases) | ✅ |
+| Multi-Allelic | `test_multi_allelic.py` (4 cases) | ✅ |
+| Fragment Consensus | `test_fragment_consensus.py` (3 cases) | ✅ |
+| Window Expansion | `test_normalization.py` (9 cases) | ✅ |
+| MSI Gap Penalties | `test_fuzzy_complex.py::TestGap3A` | ✅ |
 
 ### Real-World Validation
 

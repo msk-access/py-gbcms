@@ -21,12 +21,17 @@ pub struct Variant {
     /// Genomic start position (0-based) of the ref_context string.
     #[pyo3(get, set)]
     pub ref_context_start: i64,
+    /// Span of the tandem repeat region surrounding the variant (0 if not in a repeat).
+    /// Used to dynamically tune Smith-Waterman gap penalties: repeat_span >= 10
+    /// triggers gap_extend = 0 to absorb polymerase slippage noise.
+    #[pyo3(get, set)]
+    pub repeat_span: usize,
 }
 
 #[pymethods]
 impl Variant {
     #[new]
-    #[pyo3(signature = (chrom, pos, ref_allele, alt_allele, variant_type, ref_context=None, ref_context_start=0))]
+    #[pyo3(signature = (chrom, pos, ref_allele, alt_allele, variant_type, ref_context=None, ref_context_start=0, repeat_span=0))]
     pub fn new(
         chrom: String,
         pos: i64,
@@ -35,6 +40,7 @@ impl Variant {
         variant_type: String,
         ref_context: Option<String>,
         ref_context_start: i64,
+        repeat_span: usize,
     ) -> Self {
         Variant {
             chrom,
@@ -44,6 +50,7 @@ impl Variant {
             variant_type,
             ref_context,
             ref_context_start,
+            repeat_span,
         }
     }
 }

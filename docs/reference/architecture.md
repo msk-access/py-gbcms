@@ -173,7 +173,7 @@ sequenceDiagram
     loop For each BAM sample
         Pipeline->>Rust: count_bam(bam, variants, filters)
         loop For each variant (parallel via Rayon)
-            Rust->>BAM: fetch(chrom, pos, pos+1)
+            Rust->>BAM: fetch(chrom, pos−5, pos+ref_len+5)
             BAM-->>Rust: Iterator of reads
             loop For each read
                 Note over Rust: Apply filter cascade

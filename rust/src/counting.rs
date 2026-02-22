@@ -136,7 +136,7 @@ fn hash_qname(qname: &[u8]) -> u64 {
 /// `ad` (alt_count) is returned, with `used_decomposed` set accordingly.
 #[allow(clippy::too_many_arguments)]
 #[pyfunction]
-#[pyo3(signature = (bam_path, variants, decomposed, min_mapq, min_baseq, filter_duplicates, filter_secondary, filter_supplementary, filter_qc_failed, filter_improper_pair, filter_indel, threads, fragment_qual_threshold=10))]
+#[pyo3(signature = (bam_path, variants, decomposed, min_mapq, min_baseq, filter_duplicates, filter_secondary, filter_supplementary, filter_qc_failed, filter_improper_pair, filter_indel, threads, fragment_qual_threshold=10, sibling_variants=Vec::new()))]
 pub fn count_bam(
     py: Python<'_>,
     bam_path: String,
@@ -152,6 +152,7 @@ pub fn count_bam(
     filter_indel: bool,
     threads: usize,
     fragment_qual_threshold: u8,
+    sibling_variants: Vec<Vec<Variant>>,
 ) -> PyResult<Vec<BaseCounts>> {
     // We cannot share a single IndexedReader across threads because it's not Sync.
     // Instead, we use rayon's map_init to initialize a reader for each thread.
@@ -164,8 +165,17 @@ pub fn count_bam(
         .build()
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to build thread pool: {}", e)))?;
 
-    // Zip variants with their decomposed counterparts for parallel iteration
-    let paired: Vec<_> = variants.into_iter().zip(decomposed).collect();
+    // Pad sibling_variants to match variants length (handles default empty case)
+    let mut sibling_variants = sibling_variants;
+    let n = variants.len();
+    sibling_variants.resize_with(n, Vec::new);
+
+    // Zip variants with their decomposed counterparts and sibling alts for parallel iteration
+    let paired: Vec<_> = variants.into_iter()
+        .zip(decomposed)
+        .zip(sibling_variants)
+        .map(|((v, d), s)| (v, d, s))
+        .collect();
 
     // Release GIL for parallel execution
     #[allow(deprecated)]
@@ -180,7 +190,7 @@ pub fn count_bam(
                             anyhow::anyhow!("Failed to open BAM: {}", e)
                         })
                     },
-                    |bam_result, (variant, decomp_opt)| {
+                    |bam_result, (variant, decomp_opt, siblings)| {
                         // Get the reader or return error if initialization failed
                         let bam = match bam_result {
                             Ok(b) => b,
@@ -190,6 +200,7 @@ pub fn count_bam(
                         let counts_orig = count_single_variant(
                             bam,
                             variant,
+                            siblings,
                             min_mapq,
                             min_baseq,
                             filter_duplicates,
@@ -207,6 +218,7 @@ pub fn count_bam(
                             let counts_decomp = count_single_variant(
                                 bam,
                                 decomp,
+                                siblings,
                                 min_mapq,
                                 min_baseq,
                                 filter_duplicates,
@@ -264,6 +276,7 @@ pub fn count_bam(
 fn count_single_variant(
     bam: &mut bam::IndexedReader,
     variant: &Variant,
+    sibling_variants: &[Variant],
     min_mapq: u8,
     min_baseq: u8,
     filter_duplicates: bool,
@@ -305,11 +318,13 @@ fn count_single_variant(
         if a == b'N' || b == b'N' { 0 } else if a == b { 1 } else { -1 }
     };
     // ALT + REF: Same affine gap penalties for fair comparison.
-    // With raw read window extraction (extract_raw_read_window), the read
-    // includes insertion bases making it potentially longer than either
-    // haplotype. Both aligners need gap tolerance for correct scoring.
-    let mut alt_aligner = Aligner::new(-5, -1, &score_fn);
-    let mut ref_aligner = Aligner::new(-5, -1, &score_fn);
+    // Dynamic gap_extend: in tandem repeat regions (repeat_span >= 10bp),
+    // gap extension is free (0) to absorb polymerase slippage noise.
+    // For stable DNA, gap_extend = -1 (identical to previous behavior).
+    let gap_open: i32 = -5;
+    let gap_extend: i32 = if variant.repeat_span >= 10 { 0 } else { -1 };
+    let mut alt_aligner = Aligner::new(gap_open, gap_extend, &score_fn);
+    let mut ref_aligner = Aligner::new(gap_open, gap_extend, &score_fn);
 
     for result in bam.records() {
         let record = result.context("Error reading BAM record")?;
@@ -348,11 +363,38 @@ fn count_single_variant(
             &record, variant, min_baseq, &mut alt_aligner, &mut ref_aligner,
         );
 
-        if !is_ref && !is_alt {
+        // ── ANCHOR OVERLAP CHECK: The BAM fetch region is wider than the
+        // variant footprint (±5bp for shifted indel detection). Reads that
+        // were brought in by the wider fetch but don't actually overlap the
+        // variant's anchor position should NOT count toward DP — unless they
+        // were classified as REF/ALT (e.g., shifted indel matched via
+        // windowed detection). This ensures DP matches samtools pileup at
+        // the variant position.
+        let ref_len = variant.ref_allele.len().max(1) as i64;
+        let read_start = record.pos();
+        let read_end = {
+            let mut rend = record.pos();
+            for op in record.cigar().iter() {
+                match op {
+                    Cigar::Match(len) | Cigar::Equal(len) | Cigar::Diff(len)
+                    | Cigar::Del(len) | Cigar::RefSkip(len) => {
+                        rend += *len as i64;
+                    }
+                    _ => {}
+                }
+            }
+            rend
+        };
+        let overlaps_anchor = read_start < (variant.pos + ref_len)
+            && read_end > variant.pos;
+        if !overlaps_anchor && !is_ref && !is_alt {
             continue;
         }
 
-        // Update per-read counts (unchanged — these are read-level, not fragment-level)
+        // ── TOTAL DEPTH: count all reads that overlap the variant anchor,
+        // regardless of allele classification. This ensures DP reflects true
+        // physical coverage even for reads that are neither REF nor ALT
+        // (e.g., duplex N bases, third alleles at multi-allelic sites).
         counts.dp += 1;
         let is_reverse = record.is_reverse();
 
@@ -362,7 +404,52 @@ fn count_single_variant(
             counts.dp_fwd += 1;
         }
 
+        // ── FRAGMENT TRACKING: track ALL fragments for DPF.
+        // FragmentEvidence::observe() correctly handles (false, false) —
+        // it skips updating best_ref_qual/best_alt_qual but still tracks
+        // the fragment for DPF in the downstream resolution loop.
+        let qname_hash = hash_qname(record.qname());
+        let is_read1 = record.is_first_in_template();
+        let is_forward = !is_reverse;
+
+        let evidence = fragments.entry(qname_hash).or_insert_with(FragmentEvidence::new);
+        evidence.observe(is_ref, is_alt, base_qual, is_read1, is_forward);
+
+        // ── ALLELE-SPECIFIC COUNTS: only REF/ALT reads contribute to RD/AD.
+        // DP and DPF are already recorded above.
+        if !is_ref && !is_alt {
+            continue;
+        }
+
         if is_ref {
+            // Multi-allelic guard: if this read is classified as ALT for any
+            // sibling variant at this locus, don't count it as REF for this
+            // variant. This handles overlapping indels/complex variants where
+            // a read carrying one variant's ALT could be miscounted as REF
+            // for another variant at the same locus.
+            if !sibling_variants.is_empty() {
+                let mut is_sibling_alt = false;
+                for sib in sibling_variants {
+                    let (_sib_ref, sib_alt, _sib_qual) = check_allele_with_qual(
+                        &record, sib, min_baseq,
+                        &mut alt_aligner, &mut ref_aligner,
+                    );
+                    if sib_alt {
+                        debug!(
+                            "Multi-allelic guard: read is ALT for sibling {}>{} at {}:{}, \
+                             excluding from REF for {}>{}",
+                            sib.ref_allele, sib.alt_allele,
+                            variant.chrom, variant.pos + 1,
+                            variant.ref_allele, variant.alt_allele,
+                        );
+                        is_sibling_alt = true;
+                        break;
+                    }
+                }
+                if is_sibling_alt {
+                    continue; // Skip REF counting — this read belongs to a sibling
+                }
+            }
             counts.rd += 1;
             if is_reverse {
                 counts.rd_rev += 1;
@@ -377,14 +464,6 @@ fn count_single_variant(
                 counts.ad_fwd += 1;
             }
         }
-
-        // Accumulate fragment evidence using QNAME hash
-        let qname_hash = hash_qname(record.qname());
-        let is_read1 = record.is_first_in_template();
-        let is_forward = !is_reverse;
-
-        let evidence = fragments.entry(qname_hash).or_insert_with(FragmentEvidence::new);
-        evidence.observe(is_ref, is_alt, base_qual, is_read1, is_forward);
     }
 
     // Resolve fragment-level counts using quality-weighted consensus.
@@ -540,7 +619,7 @@ fn extract_raw_read_window(
     win_end: i64,
     variant_pos: i64,
     variant_ref_len: usize,
-) -> (Vec<u8>, Vec<u8>) {
+) -> Option<(Vec<u8>, Vec<u8>)> {
     let cigar = record.cigar();
     let mut ref_pos = record.pos();
     let mut read_pos: usize = 0;
@@ -592,10 +671,6 @@ fn extract_raw_read_window(
                 let len_usize = *len as usize;
                 // Only include soft clips adjacent to the variant position
                 // itself (within ±1bp), not the broad fetching window.
-                // Large leading clips (e.g. 100S) at the window boundary
-                // would inject garbage adapter/chimeric sequence into Phase 3
-                // SW alignment, dragging down scores and causing valid reads
-                // to fail the alt_score >= ref_score + margin check.
                 let var_end = variant_pos + variant_ref_len as i64;
                 if ref_pos >= variant_pos - 1 && ref_pos <= var_end + 1 {
                     let rp_end = read_pos + len_usize - 1;
@@ -610,14 +685,19 @@ fn extract_raw_read_window(
         }
     }
 
-    // Extract contiguous raw read bases from first to last overlapping position
+    // Extract contiguous raw read bases from first to last overlapping position.
+    // Returns None instead of empty Vecs to avoid unnecessary heap allocation.
     match (first_read_pos, last_read_pos) {
         (Some(first), Some(last)) if first <= last && last < seq.len() => {
-            let bases: Vec<u8> = (first..=last).map(|i| seq[i]).collect();
-            let base_quals: Vec<u8> = quals[first..=last].to_vec();
-            (bases, base_quals)
+            let window_len = last - first + 1;
+            let mut bases = Vec::with_capacity(window_len);
+            for i in first..=last {
+                bases.push(seq[i]);
+            }
+            let base_quals = quals[first..=last].to_vec();
+            Some((bases, base_quals))
         }
-        _ => (Vec::new(), Vec::new()),
+        _ => None,
     }
 }
 
@@ -928,18 +1008,19 @@ fn check_complex<F: Fn(u8, u8) -> i32>(
         let win_end = win_start + ctx.len() as i64;
 
         if is_worth_realignment(record, win_start, win_end) {
-            let (sub_seq, sub_quals) = extract_raw_read_window(
+            if let Some((sub_seq, sub_quals)) = extract_raw_read_window(
                 record, win_start, win_end, variant.pos, variant.ref_allele.len()
-            );
-            if sub_seq.len() >= 3 {
-                debug!(
-                    "check_complex: bypassing Phase 1/2 due to soft-clips/indels, Phase 3 extracted {} bases",
-                    sub_seq.len()
-                );
-                return classify_by_alignment(
-                    &sub_seq, &sub_quals, variant, min_baseq,
-                    alt_aligner, ref_aligner,
-                );
+            ) {
+                if sub_seq.len() >= 3 {
+                    debug!(
+                        "check_complex: bypassing Phase 1/2 due to soft-clips/indels, Phase 3 extracted {} bases",
+                        sub_seq.len()
+                    );
+                    return classify_by_alignment(
+                        &sub_seq, &sub_quals, variant, min_baseq,
+                        alt_aligner, ref_aligner,
+                    );
+                }
             }
         }
     }
@@ -1034,8 +1115,14 @@ fn check_complex<F: Fn(u8, u8) -> i32>(
     // (e.g. 1bp), direct Phase 2 comparison is unreliable — a 1bp recon would
     // trivially match a 1bp ALT allele, causing overcounting.
     // Skip to Phase 3 (Smith-Waterman alignment) which uses full haplotype context.
+    // Threshold scales with read length to accommodate long-read data:
+    //   100bp reads → max(50, 33) = 50 (unchanged)
+    //   150bp reads → max(50, 50) = 50 (unchanged)
+    //   300bp reads → max(50, 100) = 100 (scales up)
     let ref_len = ref_bytes.len();
-    if ref_len > 50 && recon_len > 0 && recon_len < ref_len / 10 {
+    let read_len = seq.len();
+    let large_ref_threshold = std::cmp::max(50, read_len / 3);
+    if ref_len > large_ref_threshold && recon_len > 0 && recon_len < ref_len / 10 {
         debug!(
             "check_complex: recon_len={} is <10% of ref_len={} — \
              skipping Phase 2 (unreliable direct comparison)",
@@ -1161,18 +1248,19 @@ fn check_complex<F: Fn(u8, u8) -> i32>(
             return (false, false, 0);
         }
 
-        let (sub_seq, sub_quals) = extract_raw_read_window(
+        if let Some((sub_seq, sub_quals)) = extract_raw_read_window(
             record, win_start, win_end, variant.pos, variant.ref_allele.len()
-        );
-        if sub_seq.len() >= 3 {
-            debug!(
-                "Phase 3 fallback: extracted {} raw bases over [{}, {})",
-                sub_seq.len(), win_start, win_end
-            );
-            return classify_by_alignment(
-                &sub_seq, &sub_quals, variant, min_baseq,
-                alt_aligner, ref_aligner,
-            );
+        ) {
+            if sub_seq.len() >= 3 {
+                debug!(
+                    "Phase 3 fallback: extracted {} raw bases over [{}, {})",
+                    sub_seq.len(), win_start, win_end
+                );
+                return classify_by_alignment(
+                    &sub_seq, &sub_quals, variant, min_baseq,
+                    alt_aligner, ref_aligner,
+                );
+            }
         }
     }
 
@@ -1932,6 +2020,12 @@ fn check_mnp(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool, 
     // Return quality only for matching alleles
     let med_qual = if matches_ref || matches_alt { median_qual(&mnp_quals, min_baseq) } else { 0 };
     (matches_ref, matches_alt, med_qual)
+}
+
+/// Get the read base (uppercase) at a specific genomic position.
+/// Returns None if the read doesn't cover that position.
+fn get_read_base_at_pos(record: &Record, pos: i64) -> Option<u8> {
+    find_read_pos(record, pos).map(|rp| record.seq()[rp])
 }
 
 /// Find the read index corresponding to a genomic position.

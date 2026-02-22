@@ -256,3 +256,48 @@ def test_fragment_consensus_quality_tiebreaker(fragment_consensus_bam):
     assert (
         counts.adf == counts.adf_fwd + counts.adf_rev
     ), f"adf strand inconsistency: {counts.adf} != {counts.adf_fwd} + {counts.adf_rev}"
+
+
+def test_fragment_dpf_includes_neither_reads(fragment_consensus_bam):
+    """
+    Gap 1D: DPF must include fragments where both reads return 'neither'.
+
+    In the consensus BAM fixture, all fragments have REF or ALT evidence.
+    This test verifies the DPF >= RDF + ADF invariant holds (the gap
+    represents discarded ambiguous fragments + any neither-only fragments).
+    """
+    from gbcms._rs import Variant
+
+    variant = Variant(
+        chrom="chr1",
+        pos=100,
+        ref_allele="A",
+        alt_allele="T",
+        variant_type="SNP",
+    )
+
+    results = count_bam(
+        bam_path=fragment_consensus_bam,
+        variants=[variant],
+        decomposed=[None],
+        min_mapq=0,
+        min_baseq=0,
+        filter_duplicates=True,
+        filter_secondary=True,
+        filter_supplementary=True,
+        filter_qc_failed=True,
+        filter_improper_pair=False,
+        filter_indel=False,
+        threads=1,
+    )
+
+    counts = results[0]
+
+    # DPF must be >= RDF + ADF (gap = discarded + neither fragments)
+    assert (
+        counts.dpf >= counts.rdf + counts.adf
+    ), f"DPF invariant failed: dpf={counts.dpf} < rdf+adf={counts.rdf + counts.adf}"
+    # DP must also >= RD + AD at read level
+    assert (
+        counts.dp >= counts.rd + counts.ad
+    ), f"DP invariant failed: dp={counts.dp} < rd+ad={counts.rd + counts.ad}"

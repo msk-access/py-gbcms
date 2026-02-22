@@ -94,8 +94,12 @@ flowchart TD
 
 | Parameter | Value | Description |
 |:----------|:------|:------------|
-| `norm_window` | 100bp | Maximum distance to search leftward (bcftools default) |
+| `norm_window` | 100bp initial, up to 2500bp | Initial window for leftward search. Doubles on edge-hit (exponential retry). |
+| `max_norm_window` | 2500bp | Safety cap for centromeric/telomeric regions |
 | Trigger | `ref_len ≠ alt_len` or both >1bp | SNPs are never left-aligned |
+
+!!! tip "Dynamic Window Expansion"
+    If a variant shifts all the way to the window edge during left-alignment, it may not have fully converged. The engine automatically **doubles the window** (100 → 200 → 400 → ... → 2500bp) and retries. This ensures correct normalization even for variants in massive tandem repeats (e.g., centromeric regions) without penalizing the common case.
 
 After alignment, the **variant type is re-detected** based on the new allele lengths:
 
@@ -246,6 +250,7 @@ Every `PreparedVariant` carries a `validation_status` string:
 | `PASS` | REF matches FASTA exactly | ✅ |
 | `PASS_WARN_REF_CORRECTED` | REF ≥90% match; corrected to FASTA REF | ✅ |
 | `PASS_WARN_HOMOPOLYMER_DECOMP` | Passed, but corrected allele was used (see above) | ✅ |
+| `PASS_MULTI_ALLELIC` | Passed, variant overlaps another variant at the same locus (sibling ALT exclusion active) | ✅ |
 | `REF_MISMATCH` | REF allele <90% match against reference genome | ❌ |
 | `FETCH_FAILED` | Could not fetch reference region | ❌ |
 
@@ -257,7 +262,7 @@ Every `PreparedVariant` carries a `validation_status` string:
 ## Limitations
 
 1. **Left-alignment only** — py-gbcms left-aligns but does not right-align. If your input is right-aligned, the windowed scan (±5bp) may still catch it, but left-alignment is recommended.
-2. **100bp normalization window** — variants shifted by more than 100bp from their left-aligned position won't be corrected. This covers virtually all real-world cases.
+2. **Dynamic normalization window** — Starting at 100bp, the window automatically doubles (up to 2500bp) when a variant shifts to the window edge. In practice, this covers even variants in centromeric/telomeric repeats. Variants shifted beyond 2500bp won't be corrected.
 3. **Homopolymer detection is conservative** — only triggers for homopolymer REF ≥3bp with a clear D(n)+SNV pattern. Other miscollapsed events are not detected.
 
 ---

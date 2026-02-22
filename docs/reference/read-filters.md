@@ -111,13 +111,22 @@ Beyond the read-level filters above, py-gbcms also applies **base-level quality 
 
 ## Fetch Window
 
-Before filtering, py-gbcms fetches reads from a **±5bp window** around each variant position — not just at the exact position. This expanded window ensures reads with shifted indels (common in repetitive regions) are retrieved and can be matched by the [windowed scan](allele-classification.md#windowed-scan-safeguards).
+py-gbcms fetches reads from a **±5bp window** around each variant position — not just at the exact position. This expanded window ensures reads with shifted indels (common in repetitive regions) are retrieved and can be matched by the [windowed scan](allele-classification.md#windowed-scan-safeguards).
 
 ```
 Variant: chr1:100 A→ATG (insertion)
 
 BAM fetch window: [95, 106)    ← ±5bp from anchor position
 ```
+
+!!! important "Anchor Overlap Gate"
+    Although reads are fetched from the wider window, **only reads that overlap the variant's anchor position** (or are classified as REF/ALT via shifted indel matching) contribute to the DP count. This prevents DP inflation from reads that were brought in by the window padding but don't actually cover the variant.
+
+    ```
+    Read A: [90─────100]        → overlaps anchor at 100 → counted in DP ✅
+    Read B: [92──97]            → doesn't overlap 100, not classified → skipped ❌
+    Read C: [95──99] + shifted  → doesn't overlap 100, but windowed scan found ALT → counted ✅
+    ```
 
 ---
 

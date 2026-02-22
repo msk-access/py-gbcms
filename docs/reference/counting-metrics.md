@@ -33,35 +33,29 @@ Each read passing filters is counted independently. No deduplication is applied 
 
 ```mermaid
 flowchart TD
-    subgraph ReadLevel ["📖 Read-Level Counting"]
-        R1[Read 1 fwd → ALT]:::altread
-        R2[Read 2 rev → ALT]:::altread
-        R3[Read 3 fwd → REF]:::refread
-        R4[Read 4 rev → REF]:::refread
-        R5[Read 5 fwd → ALT]:::altread
-        R6[Read 6 rev → REF]:::refread
-    end
+    Fetch(["📥 Fetch reads from<br/>±5bp window"]) --> Filters["🔍 Apply read filters<br/>(MAPQ, dup, etc.)"]
+    Filters --> Classify["🧬 Allele classification<br/>(check_snp / check_insertion / etc.)"]
+    Classify --> Anchor{"Read overlaps<br/>variant anchor position?"}
+    Anchor -->|"Yes"| DP["✅ Count in DP<br/>(REF, ALT, or neither)"]
+    Anchor -->|"No"| ClassCheck{"Classified as<br/>REF or ALT?"}
+    ClassCheck -->|"Yes (shifted indel)"| DP
+    ClassCheck -->|"No"| Skip(["⏭️ Skip — outside<br/>variant footprint"]):::skip
+    DP --> Allele{"Allele?"}
+    Allele -->|REF| RD["RD += 1"]:::ref
+    Allele -->|ALT| AD["AD += 1"]:::alt
+    Allele -->|Neither| Neither["DP only<br/>(no RD/AD)"]:::neither
 
-    subgraph Results ["📊 Read Counts"]
-        Counts["DP=6  RD=3  AD=3<br/>DP_fwd=3  DP_rev=3<br/>RD_fwd=1  RD_rev=2<br/>AD_fwd=2  AD_rev=1"]
-    end
-
-    R1 --> Results
-    R2 --> Results
-    R3 --> Results
-    R4 --> Results
-    R5 --> Results
-    R6 --> Results
-
-    classDef altread fill:#e74c3c15,stroke:#e74c3c;
-    classDef refread fill:#27ae6015,stroke:#27ae60;
+    classDef ref fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
+    classDef alt fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
+    classDef neither fill:#95a5a6,color:#fff,stroke:#7f8c8d,stroke-width:2px;
+    classDef skip fill:#bdc3c7,color:#000,stroke:#95a5a6;
 ```
 
 ### Read Metrics
 
 | Metric | Description |
 |:-------|:------------|
-| **DP** | Total depth (reads supporting REF or ALT) |
+| **DP** | Total depth — **all** mapped, quality-filtered reads that **overlap the variant's anchor position**, regardless of allele classification. Includes reads that are neither REF nor ALT (e.g., third alleles at multi-allelic sites, duplex N bases). Reads from the wider fetch window (±5bp) that don't overlap the anchor are excluded from DP unless classified as REF/ALT via shifted indel detection. `DP ≥ RD + AD`. |
 | **RD** / **AD** | Reference / Alternate read counts |
 | **DP_fwd** / **DP_rev** | Strand-specific total depth |
 | **RD_fwd** / **RD_rev** | Strand-specific reference counts |
@@ -190,7 +184,7 @@ All fields in the `BaseCounts` struct returned by `count_bam()`:
 
 | Column | Type | Description |
 |:-------|:-----|:------------|
-| `dp` | u32 | Total read depth |
+| `dp` | u32 | Total read depth — reads overlapping the variant anchor position, including 'neither' reads |
 | `rd` | u32 | Reference read count |
 | `ad` | u32 | Alternate read count |
 | `dp_fwd` / `dp_rev` | u32 | Strand-specific total depth |

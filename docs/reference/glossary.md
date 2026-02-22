@@ -6,6 +6,7 @@ Technical terms used throughout the documentation.
 
 | Term | Definition |
 |:-----|:-----------|
+| **DP** | Total depth — all mapped, quality-filtered reads overlapping the variant anchor position, including REF, ALT, and 'neither'. `DP ≥ RD + AD`. |
 | **VAF** | Variant Allele Frequency — `AD / (RD + AD)` |
 | **Strand Bias** | Fisher's exact test for read direction imbalance |
 | **AD** | Alternate allele depth (supporting reads) |
@@ -51,7 +52,9 @@ Technical terms used throughout the documentation.
 | Status | Meaning |
 |:-------|:--------|
 | **PASS** | Variant validated against reference, ready for counting |
+| **PASS_WARN_REF_CORRECTED** | REF allele ≥90% match; corrected to FASTA REF |
 | **PASS_WARN_HOMOPOLYMER_DECOMP** | Variant spans a homopolymer; dual-counted with corrected allele (corrected won) |
+| **PASS_MULTI_ALLELIC** | Variant overlaps another variant at the same locus; sibling ALT exclusion active |
 | **REF_MISMATCH** | REF allele does not match the reference genome at the stated position |
 | **FETCH_FAILED** | Could not fetch the reference region (chromosome not found, etc.) |
 

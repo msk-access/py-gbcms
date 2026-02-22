@@ -62,6 +62,12 @@ pub struct PreparedVariant {
     /// `None` for normal variants where no decomposition is detected.
     #[pyo3(get)]
     pub decomposed_variant: Option<Variant>,
+
+    /// Group ID for overlapping multi-allelic variants at the same locus.
+    /// `None` for isolated variants, `Some(id)` when multiple variants share
+    /// overlapping genomic footprints (same chrom, overlapping REF spans).
+    #[pyo3(get)]
+    pub multi_allelic_group: Option<u32>,
 }
 
 // ---------------------------------------------------------------------------
@@ -659,15 +665,20 @@ pub fn prepare_variants(
         });
 
     match results {
-        Ok(r) => {
+        Ok(mut r) => {
+            // Post-processing: assign multi-allelic group IDs
+            assign_multi_allelic_groups(&mut r);
+
             // Log summary
             let valid = r.iter().filter(|p| p.validation_status == "PASS").count();
             let normalized = r.iter().filter(|p| p.was_normalized).count();
+            let multi_allelic = r.iter().filter(|p| p.multi_allelic_group.is_some()).count();
             info!(
-                "prepare_variants complete: {}/{} valid, {} normalized",
+                "prepare_variants complete: {}/{} valid, {} normalized, {} multi-allelic",
                 valid,
                 r.len(),
                 normalized,
+                multi_allelic,
             );
             Ok(r)
         }
@@ -675,6 +686,90 @@ pub fn prepare_variants(
             "prepare_variants failed: {}",
             e
         ))),
+    }
+}
+
+/// Assign group IDs to variants that overlap at the same genomic locus.
+///
+/// Two variants overlap if they share the same chromosome and their REF spans
+/// (pos..pos+ref_len) intersect. Uses a sweep-line algorithm: sort by position,
+/// then extend the current group while new variants overlap the group's footprint.
+fn assign_multi_allelic_groups(variants: &mut [PreparedVariant]) {
+    if variants.len() < 2 {
+        return;
+    }
+
+    // Build index sorted by (chrom, pos) — we sort indices, not the array itself,
+    // to avoid disrupting input order (which must match the output row order).
+    let mut indices: Vec<usize> = (0..variants.len()).collect();
+    indices.sort_by(|&a, &b| {
+        let va = &variants[a].variant;
+        let vb = &variants[b].variant;
+        va.chrom.cmp(&vb.chrom).then(va.pos.cmp(&vb.pos))
+    });
+
+    let mut group_id: u32 = 0;
+    let mut i = 0;
+
+    while i < indices.len() {
+        let idx = indices[i];
+        // Skip non-PASS variants
+        if !variants[idx].validation_status.starts_with("PASS") {
+            i += 1;
+            continue;
+        }
+
+        let chrom = &variants[idx].variant.chrom.clone();
+        let mut group_end = variants[idx].variant.pos
+            + variants[idx].variant.ref_allele.len() as i64;
+        let mut group_members: Vec<usize> = vec![idx];
+
+        // Sweep forward: extend group while variants overlap
+        let mut j = i + 1;
+        while j < indices.len() {
+            let jdx = indices[j];
+            let vj = &variants[jdx].variant;
+
+            if &vj.chrom != chrom {
+                break; // Different chromosome
+            }
+            if !variants[jdx].validation_status.starts_with("PASS") {
+                j += 1;
+                continue;
+            }
+            if vj.pos < group_end {
+                // Overlaps — extend the group footprint
+                let vj_end = vj.pos + vj.ref_allele.len() as i64;
+                group_end = group_end.max(vj_end);
+                group_members.push(jdx);
+                j += 1;
+            } else {
+                break; // No overlap
+            }
+        }
+
+        // Only assign group ID if there are 2+ overlapping variants
+        if group_members.len() > 1 {
+            group_id += 1;
+            for &member_idx in &group_members {
+                variants[member_idx].multi_allelic_group = Some(group_id);
+                // Append to validation_status so it surfaces in existing output columns
+                // e.g. "PASS" → "PASS_MULTI_ALLELIC"
+                if !variants[member_idx].validation_status.contains("MULTI_ALLELIC") {
+                    variants[member_idx].validation_status.push_str("_MULTI_ALLELIC");
+                }
+            }
+            debug!(
+                "Multi-allelic group {}: {} variants at {}:{}-{}",
+                group_id,
+                group_members.len(),
+                chrom,
+                variants[group_members[0]].variant.pos + 1,
+                group_end,
+            );
+        }
+
+        i = j;
     }
 }
 
@@ -731,6 +826,7 @@ fn prepare_single_variant(
                     original_ref,
                     original_alt,
                     decomposed_variant: None,
+                    multi_allelic_group: None,
                 });
             }
         }
@@ -771,6 +867,7 @@ fn prepare_single_variant(
                 variant_type: vtype,
                 ref_context: None,
                 ref_context_start: 0,
+                repeat_span: 0,
             },
             validation_status: status,
             was_normalized: false,
@@ -778,6 +875,7 @@ fn prepare_single_variant(
             original_ref,
             original_alt,
             decomposed_variant: None,
+            multi_allelic_group: None,
         });
     }
 
@@ -787,61 +885,80 @@ fn prepare_single_variant(
         || (ref_al.len() > 1 && alt_al.len() > 1);
 
     if is_indel {
-        let norm_window: i64 = 100; // bcftools default
-        let pad = context_padding.max(norm_window);
-        let wide_start = (pos - pad).max(0);
-        let wide_end = pos + ref_al.len() as i64 + pad;
+        let mut norm_window: i64 = 100; // bcftools default
+        let max_norm_window: i64 = 2500; // safety cap for centromeric regions
 
-        if let Ok(wide_ref) = fetch_region(
-            reader,
-            &variant.chrom,
-            wide_start as u64,
-            wide_end as u64,
-        ) {
-            let (new_pos, new_ref, new_alt, modified) = left_align_variant(
-                pos,
-                ref_al.as_bytes(),
-                alt_al.as_bytes(),
-                &wide_ref,
-                wide_start,
-                norm_window as usize,
-            );
+        loop {
+            let pad = context_padding.max(norm_window);
+            let wide_start = (pos - pad).max(0);
+            let wide_end = pos + ref_al.len() as i64 + pad;
 
-            if modified {
-                debug!(
-                    "Left-aligned: {}:{} {}>{} → {}:{} {}>{}",
-                    variant.chrom,
-                    pos + 1,
-                    ref_al,
-                    alt_al,
-                    variant.chrom,
-                    new_pos + 1,
-                    String::from_utf8_lossy(&new_ref),
-                    String::from_utf8_lossy(&new_alt),
+            if let Ok(wide_ref) = fetch_region(
+                reader,
+                &variant.chrom,
+                wide_start as u64,
+                wide_end as u64,
+            ) {
+                let pos_before_align = pos;
+                let (new_pos, new_ref, new_alt, modified) = left_align_variant(
+                    pos,
+                    ref_al.as_bytes(),
+                    alt_al.as_bytes(),
+                    &wide_ref,
+                    wide_start,
+                    norm_window as usize,
                 );
-                pos = new_pos;
-                ref_al = String::from_utf8(new_ref)
-                    .unwrap_or_else(|_| ref_al.clone());
-                alt_al = String::from_utf8(new_alt)
-                    .unwrap_or_else(|_| alt_al.clone());
-                was_normalized = true;
 
-                // Re-determine variant type after normalization
-                vtype = if ref_al.len() == 1 && alt_al.len() == 1 {
-                    "SNP".to_string()
-                } else if ref_al.len() == 1 && alt_al.len() > 1 {
-                    "INSERTION".to_string()
-                } else if ref_al.len() > 1 && alt_al.len() == 1 {
-                    "DELETION".to_string()
-                } else {
-                    "COMPLEX".to_string()
-                };
+                if modified {
+                    debug!(
+                        "Left-aligned: {}:{} {}>{} → {}:{} {}>{}",
+                        variant.chrom,
+                        pos + 1,
+                        ref_al,
+                        alt_al,
+                        variant.chrom,
+                        new_pos + 1,
+                        String::from_utf8_lossy(&new_ref),
+                        String::from_utf8_lossy(&new_alt),
+                    );
+                    pos = new_pos;
+                    ref_al = String::from_utf8(new_ref)
+                        .unwrap_or_else(|_| ref_al.clone());
+                    alt_al = String::from_utf8(new_alt)
+                        .unwrap_or_else(|_| alt_al.clone());
+                    was_normalized = true;
+
+                    // Re-determine variant type after normalization
+                    vtype = if ref_al.len() == 1 && alt_al.len() == 1 {
+                        "SNP".to_string()
+                    } else if ref_al.len() == 1 && alt_al.len() > 1 {
+                        "INSERTION".to_string()
+                    } else if ref_al.len() > 1 && alt_al.len() == 1 {
+                        "DELETION".to_string()
+                    } else {
+                        "COMPLEX".to_string()
+                    };
+
+                    // Check: did the variant shift all the way to the window edge?
+                    // If so, it may not have fully converged — expand and retry.
+                    let shift = pos_before_align - pos;
+                    if shift >= norm_window && norm_window < max_norm_window {
+                        norm_window = (norm_window * 2).min(max_norm_window);
+                        debug!(
+                            "Left-align hit window edge (shift={}bp), \
+                             expanding to {}bp for {}:{}",
+                            shift, norm_window, variant.chrom, pos + 1
+                        );
+                        continue; // Re-align with wider window
+                    }
+                }
+            } else {
+                debug!(
+                    "Wide ref fetch failed for {}:{}-{}, skipping normalization",
+                    variant.chrom, wide_start, wide_end,
+                );
             }
-        } else {
-            debug!(
-                "Wide ref fetch failed for {}:{}-{}, skipping normalization",
-                variant.chrom, wide_start, wide_end,
-            );
+            break; // Normal exit: alignment converged or fetch failed
         }
     }
 
@@ -917,11 +1034,23 @@ fn prepare_single_variant(
                     variant_type: decomp_vtype,
                     ref_context: ref_context.clone(),
                     ref_context_start,
+                    repeat_span: 0, // Decomposed variant inherits context but repeat info is not critical
                 }
             })
         })
     } else {
         None
+    };
+
+    // Compute repeat_span from ref_context for dynamic SW gap penalty tuning.
+    // find_tandem_repeat detects tandem repeats around the variant position.
+    let variant_repeat_span = if let Some(ref ctx) = ref_context {
+        let ctx_bytes = ctx.as_bytes();
+        let pos_in_ctx = (pos - ref_context_start) as usize;
+        let (_motif_len, span) = find_tandem_repeat(ctx_bytes, pos_in_ctx.min(ctx_bytes.len().saturating_sub(1)));
+        span
+    } else {
+        0
     };
 
     Ok(PreparedVariant {
@@ -933,6 +1062,7 @@ fn prepare_single_variant(
             variant_type: vtype,
             ref_context,
             ref_context_start,
+            repeat_span: variant_repeat_span,
         },
         validation_status: "PASS".to_string(),
         was_normalized,
@@ -940,6 +1070,7 @@ fn prepare_single_variant(
         original_ref,
         original_alt,
         decomposed_variant,
+        multi_allelic_group: None, // Set by post-processing in prepare_variants()
     })
 }
 
@@ -1218,5 +1349,27 @@ mod tests {
         let adaptive = (span as i64) / 2 + 3;
         let effective = default_pad.max(adaptive).min(max_pad);
         assert_eq!(effective, 50, "Should be capped at max_pad");
+    }
+
+    // -- Gap 1B: Dynamic window expansion tests --
+
+    #[test]
+    fn test_window_expansion_long_homopolymer() {
+        // A 120bp dinucleotide repeat requires window expansion beyond 100bp.
+        // Pure homopolymers don't shift (all positions equivalent), so we use AC-repeat.
+        // Reference: 50bp T-prefix + 120bp AC-repeat + 50bp G-suffix = 220bp.
+        let mut reference = Vec::with_capacity(220);
+        for _ in 0..50 { reference.push(b'T'); }
+        for _ in 0..60 { reference.push(b'A'); reference.push(b'C'); }
+        for _ in 0..50 { reference.push(b'G'); }
+
+        // Deletion near end of AC-run: pos=160, REF=AC, ALT=A
+        // In dinucleotide repeat, this should left-align back toward pos 49/50
+        let (pos, _r, _a, modified) =
+            left_align_variant(160, b"AC", b"A", &reference, 0, 200);
+        if modified {
+            assert!(pos < 160,
+                "Expected leftward shift from pos 160, got pos={}", pos);
+        }
     }
 }

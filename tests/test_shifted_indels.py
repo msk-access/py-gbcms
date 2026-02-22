@@ -298,8 +298,11 @@ class TestDeletionWindowed:
         assert counts.ad == 1, f"Expected ad=1 (windowed ALT), got {counts.ad}"
 
     def test_deletion_wrong_ref_context_s3(self, tmp_path):
-        """DEL within window but ref base at shifted pos doesn't match → reject (S3).
-        Use a ref_context where the shifted deletion position has 'G' instead of 'T'.
+        """DEL within window but ref base at shifted pos doesn't match → S3 rejects
+        the windowed CIGAR match. However, Phase 3 SW fallback (check_complex) then
+        correctly identifies the deletion via haplotype alignment → ALT.
+
+        Flow: S3 reject → check_complex → SW alignment → ALT.
         """
         # ref_context: "AAAAAATGAAAAAAAA" covering [195, 210)
         # pos 201='T', 202='G'. If deletion shifts to 202, ref='G' but expected='T' → S3 reject.
@@ -315,11 +318,12 @@ class TestDeletionWindowed:
         # Read with deletion at pos 203: 7M 1D 3M, starts at 196.
         # Block end = 203. del_ref_pos = 203.
         # ref_context[203-195] = ref_context[8] = 'A'. expected_del_seq = 'T'. 'A' ≠ 'T' → S3 reject.
+        # But the read has an actual deletion in CIGAR → check_complex SW fallback → ALT.
         reads = [_make_read("r1", "AAAAAAAAAA", 196, ((0, 7), (2, 1), (0, 3)))]
         bam = _build_bam(tmp_path, reads)
         counts = _count_one(bam, variant)
-        assert counts.ad == 0, f"Expected ad=0 (S3 reject), got {counts.ad}"
-        assert counts.rd == 1, f"Expected rd=1 (covers anchor), got {counts.rd}"
+        # Phase 3 SW correctly identifies this as ALT via haplotype alignment
+        assert counts.ad == 1, f"Expected ad=1 (Phase 3 SW fallback), got {counts.ad}"
 
 
 class TestNoRefContext:
