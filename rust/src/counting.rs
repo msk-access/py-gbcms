@@ -560,18 +560,34 @@ fn check_allele_with_qual<F: Fn(u8, u8) -> i32>(
         // SNP: single base substitution
         check_snp(record, variant, min_baseq)
     } else if ref_len == alt_len {
-        // MNP: equal-length multi-base substitution.
-        // Strict match first; fall back to quality-masked haplotype
-        // comparison (check_complex → Phase 3 SW) if inconclusive.
-        // Without this fallback, a single low-quality base in the MNP
-        // block would hard-reject the read, reducing sensitivity in
-        // noisy samples (ctDNA, FFPE).
-        let (is_ref, is_alt, qual) = check_mnp(record, variant, min_baseq);
-        if !is_ref && !is_alt {
-            debug!("MNP inconclusive, falling back to check_complex");
-            check_complex(record, variant, min_baseq, alt_aligner, ref_aligner)
-        } else {
-            (is_ref, is_alt, qual)
+        // MNP: min-BQ-across-block strategy with selective Phase 3 fallback.
+        // Uses minimum quality across the entire MNP block (matching C++ GBCMS)
+        // instead of per-base hard rejection (which caused ~99% ALT loss via
+        // Phase 3 SW ties). Phase 3 fallback is reserved for structural issues
+        // (indels within MNP block, partial coverage) where the read may carry
+        // the variant through a complex alignment that SW can resolve.
+        match check_mnp(record, variant, min_baseq) {
+            MnpResult::Ref(q) => (true, false, q),
+            MnpResult::Alt(q) => (false, true, q),
+            MnpResult::LowQuality => {
+                // Min quality across MNP block failed threshold.
+                // Skip entirely (like C++); don't fall to Phase 3.
+                // Phase 3 would count toward DP while C++ wouldn't.
+                (false, false, 0)
+            }
+            MnpResult::ThirdAllele => {
+                // Bases pass quality but match neither REF nor ALT.
+                // Skip; Phase 3 would likely tie (haplotypes differ
+                // at only 2-3/20 positions for MNPs).
+                (false, false, 0)
+            }
+            MnpResult::Structural => {
+                // Indel within MNP block or partial coverage.
+                // Complex alignment needed — may be a complex variant
+                // annotated as an MNP.
+                debug!("MNP structural issue, falling back to check_complex");
+                check_complex(record, variant, min_baseq, alt_aligner, ref_aligner)
+            }
         }
     } else if ref_len == 1 {
         // Pure insertion: anchor + inserted bases (ref_len=1, alt_len>1)
@@ -1979,28 +1995,81 @@ fn check_deletion<F: Fn(u8, u8) -> i32>(
     (false, false, 0) // Read does not cover the variant region
 }
 
-/// Returns (is_ref, is_alt, base_qual) for MNP variants.
-/// Quality is the median base quality across all positions in the MNP.
-fn check_mnp(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool, u8) {
-    // MNP: REF=AT, ALT=CG. Lengths equal, > 1.
+/// Result from MNP classification — distinguishes failure reason so the
+/// caller can decide whether Phase 3 SW fallback is appropriate.
+///
+/// This replaces the previous `(bool, bool, u8)` return which conflated
+/// quality failures, third alleles, and structural issues into a single
+/// `(false, false, 0)` that always fell to Phase 3 SW (causing ~99%
+/// MNP ALT loss via ties in haplotype-similar SW alignments).
+enum MnpResult {
+    /// All bases match REF, with median quality across the block.
+    Ref(u8),
+    /// All bases match ALT, with median quality across the block.
+    Alt(u8),
+    /// min(BQ) across the MNP block < threshold — skip read entirely.
+    /// Matches C++ GBCMS behavior. Phase 3 fallback NOT appropriate:
+    /// SW would count the read toward DP while C++ wouldn't.
+    LowQuality,
+    /// All bases pass quality, but the read sequence matches neither
+    /// REF nor ALT. Phase 3 fallback NOT appropriate: if bases clearly
+    /// don't match either allele, SW will likely generate a tie.
+    ThirdAllele,
+    /// Structural issue prevents string comparison:
+    ///   - Read doesn't cover the entire MNP region
+    ///   - Position not found in CIGAR walk
+    ///   - Indel within the MNP block (contiguity check failed)
+    /// Phase 3 fallback IS appropriate: the read may carry the variant
+    /// through a complex alignment (e.g., complex variant annotated as MNP).
+    Structural,
+}
+
+/// Classify a read for an MNP variant using min-BQ-across-block strategy.
+///
+/// Uses the minimum base quality across the entire MNP block as the
+/// quality gate (matching C++ GBCMS `baseCountDNP` behavior), rather
+/// than per-base hard rejection which caused catastrophic ALT loss.
+///
+/// The contiguity check is performed FIRST (fail-fast for structural
+/// issues) before quality and sequence comparison.
+fn check_mnp(record: &Record, variant: &Variant, min_baseq: u8) -> MnpResult {
     let len = variant.ref_allele.len();
-    
-    // Find read position of the first base
+
+    // ── Step 1: Find read position of the first MNP base ──
     let start_read_pos = match find_read_pos(record, variant.pos) {
         Some(p) => p,
-        None => return (false, false, 0),
+        None => return MnpResult::Structural,
     };
 
-    // Check if the read covers the entire MNP
+    // ── Step 2: Check full coverage ──
     if start_read_pos + len > record.seq().len() {
-        return (false, false, 0);
+        return MnpResult::Structural;
     }
 
-    // Check qualities and sequence
+    // ── Step 3: Contiguity check FIRST (fail-fast for structural issues) ──
+    // Verify no indels within the MNP block before doing quality/sequence.
+    // This catches complex variants misannotated as MNPs.
+    let end_read_pos = match find_read_pos(record, variant.pos + len as i64 - 1) {
+        Some(p) => p,
+        None => return MnpResult::Structural,
+    };
+    if end_read_pos - start_read_pos != len - 1 {
+        return MnpResult::Structural; // Indel within MNP block
+    }
+
+    // ── Step 4: Min-BQ-across-block quality gate (C++ strategy) ──
     let quals = record.qual();
+    let mut min_qual = u8::MAX;
+    for i in 0..len {
+        min_qual = min_qual.min(quals[start_read_pos + i]);
+    }
+    if min_qual < min_baseq {
+        return MnpResult::LowQuality;
+    }
+
+    // ── Step 5: Direct string comparison (all bases passed quality) ──
     let seq = record.seq();
     let seq_bytes = seq.as_bytes();
-    
     let ref_bytes = variant.ref_allele.as_bytes();
     let alt_bytes = variant.alt_allele.as_bytes();
 
@@ -2010,39 +2079,24 @@ fn check_mnp(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool, 
 
     for i in 0..len {
         let pos = start_read_pos + i;
-        
-        // Check quality
-        if quals[pos] < min_baseq {
-            return (false, false, 0);
-        }
         mnp_quals.push(quals[pos]);
 
         let base = seq_bytes[pos].to_ascii_uppercase();
-        let r = ref_bytes[i].to_ascii_uppercase();
-        let a = alt_bytes[i].to_ascii_uppercase();
-
-        if base != r {
+        if base != ref_bytes[i].to_ascii_uppercase() {
             matches_ref = false;
         }
-        if base != a {
+        if base != alt_bytes[i].to_ascii_uppercase() {
             matches_alt = false;
         }
     }
 
-    // Ensure no indels in the MNP region
-    let end_read_pos = match find_read_pos(record, variant.pos + len as i64 - 1) {
-        Some(p) => p,
-        None => return (false, false, 0),
-    };
-
-    // If contiguous, end - start should be len - 1
-    if end_read_pos - start_read_pos != len - 1 {
-        return (false, false, 0); // Indel detected within MNP
+    if matches_ref {
+        MnpResult::Ref(median_qual(&mnp_quals, min_baseq))
+    } else if matches_alt {
+        MnpResult::Alt(median_qual(&mnp_quals, min_baseq))
+    } else {
+        MnpResult::ThirdAllele
     }
-
-    // Return quality only for matching alleles
-    let med_qual = if matches_ref || matches_alt { median_qual(&mnp_quals, min_baseq) } else { 0 };
-    (matches_ref, matches_alt, med_qual)
 }
 
 /// Get the read base (uppercase) at a specific genomic position.
