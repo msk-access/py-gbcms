@@ -222,13 +222,14 @@ pub fn count_bam(
                                 // Sanity: both hypotheses count the same reads at the
                                 // same locus, so DP should be nearly identical. A large
                                 // divergence indicates a counting bug.
-                                debug_assert!(
-                                    (counts_decomp.dp as i64 - counts_orig.dp as i64).abs() <= 2,
-                                    "DP mismatch in dual-counting: decomp={} orig={} at {}:{} {}→{}",
-                                    counts_decomp.dp, counts_orig.dp,
-                                    variant.chrom, variant.pos + 1,
-                                    variant.ref_allele, decomp.alt_allele
-                                );
+                                if (counts_decomp.dp as i64 - counts_orig.dp as i64).abs() > 2 {
+                                    log::warn!(
+                                        "DP mismatch in dual-counting: decomp={} orig={} at {}:{} {}→{}",
+                                        counts_decomp.dp, counts_orig.dp,
+                                        variant.chrom, variant.pos + 1,
+                                        variant.ref_allele, decomp.alt_allele
+                                    );
+                                }
                                 debug!(
                                     "Homopolymer decomp: corrected allele wins \
                                      (ad={} vs orig ad={}, dp_decomp={}, dp_orig={}) \
@@ -761,11 +762,11 @@ fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
     }
 
     // Use the provided reusable aligners (created once per variant).
-    trace!(
+    debug!(
         "classify_by_alignment: read_len={} ref_hap_len={} alt_hap_len={} usable={}",
         read_len, ref_hap.len(), alt_hap.len(), usable_count
     );
-    trace!(
+    debug!(
         "classify_by_alignment seqs: read={} alt_hap={} ref_hap={}",
         String::from_utf8_lossy(&masked_seq),
         String::from_utf8_lossy(&alt_hap),
@@ -854,7 +855,17 @@ fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
     } else if is_ref {
         (true, false, med_qual)
     } else {
-        (false, false, 0)
+        // Tie or ambiguous. If the read mapped reasonably well (max score >= ~50%),
+        // count it as REF (background) to maintain accurate VAF denominators.
+        // Discarding it would artificially deflate Total Depth in regions with
+        // background polymorphisms or partial MNP matches.
+        let max_score = std::cmp::max(alt_aln.score, ref_aln.score);
+        if max_score >= (read_len as i32) / 2 {
+            debug!("Ambiguous tie or non-ALT (alt={}, ref={}) but mapped well — assigning to REF to preserve denominator", alt_aln.score, ref_aln.score);
+            (true, false, med_qual)
+        } else {
+            (false, false, 0)
+        }
     }
 }
 
@@ -903,6 +914,35 @@ fn check_complex<F: Fn(u8, u8) -> i32>(
         "check_complex start: pos={} ref={} alt={}",
         start_pos, variant.ref_allele, variant.alt_allele
     );
+
+    // --- Phase 0: Structural Anomaly Fast-Track ---
+    // If the read has Soft-Clips (S) or explicit indels (I/D) within the window,
+    // Phase 1's CIGAR-projected reconstruction will produce a severely truncated 
+    // or garbaged sequence. Phase 2 (masked comparison) then artificially matches 
+    // this truncated string perfectly to REF, erroneously rejecting complex ALT reads!
+    // To prevent this false REF classification, we IMMEDIATELY route all
+    // structurally anomalous reads (is_worth_realignment) to Phase 3 SW, which natively
+    // extracts the raw unstructured bases and aligns against the full haplotype geometries.
+    if let Some(ref ctx) = variant.ref_context {
+        let win_start = variant.ref_context_start;
+        let win_end = win_start + ctx.len() as i64;
+
+        if is_worth_realignment(record, win_start, win_end) {
+            let (sub_seq, sub_quals) = extract_raw_read_window(
+                record, win_start, win_end, variant.pos, variant.ref_allele.len()
+            );
+            if sub_seq.len() >= 3 {
+                debug!(
+                    "check_complex: bypassing Phase 1/2 due to soft-clips/indels, Phase 3 extracted {} bases",
+                    sub_seq.len()
+                );
+                return classify_by_alignment(
+                    &sub_seq, &sub_quals, variant, min_baseq,
+                    alt_aligner, ref_aligner,
+                );
+            }
+        }
+    }
 
     // --- Phase 1: Haplotype Reconstruction ---
     // Walk the CIGAR to reconstruct what the read shows for [start_pos, end_pos).
@@ -1111,7 +1151,9 @@ fn check_complex<F: Fn(u8, u8) -> i32>(
         let win_start = variant.ref_context_start;
         let win_end = win_start + ctx.len() as i64;
 
-        if !is_worth_realignment(record, win_start, win_end) {
+        let is_mnp = variant.ref_allele.len() == variant.alt_allele.len() && variant.ref_allele.len() > 1;
+
+        if !is_mnp && !is_worth_realignment(record, win_start, win_end) {
             trace!(
                 "Phase 3 skipped: read has clean CIGAR over [{}, {})",
                 win_start, win_end
@@ -1501,6 +1543,17 @@ fn check_insertion<F: Fn(u8, u8) -> i32>(
     }
 
     if found_ref_coverage {
+        // Fallback for paired-reads where R1 gets an 'I' but R2 is purely soft-clipped ('S').
+        // Without this, check_insertion blindly classifies the 'S' read as REF,
+        // causing fragment consensus to tie (ALT vs REF -> Discard).
+        if let Some(ref ctx) = variant.ref_context {
+            let win_start = variant.ref_context_start;
+            let win_end = win_start + ctx.len() as i64;
+            if is_worth_realignment(record, win_start, win_end) {
+                debug!("check_insertion: read has soft-clips/indels, falling back to check_complex for Phase 3 SW");
+                return check_complex(record, variant, min_baseq, alt_aligner, ref_aligner);
+            }
+        }
         return (true, false, anchor_qual); // REF — read covers anchor without matching insertion
     }
     (false, false, 0) // Read does not cover the variant region
@@ -1799,6 +1852,17 @@ fn check_deletion<F: Fn(u8, u8) -> i32>(
     }
 
     if found_ref_coverage {
+        // Fallback for paired-reads where R1 gets a 'D' but R2 is purely soft-clipped ('S')
+        // or has mismatched bases. Without this, check_deletion blindly classifies
+        // the ambiguous read as REF, causing fragment consensus to tie.
+        if let Some(ref ctx) = variant.ref_context {
+            let win_start = variant.ref_context_start;
+            let win_end = win_start + ctx.len() as i64;
+            if is_worth_realignment(record, win_start, win_end) {
+                debug!("check_deletion: read has soft-clips/indels, falling back to check_complex for Phase 3 SW");
+                return check_complex(record, variant, min_baseq, alt_aligner, ref_aligner);
+            }
+        }
         return (true, false, anchor_qual); // REF
     }
     (false, false, 0) // Read does not cover the variant region

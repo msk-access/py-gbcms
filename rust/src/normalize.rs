@@ -874,7 +874,8 @@ fn prepare_single_variant(
                 Some(String::from_utf8_lossy(&ctx_bytes).to_string()),
                 ctx_start,
             ),
-            Err(_) => {
+            Err(e) => {
+                println!("REF_CTX ERROR: {:?}", e);
                 warn!(
                     "ref_context fetch failed for {}:{}-{}, SW alignment will be skipped",
                     variant.chrom, ctx_start, ctx_end,

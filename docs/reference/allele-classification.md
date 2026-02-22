@@ -428,9 +428,13 @@ flowchart TD
 
     subgraph Phase3 ["Phase 3: Smith-Waterman Fallback"]
         direction TB
+        IsMNP{"Is cleanly MNP?<br/>(ref == alt > 1)"}
         PreFilter{"is_worth_realignment?<br/>(indels/clips near window)"}
+        
+        IsMNP -->|Yes| Extract[Extract raw read window]
+        IsMNP -->|No| PreFilter
         PreFilter -->|No| Neither2([Neither]):::neither
-        PreFilter -->|Yes| Extract[Extract raw read window]
+        PreFilter -->|Yes| Extract
         Extract --> SW["Semiglobal SW alignment<br/>vs REF and ALT haplotypes"]
         SW --> Margin{"Score difference ≥ 2?"}
         Margin -->|"Confident call"| ConfCheck
@@ -442,11 +446,11 @@ flowchart TD
         LocalSW --> LocalMargin{"Score difference ≥ 2?"}
         LocalMargin -->|ALT wins| Alt3b([🔴 ALT]):::alt
         LocalMargin -->|REF wins| Ref3b([✅ REF]):::ref
-        LocalMargin -->|"Within margin"| Neither4([Neither]):::neither
+        LocalMargin -->|"Ambiguous Tie"| Tie2([Background REF]):::ref
 
-        ConfResult{Which allele wins?}
         ConfResult -->|ALT| Alt3([🔴 ALT]):::alt
         ConfResult -->|REF| Ref3([✅ REF]):::ref
+        Margin -->|"Ambiguous Tie"| Tie1([Background REF]):::ref
     end
 
     classDef start fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
@@ -531,7 +535,8 @@ Two conditions detect low-confidence semiglobal results:
 When **either** trigger fires, the engine retries with **local alignment** (`Aligner::local()`), which soft-clips the bad flank and finds the best matching substring without penalizing overhangs on either side.
 
 !!! tip "Performance: Pre-Filter"
-    To avoid expensive O(n×m) alignment on clean REF reads (~80-90% at any locus), `is_worth_realignment()` checks if the read has soft-clips, indels, or mismatches near the variant window. Clean M-only reads are skipped.
+    To avoid expensive O(n×m) alignment on clean REF reads (~80-90% at any locus) containing complex structural shifts, `is_worth_realignment()` checks if the read has soft-clips, indels, or mismatches near the variant window. Clean M-only reads are skipped. 
+    **Exception:** Because Multi-Nucleotide Variants (MNPs) natively map cleanly without structural CIGAR shifts, they explicitly bypass this filter to enter Phase 3 extraction securely.
 
 !!! tip "Performance: Aligner Reuse"
     SW aligners are created **once per variant** in `count_single_variant()` and reused for all reads. The `bio::alignment::pairwise::Aligner` reuses internal DP buffers, avoiding repeated heap allocation.
@@ -539,13 +544,19 @@ When **either** trigger fires, the engine retries with **local alignment** (`Ali
 !!! note "Raw Read Window Extraction"
     Phase 3 uses `extract_raw_read_window()` instead of CIGAR-projected extraction. For complex variants (e.g., `TCC→CT` represented as `DEL+INS` in CIGAR), CIGAR projection produces a hybrid sequence matching neither haplotype. Raw extraction returns the contiguous read bases that SW can correctly classify.
 
+#### Ambiguous Tie Denominator Retention
+
+For small Complex and MNP variants, biological reads heavily affected by surrounding genetic polymorphism can result in 50% partial matches against the Alternate array. Mathematically, this scores an exact numerical **tie** between the `REF` and `ALT` haplotypes (`alt_score = 11, ref_score = 11`). 
+
+Instead of discarding these cleanly mapped (but structurally inconclusive) elements, the engine algorithmically captures any read where `max(scores) >= read_len/2` and safely routes them to the denominator metric via `is_ref = true`. This explicitly protects global `DP` (Total Depth) arrays from catastrophic collapse in variants like TERT / MLH1 where almost the entire read-set consists of a background polymorphism.
+
 ---
 
 ## Limitations
 
-1. **Windowed scan range** — Indels shifted beyond the context padding from their expected position won't be detected by the CIGAR-based check. Phase 3 SW can catch some of these via `ref_context`, but only if the read shows evidence (indels/clips) near the variant. [Adaptive context padding](variant-normalization.md#adaptive-context-padding) (enabled by default) automatically increases the window in repeat regions where shifted indels are most common.
+1. **Windowed scan range** — Indels shifted beyond the context padding from their expected position won't be detected by the CIGAR-based check. Phase 3 SW can catch some of these via `ref_context`, but only if the read shows evidence (indels/clips) near the variant. [Adaptive context padding](variant-normalization.md#adaptive-context-padding) (enabled by default) utilizes a multi-anchor footprint sweep to dramatically widen the padded detection bounds natively for INDEL clusters.
 
-2. **Score margin ≥ 2** — The SW margin is fixed at 2 points (using `>=`). Very short variants in highly repetitive regions may produce ambiguous scores.
+2. **Score margin ≥ 2** — The SW margin is definitively fixed at 2 points to prevent ambiguous calls. Reads failing to achieve definitive spacing return a numerical tie, deliberately falling into the background `REF` array to preserve accurate clinical VAF fraction denominators.
 
 3. **Soft-clip recovery** — Phase 1 includes soft-clipped bases that overlap the variant window, but only when `ref_pos` is within the variant region. Soft clips at the edge of reads far from the variant are not considered.
 
