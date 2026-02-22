@@ -75,7 +75,7 @@
             body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
             body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
         </style><meta name="panzoom-theme" content="material">
-<meta name="panzoom-data" content='{"selectors": [".mermaid", ".d2"], "initial_zoom_level": 1.0}'> </head>
+<meta name="panzoom-data" content='{"selectors": [".d2", ".mermaid"], "initial_zoom_level": 1.0}'> </head>
   
   
     
@@ -1207,6 +1207,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#rust-level-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rust-Level Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1251,6 +1262,28 @@
     <span class="md-ellipsis">
       
         Accuracy Test Template
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multi-allelic-test-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-Allelic Test Template
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-invariants-to-assert" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Invariants to Assert
       
     </span>
   </a>
@@ -1634,6 +1667,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#rust-level-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rust-Level Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1678,6 +1722,28 @@
     <span class="md-ellipsis">
       
         Accuracy Test Template
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multi-allelic-test-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-Allelic Test Template
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-invariants-to-assert" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Invariants to Assert
       
     </span>
   </a>
@@ -1872,7 +1938,7 @@
 <tr>
 <td style="text-align: left;">Accuracy</td>
 <td style="text-align: left;"><code>test_accuracy.py</code></td>
-<td style="text-align: left;">SNP, indel, complex variant counting</td>
+<td style="text-align: left;">SNP, indel, complex variant counting, DP invariant</td>
 </tr>
 <tr>
 <td style="text-align: left;">Shifted Indels</td>
@@ -1882,17 +1948,27 @@
 <tr>
 <td style="text-align: left;">Complex Masking</td>
 <td style="text-align: left;"><code>test_fuzzy_complex.py</code></td>
-<td style="text-align: left;">Quality-aware masked comparison, ambiguity detection</td>
+<td style="text-align: left;">Quality-aware masked comparison, ambiguity detection, MSI gap penalties</td>
 </tr>
 <tr>
 <td style="text-align: left;">Fragment Consensus</td>
 <td style="text-align: left;"><code>test_fragment_consensus.py</code></td>
-<td style="text-align: left;">Quality-weighted R1/R2 conflict resolution</td>
+<td style="text-align: left;">Quality-weighted R1/R2 conflict resolution, DPF invariant</td>
 </tr>
 <tr>
 <td style="text-align: left;">Normalization</td>
 <td style="text-align: left;"><code>test_normalization.py</code></td>
-<td style="text-align: left;">Left-alignment, REF validation, homopolymer detection</td>
+<td style="text-align: left;">Left-alignment, REF validation, homopolymer detection, dynamic window expansion</td>
+</tr>
+<tr>
+<td style="text-align: left;">DP Neither</td>
+<td style="text-align: left;"><code>test_dp_neither.py</code></td>
+<td style="text-align: left;">Gap 1D: DP includes third-allele/neither reads</td>
+</tr>
+<tr>
+<td style="text-align: left;">Multi-Allelic</td>
+<td style="text-align: left;"><code>test_multi_allelic.py</code></td>
+<td style="text-align: left;">Gap 1A: Sibling ALT exclusion, overlapping indel DP</td>
 </tr>
 <tr>
 <td style="text-align: left;"><abbr title="Command Line Interface - Terminal-based program interface">CLI</abbr></td>
@@ -1921,67 +1997,150 @@
 </tr>
 </tbody>
 </table>
+<h3 id="rust-level-tests">Rust-Level Tests<a class="headerlink" href="#rust-level-tests" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Run Rust unit tests (normalize + counting inline tests)</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">cd</span><span class="w"> </span>rust<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>cargo<span class="w"> </span><span class="nb">test</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Run a specific Rust test</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span>test_window_expansion_long_homopolymer
+</code></pre></div>
+<p>Rust tests live inside <code>#[cfg(test)]</code> modules in <code>normalize.rs</code> (20 tests) and cover:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Area</th>
+<th style="text-align: left;">Tests</th>
+<th style="text-align: left;">Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Left-alignment</td>
+<td style="text-align: left;">10+</td>
+<td style="text-align: left;">SNP passthrough, homopolymer shifts, offset handling</td>
+</tr>
+<tr>
+<td style="text-align: left;">Repeat detection</td>
+<td style="text-align: left;">3</td>
+<td style="text-align: left;"><code>find_tandem_repeat()</code> edge cases</td>
+</tr>
+<tr>
+<td style="text-align: left;">Adaptive padding</td>
+<td style="text-align: left;">3</td>
+<td style="text-align: left;">Context padding from repeat spans</td>
+</tr>
+<tr>
+<td style="text-align: left;">Window expansion</td>
+<td style="text-align: left;">1</td>
+<td style="text-align: left;">Gap 1B: &gt;100bp repeat normalization</td>
+</tr>
+</tbody>
+</table>
 <hr>
 <h2 id="test-structure">Test Structure<a class="headerlink" href="#test-structure" title="Permanent link">¶</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>tests/
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>├── test_accuracy.py           # Variant type accuracy
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>├── test_cli_sample_id.py      # CLI argument parsing
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>├── test_filters.py            # Read filtering
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>├── test_fragment_consensus.py # Fragment-level quality consensus
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>├── test_fuzzy_complex.py      # Quality-aware masked complex matching
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>├── test_maf_preservation.py   # MAF column preservation
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>├── test_maf_reader.py         # MAF input parsing
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>├── test_normalization.py      # Left-alignment, REF validation
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>├── test_pipeline_v2.py        # End-to-end pipeline
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>├── test_shifted_indels.py     # Windowed indel detection (±5bp)
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>└── test_strand_counts.py      # Strand-specific counts
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>tests/
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>├── test_accuracy.py             # Variant type accuracy + DP invariant
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>├── test_cli_sample_id.py        # CLI argument parsing
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>├── test_dp_neither.py           # Gap 1D: DP includes third-allele reads
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>├── test_filters.py              # Read filtering
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>├── test_fragment_consensus.py   # Fragment-level quality consensus + DPF invariant
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>├── test_fuzzy_complex.py        # Quality-aware masked complex matching + MSI penalties
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>├── test_maf_preservation.py     # MAF column preservation
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>├── test_maf_reader.py           # MAF input parsing
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>├── test_multi_allelic.py        # Gap 1A: Sibling ALT exclusion
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>├── test_normalization.py        # Left-alignment, REF validation, window expansion
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>├── test_pipeline_v2.py          # End-to-end pipeline
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>├── test_shifted_indels.py       # Windowed indel detection (±5bp)
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>└── test_strand_counts.py        # Strand-specific counts
 </code></pre></div>
 <hr>
 <h2 id="writing-tests">Writing Tests<a class="headerlink" href="#writing-tests" title="Permanent link">¶</a></h2>
 <h3 id="basic-test-template">Basic Test Template<a class="headerlink" href="#basic-test-template" title="Permanent link">¶</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pytest</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="k">def</span><span class="w"> </span><span class="nf">test_my_feature</span><span class="p">(</span><span class="n">tmp_path</span><span class="p">):</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="sd">"""Test description."""</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="c1"># Arrange</span>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="n">input_file</span> <span class="o">=</span> <span class="n">tmp_path</span> <span class="o">/</span> <span class="s2">"input.txt"</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="n">input_file</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="s2">"test data"</span><span class="p">)</span>
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>    <span class="c1"># Act</span>
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>    <span class="n">result</span> <span class="o">=</span> <span class="n">my_function</span><span class="p">(</span><span class="n">input_file</span><span class="p">)</span>
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>    <span class="c1"># Assert</span>
-<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>    <span class="k">assert</span> <span class="n">result</span><span class="o">.</span><span class="n">success</span>
-<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>    <span class="k">assert</span> <span class="n">result</span><span class="o">.</span><span class="n">count</span> <span class="o">==</span> <span class="mi">42</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pytest</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="k">def</span><span class="w"> </span><span class="nf">test_my_feature</span><span class="p">(</span><span class="n">tmp_path</span><span class="p">):</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="sd">"""Test description."""</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="c1"># Arrange</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="n">input_file</span> <span class="o">=</span> <span class="n">tmp_path</span> <span class="o">/</span> <span class="s2">"input.txt"</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    <span class="n">input_file</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="s2">"test data"</span><span class="p">)</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>    <span class="c1"># Act</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>    <span class="n">result</span> <span class="o">=</span> <span class="n">my_function</span><span class="p">(</span><span class="n">input_file</span><span class="p">)</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>    <span class="c1"># Assert</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>    <span class="k">assert</span> <span class="n">result</span><span class="o">.</span><span class="n">success</span>
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>    <span class="k">assert</span> <span class="n">result</span><span class="o">.</span><span class="n">count</span> <span class="o">==</span> <span class="mi">42</span>
 </code></pre></div>
 <h3 id="accuracy-test-template">Accuracy Test Template<a class="headerlink" href="#accuracy-test-template" title="Permanent link">¶</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">test_snp_accuracy</span><span class="p">():</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span><span class="sd">"""Verify SNP counting against known BAM."""</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="c1"># Create variant</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">variant</span> <span class="o">=</span> <span class="n">Variant</span><span class="p">(</span><span class="s2">"chr1"</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="s2">"A"</span><span class="p">,</span> <span class="s2">"T"</span><span class="p">,</span> <span class="s2">"SNP"</span><span class="p">)</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="c1"># Run counting</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="n">results</span> <span class="o">=</span> <span class="n">count_bam</span><span class="p">(</span><span class="n">bam_path</span><span class="p">,</span> <span class="p">[</span><span class="n">variant</span><span class="p">],</span> <span class="n">fasta_path</span><span class="p">)</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    <span class="c1"># Validate</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>    <span class="k">assert</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">ref_count</span> <span class="o">==</span> <span class="mi">50</span>
-<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>    <span class="k">assert</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">alt_count</span> <span class="o">==</span> <span class="mi">10</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">test_snp_accuracy</span><span class="p">():</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span><span class="sd">"""Verify SNP counting against known BAM."""</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="c1"># Create variant</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="n">variant</span> <span class="o">=</span> <span class="n">Variant</span><span class="p">(</span><span class="s2">"chr1"</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="s2">"A"</span><span class="p">,</span> <span class="s2">"T"</span><span class="p">,</span> <span class="s2">"SNP"</span><span class="p">)</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="c1"># Run counting</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    <span class="n">results</span> <span class="o">=</span> <span class="n">count_bam</span><span class="p">(</span><span class="n">bam_path</span><span class="p">,</span> <span class="p">[</span><span class="n">variant</span><span class="p">],</span> <span class="n">decomposed</span><span class="o">=</span><span class="p">[</span><span class="kc">None</span><span class="p">],</span> <span class="o">...</span><span class="p">)</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>    <span class="c1"># Validate allele counts</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>    <span class="k">assert</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">rd</span> <span class="o">==</span> <span class="mi">50</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>    <span class="k">assert</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">ad</span> <span class="o">==</span> <span class="mi">10</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>    <span class="c1"># Gap 1D invariant: DP includes ALL reads (including 'neither')</span>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>    <span class="k">assert</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">dp</span> <span class="o">&gt;=</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">rd</span> <span class="o">+</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">ad</span>
 </code></pre></div>
+<h3 id="multi-allelic-test-template">Multi-Allelic Test Template<a class="headerlink" href="#multi-allelic-test-template" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">test_with_siblings</span><span class="p">():</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span><span class="sd">"""Verify sibling ALT exclusion at multi-allelic sites."""</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    <span class="n">v1</span> <span class="o">=</span> <span class="n">Variant</span><span class="p">(</span><span class="s2">"chr1"</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="s2">"A"</span><span class="p">,</span> <span class="s2">"T"</span><span class="p">,</span> <span class="s2">"SNP"</span><span class="p">)</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="n">v2</span> <span class="o">=</span> <span class="n">Variant</span><span class="p">(</span><span class="s2">"chr1"</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="s2">"A"</span><span class="p">,</span> <span class="s2">"C"</span><span class="p">,</span> <span class="s2">"SNP"</span><span class="p">)</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="n">results</span> <span class="o">=</span> <span class="n">count_bam</span><span class="p">(</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>        <span class="n">bam_path</span><span class="p">,</span> <span class="p">[</span><span class="n">v1</span><span class="p">,</span> <span class="n">v2</span><span class="p">],</span> <span class="n">decomposed</span><span class="o">=</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">],</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>        <span class="n">sibling_variants</span><span class="o">=</span><span class="p">[[</span><span class="n">v2</span><span class="p">],</span> <span class="p">[</span><span class="n">v1</span><span class="p">]],</span>  <span class="c1"># Gap 1A: sibling info</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>        <span class="o">...</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>    <span class="p">)</span>
+</code></pre></div>
+<h3 id="key-invariants-to-assert">Key Invariants to Assert<a class="headerlink" href="#key-invariants-to-assert" title="Permanent link">¶</a></h3>
+<p>All counting tests should verify:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Invariant</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>dp &gt;= rd + ad</code></td>
+<td style="text-align: left;">DP includes 'neither' reads (Gap 1D)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>dpf &gt;= rdf + adf</code></td>
+<td style="text-align: left;">DPF includes discarded ambiguous fragments</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>rd == rd_fwd + rd_rev</code></td>
+<td style="text-align: left;">Strand consistency</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>ad == ad_fwd + ad_rev</code></td>
+<td style="text-align: left;">Strand consistency</td>
+</tr>
+</tbody>
+</table>
 <hr>
 <h2 id="manual-validation">Manual Validation<a class="headerlink" href="#manual-validation" title="Permanent link">¶</a></h2>
 <h3 id="using-samtools-for-spot-check">Using samtools for Spot-Check<a class="headerlink" href="#using-samtools-for-spot-check" title="Permanent link">¶</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Check counts at specific position</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>samtools<span class="w"> </span>mpileup<span class="w"> </span>-r<span class="w"> </span>chr1:100-100<span class="w"> </span>-q<span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span>-f<span class="w"> </span>ref.fa<span class="w"> </span>sample.bam<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span>awk<span class="w"> </span><span class="s1">'{print "DP="$4}'</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Check counts at specific position</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>samtools<span class="w"> </span>mpileup<span class="w"> </span>-r<span class="w"> </span>chr1:100-100<span class="w"> </span>-q<span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span>-f<span class="w"> </span>ref.fa<span class="w"> </span>sample.bam<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span>awk<span class="w"> </span><span class="s1">'{print "DP="$4}'</span>
 </code></pre></div>
 <h3 id="comparing-with-gbcms-output">Comparing with gbcms Output<a class="headerlink" href="#comparing-with-gbcms-output" title="Permanent link">¶</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Run gbcms</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>gbcms<span class="w"> </span>run<span class="w"> </span>-v<span class="w"> </span>variants.maf<span class="w"> </span>-b<span class="w"> </span>sample.bam<span class="w"> </span>-f<span class="w"> </span>ref.fa<span class="w"> </span>-o<span class="w"> </span>output/
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Check output</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>awk<span class="w"> </span>-F<span class="s1">'\t'</span><span class="w"> </span><span class="s1">'NR==2 {print "REF="$41, "ALT="$42}'</span><span class="w"> </span>output/*.maf
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Run gbcms</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>gbcms<span class="w"> </span>run<span class="w"> </span>-v<span class="w"> </span>variants.maf<span class="w"> </span>-b<span class="w"> </span>sample.bam<span class="w"> </span>-f<span class="w"> </span>ref.fa<span class="w"> </span>-o<span class="w"> </span>output/
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Check output</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>awk<span class="w"> </span>-F<span class="s1">'\t'</span><span class="w"> </span><span class="s1">'NR==2 {print "REF="$41, "ALT="$42}'</span><span class="w"> </span>output/*.maf
 </code></pre></div>
 <hr>
 <h2 id="accuracy-validation">Accuracy Validation<a class="headerlink" href="#accuracy-validation" title="Permanent link">¶</a></h2>
@@ -2027,21 +2186,46 @@
 </tr>
 <tr>
 <td style="text-align: left;">Complex Masking</td>
-<td style="text-align: left;"><code>test_fuzzy_complex.py</code> (14 cases)</td>
+<td style="text-align: left;"><code>test_fuzzy_complex.py</code> (15 cases)</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;">DP Neither</td>
+<td style="text-align: left;"><code>test_dp_neither.py</code> (3 cases)</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;">Multi-Allelic</td>
+<td style="text-align: left;"><code>test_multi_allelic.py</code> (4 cases)</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;">Fragment Consensus</td>
+<td style="text-align: left;"><code>test_fragment_consensus.py</code> (3 cases)</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;">Window Expansion</td>
+<td style="text-align: left;"><code>test_normalization.py</code> (9 cases)</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;">MSI Gap Penalties</td>
+<td style="text-align: left;"><code>test_fuzzy_complex.py::TestGap3A</code></td>
 <td style="text-align: center;">✅</td>
 </tr>
 </tbody>
 </table>
 <h3 id="real-world-validation">Real-World Validation<a class="headerlink" href="#real-world-validation" title="Permanent link">¶</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Compare gbcms vs samtools for a SNP</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="c1"># Position: chr1:11168293 G&gt;A</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># gbcms output</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>awk<span class="w"> </span>-F<span class="s1">'\t'</span><span class="w"> </span><span class="s1">'$5=="1" &amp;&amp; $6=="11168293" {print "REF="$41, "ALT="$42}'</span><span class="w"> </span>output.maf
-<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
-<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># samtools output</span>
-<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>samtools<span class="w"> </span>mpileup<span class="w"> </span>-r<span class="w"> </span><span class="m">1</span>:11168293-11168293<span class="w"> </span>-q<span class="w"> </span><span class="m">20</span><span class="w"> </span>-f<span class="w"> </span>ref.fa<span class="w"> </span>sample.bam<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">    </span>awk<span class="w"> </span><span class="s1">'{gsub(/\^.|\$/,"",$5); print "DP="$4, "Pileup="$5}'</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># Compare gbcms vs samtools for a SNP</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="c1"># Position: chr1:11168293 G&gt;A</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="c1"># gbcms output</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>awk<span class="w"> </span>-F<span class="s1">'\t'</span><span class="w"> </span><span class="s1">'$5=="1" &amp;&amp; $6=="11168293" {print "REF="$41, "ALT="$42}'</span><span class="w"> </span>output.maf
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="c1"># samtools output</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>samtools<span class="w"> </span>mpileup<span class="w"> </span>-r<span class="w"> </span><span class="m">1</span>:11168293-11168293<span class="w"> </span>-q<span class="w"> </span><span class="m">20</span><span class="w"> </span>-f<span class="w"> </span>ref.fa<span class="w"> </span>sample.bam<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="w">    </span>awk<span class="w"> </span><span class="s1">'{gsub(/\^.|\$/,"",$5); print "DP="$4, "Pileup="$5}'</span>
 </code></pre></div>
 <hr>
 <h2 id="coverage-targets">Coverage Targets<a class="headerlink" href="#coverage-targets" title="Permanent link">¶</a></h2>
@@ -2082,8 +2266,8 @@
 </tbody>
 </table>
 <p>Run coverage report:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>pytest<span class="w"> </span>--cov<span class="o">=</span>gbcms<span class="w"> </span>--cov-report<span class="o">=</span>html
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>open<span class="w"> </span>htmlcov/index.html
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>pytest<span class="w"> </span>--cov<span class="o">=</span>gbcms<span class="w"> </span>--cov-report<span class="o">=</span>html
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>open<span class="w"> </span>htmlcov/index.html
 </code></pre></div>
 <!-- Abbreviation definitions for py-gbcms documentation -->
 <!-- These provide hover tooltips for technical acronyms -->
@@ -2110,7 +2294,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 18, 2026 21:59:37 UTC"><span class="timeago" datetime="2026-02-18T21:59:37+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 18, 2026 21:59:37 UTC">2026-02-18</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 22, 2026 05:16:15 UTC"><span class="timeago" datetime="2026-02-22T05:16:15+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 22, 2026 05:16:15 UTC">2026-02-22</span>
   </span>
 
     

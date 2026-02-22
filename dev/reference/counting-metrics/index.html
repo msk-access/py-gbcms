@@ -29,7 +29,7 @@
             body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
             body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
         </style><meta name="panzoom-theme" content="material">
-<meta name="panzoom-data" content='{"selectors": [".mermaid", ".d2"], "initial_zoom_level": 1.0}'> </head>
+<meta name="panzoom-data" content='{"selectors": [".d2", ".mermaid"], "initial_zoom_level": 1.0}'> </head>
 <body data-md-color-accent="custom" data-md-color-primary="custom" data-md-color-scheme="default" dir="ltr">
 <input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox">
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox">
@@ -956,28 +956,22 @@ Use mouse to pan and zoom
 </button>
 </nav>
 <pre class="mermaid"><code>flowchart TD
-    subgraph ReadLevel ["📖 Read-Level Counting"]
-        R1[Read 1 fwd → ALT]:::altread
-        R2[Read 2 rev → ALT]:::altread
-        R3[Read 3 fwd → REF]:::refread
-        R4[Read 4 rev → REF]:::refread
-        R5[Read 5 fwd → ALT]:::altread
-        R6[Read 6 rev → REF]:::refread
-    end
+    Fetch(["📥 Fetch reads from<br>±5bp window"]) --&gt; Filters["🔍 Apply read filters<br>(MAPQ, dup, etc.)"]
+    Filters --&gt; Classify["🧬 Allele classification<br>(check_snp / check_insertion / etc.)"]
+    Classify --&gt; Anchor{"Read overlaps<br>variant anchor position?"}
+    Anchor --&gt;|"Yes"| DP["✅ Count in DP<br>(REF, ALT, or neither)"]
+    Anchor --&gt;|"No"| ClassCheck{"Classified as<br>REF or ALT?"}
+    ClassCheck --&gt;|"Yes (shifted indel)"| DP
+    ClassCheck --&gt;|"No"| Skip(["⏭️ Skip — outside<br>variant footprint"]):::skip
+    DP --&gt; Allele{"Allele?"}
+    Allele --&gt;|REF| RD["RD += 1"]:::ref
+    Allele --&gt;|ALT| AD["AD += 1"]:::alt
+    Allele --&gt;|Neither| Neither["DP only<br>(no RD/AD)"]:::neither
 
-    subgraph Results ["📊 Read Counts"]
-        Counts["DP=6  RD=3  AD=3<br>DP_fwd=3  DP_rev=3<br>RD_fwd=1  RD_rev=2<br>AD_fwd=2  AD_rev=1"]
-    end
-
-    R1 --&gt; Results
-    R2 --&gt; Results
-    R3 --&gt; Results
-    R4 --&gt; Results
-    R5 --&gt; Results
-    R6 --&gt; Results
-
-    classDef altread fill:#e74c3c15,stroke:#e74c3c;
-    classDef refread fill:#27ae6015,stroke:#27ae60;
+    classDef ref fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
+    classDef alt fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
+    classDef neither fill:#95a5a6,color:#fff,stroke:#7f8c8d,stroke-width:2px;
+    classDef skip fill:#bdc3c7,color:#000,stroke:#95a5a6;
 </code></pre>
 <div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
 Use mouse to pan and zoom
@@ -994,7 +988,7 @@ Use mouse to pan and zoom
 <tbody>
 <tr>
 <td style="text-align: left;"><strong>DP</strong></td>
-<td style="text-align: left;">Total depth (reads supporting REF or ALT)</td>
+<td style="text-align: left;">Total depth — <strong>all</strong> mapped, quality-filtered reads that <strong>overlap the variant's anchor position</strong>, regardless of allele classification. Includes reads that are neither REF nor ALT (e.g., third alleles at multi-allelic sites, duplex N bases). Reads from the wider fetch window (±5bp) that don't overlap the anchor are excluded from DP unless classified as REF/ALT via shifted indel detection. <code>DP ≥ RD + AD</code>.</td>
 </tr>
 <tr>
 <td style="text-align: left;"><strong>RD</strong> / <strong>AD</strong></td>
@@ -1226,7 +1220,7 @@ Use mouse to pan and zoom
 <tr>
 <td style="text-align: left;"><code>dp</code></td>
 <td style="text-align: left;">u32</td>
-<td style="text-align: left;">Total read depth</td>
+<td style="text-align: left;">Total read depth — reads overlapping the variant anchor position, including 'neither' reads</td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>rd</code></td>
@@ -1389,7 +1383,7 @@ Use mouse to pan and zoom
 <span class="md-icon" title="Last update">
 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
 </span>
-<span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 19, 2026 15:08:06 UTC"><span class="timeago" datetime="2026-02-19T15:08:06+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 19, 2026 15:08:06 UTC">2026-02-19</span>
+<span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 22, 2026 05:16:15 UTC"><span class="timeago" datetime="2026-02-22T05:16:15+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 22, 2026 05:16:15 UTC">2026-02-22</span>
 </span>
 <span class="md-source-file__fact">
 <span class="md-icon" title="Created">
