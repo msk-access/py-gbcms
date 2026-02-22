@@ -639,10 +639,10 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#ambiguous-tie-denominator-retention">
+<a class="md-nav__link" href="#ambiguous-tie-unbiased-vaf-preservation">
 <span class="md-ellipsis">
       
-        Ambiguous Tie Denominator Retention
+        Ambiguous Tie — Unbiased VAF Preservation
       
     </span>
 </a>
@@ -1099,10 +1099,10 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#ambiguous-tie-denominator-retention">
+<a class="md-nav__link" href="#ambiguous-tie-unbiased-vaf-preservation">
 <span class="md-ellipsis">
       
-        Ambiguous Tie Denominator Retention
+        Ambiguous Tie — Unbiased VAF Preservation
       
     </span>
 </a>
@@ -1646,7 +1646,7 @@ Use mouse to pan and zoom
 </tr>
 <tr>
 <td style="text-align: left;">Quality check</td>
-<td style="text-align: left;"><strong>Every</strong> base in the MNP region must meet <code>--min-baseq</code></td>
+<td style="text-align: left;"><strong>Minimum</strong> base quality across the MNP block must meet <code>--min-baseq</code></td>
 </tr>
 </tbody>
 </table>
@@ -1674,34 +1674,26 @@ Use mouse to pan and zoom
 <pre class="mermaid"><code>flowchart TD
     Start([🧬 MNP Check]):::start --&gt; Find[Find read position of first base]
     Find --&gt; Found{Position found?}
-    Found --&gt;|No| Fallback1([Fallback → check_complex]):::fallback
+    Found --&gt;|No| Structural1([🔄 Structural → check_complex]):::fallback
     Found --&gt;|Yes| Cover{Read covers entire MNP region?}
-    Cover --&gt;|No| Fallback2([Fallback → check_complex]):::fallback
-    Cover --&gt;|Yes| Loop[For each position in MNP region]
+    Cover --&gt;|No| Structural2([🔄 Structural → check_complex]):::fallback
+    Cover --&gt;|Yes| Contig{No indels within MNP block?}
 
-    subgraph PerBase [Per-Base Validation]
-        direction TB
-        BQ{Base quality ≥ min_baseq?}
-        Track[Compare base to REF and ALT]
-        More{More positions?}
-    end
+    Contig --&gt;|Indel found| Structural3([🔄 Structural → check_complex]):::fallback
+    Contig --&gt;|Contiguous| MinBQ{"min(BQ across block) ≥ threshold?"}
 
-    Loop --&gt; BQ
-    BQ --&gt;|No| Fallback3([Fallback → check_complex]):::fallback
-    BQ --&gt;|Yes| Track
-    Track --&gt; More
-    More --&gt;|Yes| BQ
-    More --&gt;|No| Contig{No indels within MNP region?}
+    MinBQ --&gt;|No| LowQ([⬜ LowQuality — skip read]):::neither
+    MinBQ --&gt;|Yes| Compare[Compare all bases to REF and ALT]
 
-    Contig --&gt;|Indel found| Fallback4([Fallback → check_complex]):::fallback
-    Contig --&gt;|Contiguous| Final{All bases match?}
+    Compare --&gt; Final{All bases match?}
     Final --&gt;|All match ALT| Alt([🔴 ALT]):::alt
     Final --&gt;|All match REF| Ref([✅ REF]):::ref
-    Final --&gt;|Mixed| Fallback5([Fallback → check_complex]):::fallback
+    Final --&gt;|Mixed / Neither| Third([⬜ ThirdAllele — skip read]):::neither
 
     classDef start fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
     classDef ref fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
     classDef alt fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
+    classDef neither fill:#95a5a6,color:#fff,stroke:#7f8c8d,stroke-width:2px;
     classDef fallback fill:#f39c12,color:#fff,stroke:#e67e22,stroke-width:2px;
 </code></pre>
 <div class="panzoom-info-box panzoom-info-box-bottom panzoom-hidden">
@@ -1709,11 +1701,21 @@ Use mouse to pan and zoom
 </div>
 </div>
 <div class="admonition info">
-<p class="admonition-title">Strict Matching with Complex Fallback</p>
-<p>MNP strict matching is <strong>all-or-nothing</strong>: every base must match either REF or ALT. A read with <code>C T</code> at a <code>AT→CG</code> variant (first base matches ALT, second matches REF) is <strong>inconclusive</strong> in the strict check. However, instead of being discarded, the read <strong>falls back to <code>check_complex</code></strong> (Phase 2 quality-masked comparison → Phase 2.5 edit distance → Phase 3 local SW). This prevents sensitivity loss in noisy samples (<abbr title="Circulating tumor DNA - Tumor-derived cfDNA fragments">ctDNA</abbr>, FFPE) where a single low-quality base would otherwise reject the entire read.</p>
+<p class="admonition-title">Min-BQ-Across-Block Strategy</p>
+<p>MNP quality is assessed using the <strong>minimum</strong> base quality across the entire MNP block, matching C++ <abbr title="Get Base Count Multi Sample - Multi-BAM variant counting tool">GBCMS</abbr> <code>baseCountDNP</code> behavior. If <code>min(BQ) &lt; threshold</code>, the read is skipped entirely — it contributes to neither REF, ALT, nor DP. This replaces the previous per-base rejection which routed low-quality reads to Phase 3 Smith-Waterman, where MNP haplotypes (differing at only 2-3 of ~20 positions) generated ties ~95% of the time, causing catastrophic ALT loss.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Selective Phase 3 Fallback</p>
+<p>Phase 3 (<code>check_complex</code>) is reserved for <strong>structural</strong> issues only:</p>
+<ul>
+<li>Read position not found in CIGAR walk</li>
+<li>Read doesn't cover the entire MNP region</li>
+<li>Indel detected within the MNP block (contiguity check)</li>
+</ul>
+<p>These cases indicate a complex variant misannotated as an MNP, where Smith-Waterman alignment can genuinely resolve the structural complexity.</p>
 </div>
 <h3 id="contiguity-check">Contiguity Check<a class="headerlink" href="#contiguity-check" title="Permanent link">¶</a></h3>
-<p>After checking all bases, py-gbcms verifies that no <strong>indels</strong> exist within the MNP region by comparing the read positions of the first and last MNP base. If the distance doesn't equal <code>len - 1</code>, an insertion or deletion interrupted the MNP → the strict check returns inconclusive and <strong>falls back to <code>check_complex</code></strong> for haplotype-based resolution.</p>
+<p>The contiguity check is performed <strong>first</strong> (before quality or sequence comparison) as a fail-fast for structural issues. py-gbcms compares the read positions of the first and last MNP base — if the distance doesn't equal <code>len - 1</code>, an indel exists within the block and the read is routed to <code>check_complex</code> for haplotype-based resolution.</p>
 <hr>
 <h2 id="complex-indel-substitution">Complex (Indel + Substitution)<a class="headerlink" href="#complex-indel-substitution" title="Permanent link">¶</a></h2>
 <p>Variants where REF and ALT differ in both sequence <strong>and</strong> length. Uses a sophisticated <strong>three-phase</strong> algorithm with quality-aware matching and Smith-Waterman fallback.</p>
@@ -1842,11 +1844,11 @@ Use mouse to pan and zoom
         LocalSW --&gt; LocalMargin{"Score difference ≥ 2?"}
         LocalMargin --&gt;|ALT wins| Alt3b([🔴 ALT]):::alt
         LocalMargin --&gt;|REF wins| Ref3b([✅ REF]):::ref
-        LocalMargin --&gt;|"Ambiguous Tie"| Tie2([Background REF]):::ref
+        LocalMargin --&gt;|"Ambiguous Tie"| Tie2([Neither]):::neither
 
         ConfResult --&gt;|ALT| Alt3([🔴 ALT]):::alt
         ConfResult --&gt;|REF| Ref3([✅ REF]):::ref
-        Margin --&gt;|"Ambiguous Tie"| Tie1([Background REF]):::ref
+        Margin --&gt;|"Ambiguous Tie"| Tie1([Neither]):::neither
     end
 
     classDef start fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
@@ -2051,9 +2053,9 @@ The dual-trigger only applies to <strong>complex</strong> variants (e.g., <code>
 <p class="admonition-title">Raw Read Window Extraction</p>
 <p>Phase 3 uses <code>extract_raw_read_window()</code> instead of CIGAR-projected extraction. For complex variants (e.g., <code>TCC→CT</code> represented as <code>DEL+INS</code> in CIGAR), CIGAR projection produces a hybrid sequence matching neither haplotype. Raw extraction returns the contiguous read bases that SW can correctly classify.</p>
 </div>
-<h4 id="ambiguous-tie-denominator-retention">Ambiguous Tie Denominator Retention<a class="headerlink" href="#ambiguous-tie-denominator-retention" title="Permanent link">¶</a></h4>
+<h4 id="ambiguous-tie-unbiased-vaf-preservation">Ambiguous Tie — Unbiased <abbr title="Variant Allele Frequency - Fraction of reads supporting the variant allele">VAF</abbr> Preservation<a class="headerlink" href="#ambiguous-tie-unbiased-vaf-preservation" title="Permanent link">¶</a></h4>
 <p>For small Complex and MNP variants, biological reads heavily affected by surrounding genetic polymorphism can result in 50% partial matches against the Alternate array. Mathematically, this scores an exact numerical <strong>tie</strong> between the <code>REF</code> and <code>ALT</code> haplotypes (<code>alt_score = 11, ref_score = 11</code>). </p>
-<p>Instead of discarding these cleanly mapped (but structurally inconclusive) elements, the engine algorithmically captures any read where <code>max(scores) &gt;= read_len/2</code> and safely routes them to the denominator metric via <code>is_ref = true</code>. This explicitly protects global <code>DP</code> (Total Depth) arrays from catastrophic collapse in variants like TERT / MLH1 where almost the entire read-set consists of a background polymorphism.</p>
+<p>These ambiguous reads are routed to <strong>neither</strong> (<code>is_ref = false, is_alt = false</code>). They still contribute to physical Total Depth (<code>DP</code>) via the anchor overlap gate, but do <strong>not</strong> inflate <code>RD</code> or <code>AD</code>. This preserves an unbiased <code>VAF = AD / (RD + AD)</code> — critical for low-<abbr title="Variant Allele Frequency - Fraction of reads supporting the variant allele">VAF</abbr> <abbr title="Cell-free DNA - Circulating DNA fragments in blood plasma">cfDNA</abbr> detection where even small RD inflation can push a variant below the clinical Limit of Detection.</p>
 <hr>
 <h2 id="multi-allelic-behavior">Multi-Allelic Behavior<a class="headerlink" href="#multi-allelic-behavior" title="Permanent link">¶</a></h2>
 <p>When multiple variants have overlapping REF spans at the same locus, reads carrying one variant's ALT allele could be incorrectly counted as REF for another variant. The engine addresses this with a two-phase approach:</p>
@@ -2100,7 +2102,7 @@ The dual-trigger only applies to <strong>complex</strong> variants (e.g., <code>
 <p><strong>Windowed scan range</strong> — Indels shifted beyond the context padding from their expected position won't be detected by the CIGAR-based check. Phase 3 SW can catch some of these via <code>ref_context</code>, but only if the read shows evidence (indels/clips) near the variant. <a href="../variant-normalization/#adaptive-context-padding">Adaptive context padding</a> (enabled by default) utilizes a multi-anchor footprint sweep to dramatically widen the padded detection bounds natively for INDEL clusters.</p>
 </li>
 <li>
-<p><strong>Score margin ≥ 2</strong> — The SW margin is definitively fixed at 2 points to prevent ambiguous calls. Reads failing to achieve definitive spacing return a numerical tie, deliberately falling into the background <code>REF</code> array to preserve accurate clinical <abbr title="Variant Allele Frequency - Fraction of reads supporting the variant allele">VAF</abbr> fraction denominators.</p>
+<p><strong>Score margin ≥ 2</strong> — The SW margin is fixed at 2 points to prevent ambiguous calls. Reads failing to achieve definitive spacing are routed to <strong>neither</strong> — they contribute to <code>DP</code> but not to <code>RD</code> or <code>AD</code>, preserving unbiased <abbr title="Variant Allele Frequency - Fraction of reads supporting the variant allele">VAF</abbr>.</p>
 </li>
 <li>
 <p><strong>Soft-clip recovery</strong> — Phase 1 includes soft-clipped bases that overlap the variant window, but only when <code>ref_pos</code> is within the variant region. Soft clips at the edge of reads far from the variant are not considered.</p>
@@ -2128,7 +2130,7 @@ The dual-trigger only applies to <strong>complex</strong> variants (e.g., <code>
 <span class="md-icon" title="Last update">
 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
 </span>
-<span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 22, 2026 05:16:15 UTC"><span class="timeago" datetime="2026-02-22T05:16:15+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 22, 2026 05:16:15 UTC">2026-02-22</span>
+<span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="February 22, 2026 21:37:43 UTC"><span class="timeago" datetime="2026-02-22T21:37:43+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="February 22, 2026 21:37:43 UTC">2026-02-22</span>
 </span>
 <span class="md-source-file__fact">
 <span class="md-icon" title="Created">

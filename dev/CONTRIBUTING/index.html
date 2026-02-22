@@ -1452,6 +1452,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Testing Guidelines">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#counting-engine-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Counting Engine Changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1604,6 +1621,16 @@
 <li>Use descriptive test names</li>
 <li>Use fixtures for common test setup</li>
 <li>Test edge cases and error conditions</li>
+</ul>
+<h3 id="counting-engine-changes">Counting Engine Changes<a class="headerlink" href="#counting-engine-changes" title="Permanent link">¶</a></h3>
+<p>Changes to <code>rust/src/counting.rs</code> require additional verification:</p>
+<ul>
+<li><strong>Unit tests</strong>: <code>cargo test</code> must pass (all existing tests + new tests for the change)</li>
+<li><strong>22-<abbr title="Binary Alignment Map - Compressed sequence alignment file format">BAM</abbr> regression</strong>: Run the regression suite and verify no unintended count shifts</li>
+<li><strong>Variant-type coverage</strong>: If modifying a specific variant type (SNP/MNP/Indel/Complex),
+  ensure the regression <abbr title="Mutation Annotation Format - Standard mutation annotation file format">MAF</abbr> includes representative variants of that type</li>
+<li><strong>MnpResult paths</strong>: Any changes to MNP handling must test all 5 <code>MnpResult</code> variants:
+  <code>Ref</code>, <code>Alt</code>, <code>LowQuality</code>, <code>ThirdAllele</code>, <code>Structural</code></li>
 </ul>
 <h2 id="pull-request-process">Pull Request Process<a class="headerlink" href="#pull-request-process" title="Permanent link">¶</a></h2>
 <ol>
