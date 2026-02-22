@@ -173,6 +173,9 @@ Computed at **both** levels:
 | **SB_pval** / **SB_OR** | Read | Strand bias from individual reads |
 | **FSB_pval** / **FSB_OR** | Fragment | Strand bias from collapsed fragments |
 
+!!! warning "Paired-End Data: Use FSB, Not SB"
+    For paired-end sequencing (e.g., MSK-ACCESS), R1 and R2 from the same fragment are **not** independent observations. Read-level SB (`SB_pval`) artificially doubles the sample size N in the Fisher's test contingency table, producing deflated p-values that can falsely flag true variants as strand bias artifacts. **Clinical filtering pipelines should use `FSB_pval`** (fragment-level), which correctly treats each physical fragment as a single independent observation.
+
 !!! example "Strand Bias Example"
     If a variant has `AD_fwd=15, AD_rev=1`, that's suspicious — almost all ALT-supporting reads are on the forward strand. Fisher's test would yield a low p-value, flagging this as a potential artifact.
 
