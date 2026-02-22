@@ -32,6 +32,7 @@ pub struct Variant {
 impl Variant {
     #[new]
     #[pyo3(signature = (chrom, pos, ref_allele, alt_allele, variant_type, ref_context=None, ref_context_start=0, repeat_span=0))]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         chrom: String,
         pos: i64,

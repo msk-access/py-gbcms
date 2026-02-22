@@ -1359,9 +1359,9 @@ mod tests {
         // Pure homopolymers don't shift (all positions equivalent), so we use AC-repeat.
         // Reference: 50bp T-prefix + 120bp AC-repeat + 50bp G-suffix = 220bp.
         let mut reference = Vec::with_capacity(220);
-        for _ in 0..50 { reference.push(b'T'); }
+        reference.extend(std::iter::repeat_n(b'T', 50));
         for _ in 0..60 { reference.push(b'A'); reference.push(b'C'); }
-        for _ in 0..50 { reference.push(b'G'); }
+        reference.extend(std::iter::repeat_n(b'G', 50));
 
         // Deletion near end of AC-run: pos=160, REF=AC, ALT=A
         // In dinucleotide repeat, this should left-align back toward pos 49/50
