@@ -2019,6 +2019,7 @@ enum MnpResult {
     ///   - Read doesn't cover the entire MNP region
     ///   - Position not found in CIGAR walk
     ///   - Indel within the MNP block (contiguity check failed)
+    ///
     /// Phase 3 fallback IS appropriate: the read may carry the variant
     /// through a complex alignment (e.g., complex variant annotated as MNP).
     Structural,
@@ -2099,11 +2100,6 @@ fn check_mnp(record: &Record, variant: &Variant, min_baseq: u8) -> MnpResult {
     }
 }
 
-/// Get the read base (uppercase) at a specific genomic position.
-/// Returns None if the read doesn't cover that position.
-fn get_read_base_at_pos(record: &Record, pos: i64) -> Option<u8> {
-    find_read_pos(record, pos).map(|rp| record.seq()[rp])
-}
 
 /// Find the read index corresponding to a genomic position.
 fn find_read_pos(record: &Record, target_pos: i64) -> Option<usize> {
@@ -2136,4 +2132,251 @@ fn find_read_pos(record: &Record, target_pos: i64) -> Option<usize> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rust_htslib::bam::record::CigarString;
+    use std::ffi::CString;
+
+    /// Build a synthetic BAM record for testing.
+    ///
+    /// Creates a minimal Record with the given sequence, qualities, CIGAR,
+    /// and mapping position. All other fields are set to sensible defaults
+    /// (unmapped=false, mapq=60, proper_pair=true, forward strand).
+    fn build_record(seq: &[u8], qual: &[u8], cigar: &CigarString, pos: i64) -> Record {
+        let mut record = Record::new();
+        let qname = CString::new("test_read").unwrap();
+        record.set(
+            qname.as_bytes(), // qname
+            Some(cigar),       // cigar
+            seq,               // seq
+            qual,              // qual
+        );
+        record.set_pos(pos);
+        record.set_tid(0);
+        record.set_mapq(60);
+        // Set as mapped, proper pair, first in template
+        record.set_flags(0x01 | 0x02 | 0x40); // paired + proper + read1
+        record
+    }
+
+    /// Helper: build a Variant with the given position, ref, and alt alleles.
+    fn build_variant(pos: i64, ref_allele: &str, alt_allele: &str) -> Variant {
+        Variant {
+            chrom: "1".to_string(),
+            pos,
+            ref_allele: ref_allele.to_string(),
+            alt_allele: alt_allele.to_string(),
+            variant_type: String::new(),
+            ref_context: None,
+            ref_context_start: 0,
+            repeat_span: 0,
+        }
+    }
+
+    // ── MNP check_mnp tests ──
+
+    #[test]
+    fn test_mnp_high_quality_matches_ref() {
+        // 2bp MNP: REF=AT, ALT=CG. Read has AT (matches REF).
+        // All qualities >= 20.
+        let seq = b"AAATGCC";
+        let qual = &[30, 30, 30, 35, 30, 30, 30]; // all high quality
+        let cigar = CigarString(vec![Cigar::Match(7)]);
+        let record = build_record(seq, qual, &cigar, 100);
+
+        // Variant at pos 102-103 (0-based), REF=AT, ALT=CG
+        let variant = build_variant(102, "AT", "CG");
+        let result = check_mnp(&record, &variant, 20);
+
+        match result {
+            MnpResult::Ref(q) => assert!(q >= 20, "Quality should be >= 20, got {}", q),
+            other => panic!("Expected MnpResult::Ref, got {:?}", format_mnp_result(&other)),
+        }
+    }
+
+    #[test]
+    fn test_mnp_high_quality_matches_alt() {
+        // 2bp MNP: REF=AT, ALT=CG. Read has CG (matches ALT).
+        let seq = b"AACGGCC";
+        let qual = &[30, 30, 35, 38, 30, 30, 30];
+        let cigar = CigarString(vec![Cigar::Match(7)]);
+        let record = build_record(seq, qual, &cigar, 100);
+
+        let variant = build_variant(102, "AT", "CG");
+        let result = check_mnp(&record, &variant, 20);
+
+        match result {
+            MnpResult::Alt(q) => assert!(q >= 20, "Quality should be >= 20, got {}", q),
+            other => panic!("Expected MnpResult::Alt, got {:?}", format_mnp_result(&other)),
+        }
+    }
+
+    #[test]
+    fn test_mnp_one_low_quality_base() {
+        // 2bp MNP: REF=AT, ALT=CG. Read has CG (matches ALT).
+        // But one base has Q=8 < min_baseq=20.
+        // min(35, 8) = 8 < 20 → LowQuality, NOT Phase 3 fallback.
+        let seq = b"AACGGCC";
+        let qual = &[30, 30, 35, 8, 30, 30, 30]; // pos 3: Q=8 < 20
+        let cigar = CigarString(vec![Cigar::Match(7)]);
+        let record = build_record(seq, qual, &cigar, 100);
+
+        let variant = build_variant(102, "AT", "CG");
+        let result = check_mnp(&record, &variant, 20);
+
+        assert!(
+            matches!(result, MnpResult::LowQuality),
+            "Expected LowQuality for min(BQ) < threshold"
+        );
+    }
+
+    #[test]
+    fn test_mnp_all_low_quality() {
+        // Both bases below threshold.
+        let seq = b"AACGGCC";
+        let qual = &[30, 30, 5, 8, 30, 30, 30]; // pos 2: Q=5, pos 3: Q=8
+        let cigar = CigarString(vec![Cigar::Match(7)]);
+        let record = build_record(seq, qual, &cigar, 100);
+
+        let variant = build_variant(102, "AT", "CG");
+        let result = check_mnp(&record, &variant, 20);
+
+        assert!(
+            matches!(result, MnpResult::LowQuality),
+            "Expected LowQuality when all bases below threshold"
+        );
+    }
+
+    #[test]
+    fn test_mnp_third_allele() {
+        // 2bp MNP: REF=AT, ALT=CG. Read has TT (matches neither).
+        // All qualities pass threshold.
+        let seq = b"AATTGCC";
+        let qual = &[30, 30, 35, 38, 30, 30, 30];
+        let cigar = CigarString(vec![Cigar::Match(7)]);
+        let record = build_record(seq, qual, &cigar, 100);
+
+        let variant = build_variant(102, "AT", "CG");
+        let result = check_mnp(&record, &variant, 20);
+
+        assert!(
+            matches!(result, MnpResult::ThirdAllele),
+            "Expected ThirdAllele when bases match neither REF nor ALT"
+        );
+    }
+
+    #[test]
+    fn test_mnp_indel_in_block_structural() {
+        // 3bp MNP: REF=ATG, ALT=CGC. Read has CIGAR 1M 1I 1D 2M,
+        // creating a non-contiguous mapping across the MNP block.
+        // The contiguity check should detect this and return Structural.
+        let seq = b"AACXGCC"; // 7 bases, but CIGAR rearranges alignment
+        let qual = &[30, 30, 35, 38, 35, 30, 30];
+        // CIGAR: 2M 1I 1D 3M = consumes 2+0+1+3=6 ref, 2+1+0+3=6 read
+        let cigar = CigarString(vec![
+            Cigar::Match(2),
+            Cigar::Ins(1),
+            Cigar::Del(1),
+            Cigar::Match(3),
+        ]);
+        let record = build_record(seq, qual, &cigar, 100);
+
+        // Variant spans pos 102-104 (3bp MNP)
+        // With the indel, positions won't be contiguous in read space
+        let variant = build_variant(102, "ATG", "CGC");
+        let result = check_mnp(&record, &variant, 20);
+
+        assert!(
+            matches!(result, MnpResult::Structural),
+            "Expected Structural when indel exists in MNP block"
+        );
+    }
+
+    #[test]
+    fn test_mnp_partial_coverage_structural() {
+        // 3bp MNP but read only covers first 2 positions.
+        // Read: 3 bases starting at pos 101, so covers 101-103.
+        // Variant: pos 102-104 → pos 104 not covered.
+        let seq = b"ACG";
+        let qual = &[30, 35, 38];
+        let cigar = CigarString(vec![Cigar::Match(3)]);
+        let record = build_record(seq, qual, &cigar, 101);
+
+        let variant = build_variant(102, "ATG", "CGC");
+        let result = check_mnp(&record, &variant, 20);
+
+        assert!(
+            matches!(result, MnpResult::Structural),
+            "Expected Structural when read doesn't fully cover MNP"
+        );
+    }
+
+    #[test]
+    fn test_mnp_position_not_found_structural() {
+        // Read starts after the variant position.
+        let seq = b"ATCGATCG";
+        let qual = &[30; 8];
+        let cigar = CigarString(vec![Cigar::Match(8)]);
+        let record = build_record(seq, qual, &cigar, 200); // far beyond variant
+
+        let variant = build_variant(102, "AT", "CG");
+        let result = check_mnp(&record, &variant, 20);
+
+        assert!(
+            matches!(result, MnpResult::Structural),
+            "Expected Structural when variant position not in read"
+        );
+    }
+
+    #[test]
+    fn test_mnp_5bp_tert_pattern() {
+        // 5bp MNP mimicking TERT: GAGGG→AAGGA
+        // Read carries the ALT allele AAGGA at high quality.
+        let seq = b"CCAAGGATTT";
+        let qual = &[30, 30, 35, 38, 32, 36, 34, 30, 30, 30];
+        let cigar = CigarString(vec![Cigar::Match(10)]);
+        let record = build_record(seq, qual, &cigar, 100);
+
+        // Variant at pos 102-106
+        let variant = build_variant(102, "GAGGG", "AAGGA");
+        let result = check_mnp(&record, &variant, 20);
+
+        match result {
+            MnpResult::Alt(q) => assert!(q >= 20, "Quality should be >= 20, got {}", q),
+            other => panic!("Expected MnpResult::Alt for TERT-like 5bp MNP, got {:?}",
+                           format_mnp_result(&other)),
+        }
+    }
+
+    #[test]
+    fn test_mnp_min_bq_boundary() {
+        // Test the exact boundary: min(BQ) == min_baseq should PASS.
+        let seq = b"AACGGCC";
+        let qual = &[30, 30, 20, 30, 30, 30, 30]; // min BQ = 20 == threshold
+        let cigar = CigarString(vec![Cigar::Match(7)]);
+        let record = build_record(seq, qual, &cigar, 100);
+
+        let variant = build_variant(102, "AT", "CG");
+        let result = check_mnp(&record, &variant, 20);
+
+        match result {
+            MnpResult::Alt(q) => assert!(q >= 20, "Should pass at exact threshold boundary"),
+            other => panic!("Expected Alt at exact BQ threshold, got {:?}",
+                           format_mnp_result(&other)),
+        }
+    }
+
+    /// Helper to format MnpResult for panic messages
+    fn format_mnp_result(result: &MnpResult) -> String {
+        match result {
+            MnpResult::Ref(q) => format!("Ref({})", q),
+            MnpResult::Alt(q) => format!("Alt({})", q),
+            MnpResult::LowQuality => "LowQuality".to_string(),
+            MnpResult::ThirdAllele => "ThirdAllele".to_string(),
+            MnpResult::Structural => "Structural".to_string(),
+        }
+    }
 }

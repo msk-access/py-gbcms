@@ -303,7 +303,7 @@ Multiple adjacent bases substituted simultaneously.
 |:---------|:------|
 | Detection | `len(REF) == len(ALT) && len(REF) > 1` |
 | Position | 0-based index of the first substituted base |
-| Quality check | **Every** base in the MNP region must meet `--min-baseq` |
+| Quality check | **Minimum** base quality across the MNP block must meet `--min-baseq` |
 
 ### Algorithm
 
@@ -311,43 +311,45 @@ Multiple adjacent bases substituted simultaneously.
 flowchart TD
     Start([🧬 MNP Check]):::start --> Find[Find read position of first base]
     Find --> Found{Position found?}
-    Found -->|No| Fallback1([Fallback → check_complex]):::fallback
+    Found -->|No| Structural1([🔄 Structural → check_complex]):::fallback
     Found -->|Yes| Cover{Read covers entire MNP region?}
-    Cover -->|No| Fallback2([Fallback → check_complex]):::fallback
-    Cover -->|Yes| Loop[For each position in MNP region]
+    Cover -->|No| Structural2([🔄 Structural → check_complex]):::fallback
+    Cover -->|Yes| Contig{No indels within MNP block?}
 
-    subgraph PerBase [Per-Base Validation]
-        direction TB
-        BQ{Base quality ≥ min_baseq?}
-        Track[Compare base to REF and ALT]
-        More{More positions?}
-    end
+    Contig -->|Indel found| Structural3([🔄 Structural → check_complex]):::fallback
+    Contig -->|Contiguous| MinBQ{"min(BQ across block) ≥ threshold?"}
 
-    Loop --> BQ
-    BQ -->|No| Fallback3([Fallback → check_complex]):::fallback
-    BQ -->|Yes| Track
-    Track --> More
-    More -->|Yes| BQ
-    More -->|No| Contig{No indels within MNP region?}
+    MinBQ -->|No| LowQ([⬜ LowQuality — skip read]):::neither
+    MinBQ -->|Yes| Compare[Compare all bases to REF and ALT]
 
-    Contig -->|Indel found| Fallback4([Fallback → check_complex]):::fallback
-    Contig -->|Contiguous| Final{All bases match?}
+    Compare --> Final{All bases match?}
     Final -->|All match ALT| Alt([🔴 ALT]):::alt
     Final -->|All match REF| Ref([✅ REF]):::ref
-    Final -->|Mixed| Fallback5([Fallback → check_complex]):::fallback
+    Final -->|Mixed / Neither| Third([⬜ ThirdAllele — skip read]):::neither
 
     classDef start fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
     classDef ref fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
     classDef alt fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
+    classDef neither fill:#95a5a6,color:#fff,stroke:#7f8c8d,stroke-width:2px;
     classDef fallback fill:#f39c12,color:#fff,stroke:#e67e22,stroke-width:2px;
 ```
 
-!!! info "Strict Matching with Complex Fallback"
-    MNP strict matching is **all-or-nothing**: every base must match either REF or ALT. A read with `C T` at a `AT→CG` variant (first base matches ALT, second matches REF) is **inconclusive** in the strict check. However, instead of being discarded, the read **falls back to `check_complex`** (Phase 2 quality-masked comparison → Phase 2.5 edit distance → Phase 3 local SW). This prevents sensitivity loss in noisy samples (ctDNA, FFPE) where a single low-quality base would otherwise reject the entire read.
+!!! info "Min-BQ-Across-Block Strategy"
+    MNP quality is assessed using the **minimum** base quality across the entire MNP block, matching C++ GBCMS `baseCountDNP` behavior. If `min(BQ) < threshold`, the read is skipped entirely — it contributes to neither REF, ALT, nor DP. This replaces the previous per-base rejection which routed low-quality reads to Phase 3 Smith-Waterman, where MNP haplotypes (differing at only 2-3 of ~20 positions) generated ties ~95% of the time, causing catastrophic ALT loss.
+
+!!! warning "Selective Phase 3 Fallback"
+    Phase 3 (`check_complex`) is reserved for **structural** issues only:
+
+    - Read position not found in CIGAR walk
+    - Read doesn't cover the entire MNP region
+    - Indel detected within the MNP block (contiguity check)
+
+    These cases indicate a complex variant misannotated as an MNP, where Smith-Waterman alignment can genuinely resolve the structural complexity.
 
 ### Contiguity Check
 
-After checking all bases, py-gbcms verifies that no **indels** exist within the MNP region by comparing the read positions of the first and last MNP base. If the distance doesn't equal `len - 1`, an insertion or deletion interrupted the MNP → the strict check returns inconclusive and **falls back to `check_complex`** for haplotype-based resolution.
+The contiguity check is performed **first** (before quality or sequence comparison) as a fail-fast for structural issues. py-gbcms compares the read positions of the first and last MNP base — if the distance doesn't equal `len - 1`, an indel exists within the block and the read is routed to `check_complex` for haplotype-based resolution.
+
 
 ---
 
@@ -446,11 +448,11 @@ flowchart TD
         LocalSW --> LocalMargin{"Score difference ≥ 2?"}
         LocalMargin -->|ALT wins| Alt3b([🔴 ALT]):::alt
         LocalMargin -->|REF wins| Ref3b([✅ REF]):::ref
-        LocalMargin -->|"Ambiguous Tie"| Tie2([Background REF]):::ref
+        LocalMargin -->|"Ambiguous Tie"| Tie2([Neither]):::neither
 
         ConfResult -->|ALT| Alt3([🔴 ALT]):::alt
         ConfResult -->|REF| Ref3([✅ REF]):::ref
-        Margin -->|"Ambiguous Tie"| Tie1([Background REF]):::ref
+        Margin -->|"Ambiguous Tie"| Tie1([Neither]):::neither
     end
 
     classDef start fill:#9b59b6,color:#fff,stroke:#7d3c98,stroke-width:2px;
@@ -544,11 +546,11 @@ When **either** trigger fires, the engine retries with **local alignment** (`Ali
 !!! note "Raw Read Window Extraction"
     Phase 3 uses `extract_raw_read_window()` instead of CIGAR-projected extraction. For complex variants (e.g., `TCC→CT` represented as `DEL+INS` in CIGAR), CIGAR projection produces a hybrid sequence matching neither haplotype. Raw extraction returns the contiguous read bases that SW can correctly classify.
 
-#### Ambiguous Tie Denominator Retention
+#### Ambiguous Tie — Unbiased VAF Preservation
 
 For small Complex and MNP variants, biological reads heavily affected by surrounding genetic polymorphism can result in 50% partial matches against the Alternate array. Mathematically, this scores an exact numerical **tie** between the `REF` and `ALT` haplotypes (`alt_score = 11, ref_score = 11`). 
 
-Instead of discarding these cleanly mapped (but structurally inconclusive) elements, the engine algorithmically captures any read where `max(scores) >= read_len/2` and safely routes them to the denominator metric via `is_ref = true`. This explicitly protects global `DP` (Total Depth) arrays from catastrophic collapse in variants like TERT / MLH1 where almost the entire read-set consists of a background polymorphism.
+These ambiguous reads are routed to **neither** (`is_ref = false, is_alt = false`). They still contribute to physical Total Depth (`DP`) via the anchor overlap gate, but do **not** inflate `RD` or `AD`. This preserves an unbiased `VAF = AD / (RD + AD)` — critical for low-VAF cfDNA detection where even small RD inflation can push a variant below the clinical Limit of Detection.
 
 ---
 
@@ -588,7 +590,7 @@ The `repeat_span` is computed during normalization using `find_tandem_repeat()` 
 
 1. **Windowed scan range** — Indels shifted beyond the context padding from their expected position won't be detected by the CIGAR-based check. Phase 3 SW can catch some of these via `ref_context`, but only if the read shows evidence (indels/clips) near the variant. [Adaptive context padding](variant-normalization.md#adaptive-context-padding) (enabled by default) utilizes a multi-anchor footprint sweep to dramatically widen the padded detection bounds natively for INDEL clusters.
 
-2. **Score margin ≥ 2** — The SW margin is definitively fixed at 2 points to prevent ambiguous calls. Reads failing to achieve definitive spacing return a numerical tie, deliberately falling into the background `REF` array to preserve accurate clinical VAF fraction denominators.
+2. **Score margin ≥ 2** — The SW margin is fixed at 2 points to prevent ambiguous calls. Reads failing to achieve definitive spacing are routed to **neither** — they contribute to `DP` but not to `RD` or `AD`, preserving unbiased VAF.
 
 3. **Soft-clip recovery** — Phase 1 includes soft-clipped bases that overlap the variant window, but only when `ref_pos` is within the variant region. Soft clips at the edge of reads far from the variant are not considered.
 

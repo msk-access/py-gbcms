@@ -79,6 +79,17 @@ docker build -t gbcms:latest .
 - Use fixtures for common test setup
 - Test edge cases and error conditions
 
+### Counting Engine Changes
+
+Changes to `rust/src/counting.rs` require additional verification:
+
+- **Unit tests**: `cargo test` must pass (all existing tests + new tests for the change)
+- **22-BAM regression**: Run the regression suite and verify no unintended count shifts
+- **Variant-type coverage**: If modifying a specific variant type (SNP/MNP/Indel/Complex),
+  ensure the regression MAF includes representative variants of that type
+- **MnpResult paths**: Any changes to MNP handling must test all 5 `MnpResult` variants:
+  `Ref`, `Alt`, `LowQuality`, `ThirdAllele`, `Structural`
+
 ## Pull Request Process
 
 1. **Create a feature branch**
