@@ -11,7 +11,7 @@ use crate::types::{BaseCounts, Variant};
 use rayon::prelude::*;
 
 use anyhow::{Context, Result};
-use log::{debug, trace};
+use log::{debug, trace, warn};
 use bio::alignment::distance::levenshtein;
 use bio::alignment::pairwise::Aligner;
 
@@ -291,9 +291,11 @@ fn count_single_variant(
         anyhow::anyhow!("Chromosome not found in BAM: {}", variant.chrom)
     })?;
 
-    // Fetch region around the variant. For windowed indel detection (±5bp),
+    // Fetch region around the variant. For windowed indel detection,
     // we expand the window so that reads with shifted indels are also retrieved.
-    let window_pad: i64 = 5;
+    // The window scales with repeat_span to capture indels that aligners
+    // shift beyond 5bp in long homopolymers/microsatellites.
+    let window_pad: i64 = std::cmp::max(5, variant.repeat_span as i64 + 2);
     let start = (variant.pos - window_pad).max(0);
     let end = variant.pos + (variant.ref_allele.len() as i64) + window_pad;
 
@@ -558,18 +560,34 @@ fn check_allele_with_qual<F: Fn(u8, u8) -> i32>(
         // SNP: single base substitution
         check_snp(record, variant, min_baseq)
     } else if ref_len == alt_len {
-        // MNP: equal-length multi-base substitution.
-        // Strict match first; fall back to quality-masked haplotype
-        // comparison (check_complex → Phase 3 SW) if inconclusive.
-        // Without this fallback, a single low-quality base in the MNP
-        // block would hard-reject the read, reducing sensitivity in
-        // noisy samples (ctDNA, FFPE).
-        let (is_ref, is_alt, qual) = check_mnp(record, variant, min_baseq);
-        if !is_ref && !is_alt {
-            debug!("MNP inconclusive, falling back to check_complex");
-            check_complex(record, variant, min_baseq, alt_aligner, ref_aligner)
-        } else {
-            (is_ref, is_alt, qual)
+        // MNP: min-BQ-across-block strategy with selective Phase 3 fallback.
+        // Uses minimum quality across the entire MNP block (matching C++ GBCMS)
+        // instead of per-base hard rejection (which caused ~99% ALT loss via
+        // Phase 3 SW ties). Phase 3 fallback is reserved for structural issues
+        // (indels within MNP block, partial coverage) where the read may carry
+        // the variant through a complex alignment that SW can resolve.
+        match check_mnp(record, variant, min_baseq) {
+            MnpResult::Ref(q) => (true, false, q),
+            MnpResult::Alt(q) => (false, true, q),
+            MnpResult::LowQuality => {
+                // Min quality across MNP block failed threshold.
+                // Skip entirely (like C++); don't fall to Phase 3.
+                // Phase 3 would count toward DP while C++ wouldn't.
+                (false, false, 0)
+            }
+            MnpResult::ThirdAllele => {
+                // Bases pass quality but match neither REF nor ALT.
+                // Skip; Phase 3 would likely tie (haplotypes differ
+                // at only 2-3/20 positions for MNPs).
+                (false, false, 0)
+            }
+            MnpResult::Structural => {
+                // Indel within MNP block or partial coverage.
+                // Complex alignment needed — may be a complex variant
+                // annotated as an MNP.
+                debug!("MNP structural issue, falling back to check_complex");
+                check_complex(record, variant, min_baseq, alt_aligner, ref_aligner)
+            }
         }
     } else if ref_len == 1 {
         // Pure insertion: anchor + inserted bases (ref_len=1, alt_len>1)
@@ -935,14 +953,16 @@ fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
     } else if is_ref {
         (true, false, med_qual)
     } else {
-        // Tie or ambiguous. If the read mapped reasonably well (max score >= ~50%),
-        // count it as REF (background) to maintain accurate VAF denominators.
-        // Discarding it would artificially deflate Total Depth in regions with
-        // background polymorphisms or partial MNP matches.
+        // Tie or ambiguous: the read cannot confidently distinguish REF from
+        // ALT.  Route to "neither" so this read still contributes to physical
+        // DP (via the anchor overlap gate) but does NOT inflate RD or AD.
+        // This preserves an unbiased VAF = AD/(RD+AD) — critical for low-VAF
+        // cfDNA detection where even a handful of misrouted reads can push
+        // a variant below the Limit of Detection.
         let max_score = std::cmp::max(alt_aln.score, ref_aln.score);
         if max_score >= (read_len as i32) / 2 {
-            debug!("Ambiguous tie or non-ALT (alt={}, ref={}) but mapped well — assigning to REF to preserve denominator", alt_aln.score, ref_aln.score);
-            (true, false, med_qual)
+            debug!("Ambiguous tie (alt={}, ref={}) — routing to neither to preserve unbiased VAF", alt_aln.score, ref_aln.score);
+            (false, false, med_qual)
         } else {
             (false, false, 0)
         }
@@ -1203,7 +1223,9 @@ fn check_complex<F: Fn(u8, u8) -> i32>(
         // (e.g., incomplete MAF definition drops an adjacent SNV),
         // Levenshtein distance can still discriminate the closest allele.
         // Requires >1 edit margin for safety on very short strings.
-        if recon_len >= 2 {
+        // Skip for large variants (>50bp) — O(n×m) is wasteful when Phase 3
+        // SW handles them correctly with affine gap penalties.
+        if recon_len >= 2 && ref_bytes.len() <= 50 && alt_bytes.len() <= 50 {
             let d_ref = levenshtein(&reconstructed_seq, ref_bytes);
             let d_alt = levenshtein(&reconstructed_seq, alt_bytes);
             debug!(
@@ -1420,8 +1442,8 @@ fn check_insertion<F: Fn(u8, u8) -> i32>(
     let expected_ins_seq = &variant.alt_allele.as_bytes()[1..]; // ALT without anchor
     let original_anchor_base = variant.ref_allele.as_bytes()[0].to_ascii_uppercase();
 
-    // Windowed scan parameters
-    let window: i64 = 5;
+    // Windowed scan parameters — scales with repeat_span for MSI regions
+    let window: i64 = std::cmp::max(5, variant.repeat_span as i64 + 2);
     let window_start = (anchor_pos - window).max(0);
     let window_end = anchor_pos + window;
 
@@ -1541,13 +1563,17 @@ fn check_insertion<F: Fn(u8, u8) -> i32>(
                                                     == original_anchor_base
                                             } else {
                                                 debug!(
-                                                    "ref_context offset {} out of bounds (len={}), allowing",
+                                                    "ref_context offset {} out of bounds (len={}), rejecting",
                                                     ctx_offset, ctx.len()
                                                 );
-                                                true
+                                                false
                                             }
                                         }
-                                        None => true,
+                                        None => {
+                                            warn!("ref_context is None for variant at {}:{} — S3 cannot validate shifted insertion",
+                                                  variant.chrom, variant.pos + 1);
+                                            false
+                                        },
                                     };
 
                                     if anchor_ok {
@@ -1679,8 +1705,8 @@ fn check_deletion<F: Fn(u8, u8) -> i32>(
     // The expected deleted bases (REF without the anchor base)
     let expected_del_seq = &variant.ref_allele.as_bytes()[1..];
 
-    // Windowed scan parameters
-    let window: i64 = 5;
+    // Windowed scan parameters — scales with repeat_span for MSI regions
+    let window: i64 = std::cmp::max(5, variant.repeat_span as i64 + 2);
     let window_start = (anchor_pos - window).max(0);
     let window_end = anchor_pos + window;
 
@@ -1817,25 +1843,38 @@ fn check_deletion<F: Fn(u8, u8) -> i32>(
                                 match &variant.ref_context {
                                     Some(ctx) => {
                                         let ctx_bytes = ctx.as_bytes();
-                                        let ctx_offset =
-                                            (del_ref_pos - variant.ref_context_start) as usize;
-                                        if ctx_offset + del_len_usize <= ctx_bytes.len() {
-                                            let ref_at_shift = &ctx_bytes
-                                                [ctx_offset..ctx_offset + del_len_usize];
-                                            let ref_quals = vec![u8::MAX; del_len_usize];
-                                            let (mismatches, reliable) = masked_single_compare(
-                                                ref_at_shift, &ref_quals, expected_del_seq, 0
-                                            );
-                                            reliable > 0 && mismatches == 0
-                                        } else {
+                                        let ctx_offset_i64 =
+                                            del_ref_pos - variant.ref_context_start;
+                                        if ctx_offset_i64 < 0 {
                                             debug!(
-                                                "ref_context offset {} out of bounds (len={}), allowing",
-                                                ctx_offset, ctx_bytes.len()
+                                                "ref_context offset negative ({}), rejecting shifted deletion",
+                                                ctx_offset_i64
                                             );
-                                            true
+                                            false
+                                        } else {
+                                            let ctx_offset = ctx_offset_i64 as usize;
+                                            if ctx_offset + del_len_usize <= ctx_bytes.len() {
+                                                let ref_at_shift = &ctx_bytes
+                                                    [ctx_offset..ctx_offset + del_len_usize];
+                                                let ref_quals = vec![u8::MAX; del_len_usize];
+                                                let (mismatches, reliable) = masked_single_compare(
+                                                    ref_at_shift, &ref_quals, expected_del_seq, 0
+                                                );
+                                                reliable > 0 && mismatches == 0
+                                            } else {
+                                                debug!(
+                                                    "ref_context offset {} out of bounds (len={}), rejecting",
+                                                    ctx_offset, ctx_bytes.len()
+                                                );
+                                                false
+                                            }
                                         }
                                     }
-                                    None => true,
+                                    None => {
+                                        warn!("ref_context is None for variant at {}:{} — S3 cannot validate shifted deletion",
+                                              variant.chrom, variant.pos + 1);
+                                        false
+                                    },
                                 }
                             };
 
@@ -1956,28 +1995,82 @@ fn check_deletion<F: Fn(u8, u8) -> i32>(
     (false, false, 0) // Read does not cover the variant region
 }
 
-/// Returns (is_ref, is_alt, base_qual) for MNP variants.
-/// Quality is the median base quality across all positions in the MNP.
-fn check_mnp(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool, u8) {
-    // MNP: REF=AT, ALT=CG. Lengths equal, > 1.
+/// Result from MNP classification — distinguishes failure reason so the
+/// caller can decide whether Phase 3 SW fallback is appropriate.
+///
+/// This replaces the previous `(bool, bool, u8)` return which conflated
+/// quality failures, third alleles, and structural issues into a single
+/// `(false, false, 0)` that always fell to Phase 3 SW (causing ~99%
+/// MNP ALT loss via ties in haplotype-similar SW alignments).
+enum MnpResult {
+    /// All bases match REF, with median quality across the block.
+    Ref(u8),
+    /// All bases match ALT, with median quality across the block.
+    Alt(u8),
+    /// min(BQ) across the MNP block < threshold — skip read entirely.
+    /// Matches C++ GBCMS behavior. Phase 3 fallback NOT appropriate:
+    /// SW would count the read toward DP while C++ wouldn't.
+    LowQuality,
+    /// All bases pass quality, but the read sequence matches neither
+    /// REF nor ALT. Phase 3 fallback NOT appropriate: if bases clearly
+    /// don't match either allele, SW will likely generate a tie.
+    ThirdAllele,
+    /// Structural issue prevents string comparison:
+    ///   - Read doesn't cover the entire MNP region
+    ///   - Position not found in CIGAR walk
+    ///   - Indel within the MNP block (contiguity check failed)
+    ///
+    /// Phase 3 fallback IS appropriate: the read may carry the variant
+    /// through a complex alignment (e.g., complex variant annotated as MNP).
+    Structural,
+}
+
+/// Classify a read for an MNP variant using min-BQ-across-block strategy.
+///
+/// Uses the minimum base quality across the entire MNP block as the
+/// quality gate (matching C++ GBCMS `baseCountDNP` behavior), rather
+/// than per-base hard rejection which caused catastrophic ALT loss.
+///
+/// The contiguity check is performed FIRST (fail-fast for structural
+/// issues) before quality and sequence comparison.
+fn check_mnp(record: &Record, variant: &Variant, min_baseq: u8) -> MnpResult {
     let len = variant.ref_allele.len();
-    
-    // Find read position of the first base
+
+    // ── Step 1: Find read position of the first MNP base ──
     let start_read_pos = match find_read_pos(record, variant.pos) {
         Some(p) => p,
-        None => return (false, false, 0),
+        None => return MnpResult::Structural,
     };
 
-    // Check if the read covers the entire MNP
+    // ── Step 2: Check full coverage ──
     if start_read_pos + len > record.seq().len() {
-        return (false, false, 0);
+        return MnpResult::Structural;
     }
 
-    // Check qualities and sequence
+    // ── Step 3: Contiguity check FIRST (fail-fast for structural issues) ──
+    // Verify no indels within the MNP block before doing quality/sequence.
+    // This catches complex variants misannotated as MNPs.
+    let end_read_pos = match find_read_pos(record, variant.pos + len as i64 - 1) {
+        Some(p) => p,
+        None => return MnpResult::Structural,
+    };
+    if end_read_pos - start_read_pos != len - 1 {
+        return MnpResult::Structural; // Indel within MNP block
+    }
+
+    // ── Step 4: Min-BQ-across-block quality gate (C++ strategy) ──
     let quals = record.qual();
+    let mut min_qual = u8::MAX;
+    for i in 0..len {
+        min_qual = min_qual.min(quals[start_read_pos + i]);
+    }
+    if min_qual < min_baseq {
+        return MnpResult::LowQuality;
+    }
+
+    // ── Step 5: Direct string comparison (all bases passed quality) ──
     let seq = record.seq();
     let seq_bytes = seq.as_bytes();
-    
     let ref_bytes = variant.ref_allele.as_bytes();
     let alt_bytes = variant.alt_allele.as_bytes();
 
@@ -1987,46 +2080,26 @@ fn check_mnp(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool, 
 
     for i in 0..len {
         let pos = start_read_pos + i;
-        
-        // Check quality
-        if quals[pos] < min_baseq {
-            return (false, false, 0);
-        }
         mnp_quals.push(quals[pos]);
 
         let base = seq_bytes[pos].to_ascii_uppercase();
-        let r = ref_bytes[i].to_ascii_uppercase();
-        let a = alt_bytes[i].to_ascii_uppercase();
-
-        if base != r {
+        if base != ref_bytes[i].to_ascii_uppercase() {
             matches_ref = false;
         }
-        if base != a {
+        if base != alt_bytes[i].to_ascii_uppercase() {
             matches_alt = false;
         }
     }
 
-    // Ensure no indels in the MNP region
-    let end_read_pos = match find_read_pos(record, variant.pos + len as i64 - 1) {
-        Some(p) => p,
-        None => return (false, false, 0),
-    };
-
-    // If contiguous, end - start should be len - 1
-    if end_read_pos - start_read_pos != len - 1 {
-        return (false, false, 0); // Indel detected within MNP
+    if matches_ref {
+        MnpResult::Ref(median_qual(&mnp_quals, min_baseq))
+    } else if matches_alt {
+        MnpResult::Alt(median_qual(&mnp_quals, min_baseq))
+    } else {
+        MnpResult::ThirdAllele
     }
-
-    // Return quality only for matching alleles
-    let med_qual = if matches_ref || matches_alt { median_qual(&mnp_quals, min_baseq) } else { 0 };
-    (matches_ref, matches_alt, med_qual)
 }
 
-/// Get the read base (uppercase) at a specific genomic position.
-/// Returns None if the read doesn't cover that position.
-fn get_read_base_at_pos(record: &Record, pos: i64) -> Option<u8> {
-    find_read_pos(record, pos).map(|rp| record.seq()[rp])
-}
 
 /// Find the read index corresponding to a genomic position.
 fn find_read_pos(record: &Record, target_pos: i64) -> Option<usize> {
@@ -2059,4 +2132,251 @@ fn find_read_pos(record: &Record, target_pos: i64) -> Option<usize> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rust_htslib::bam::record::CigarString;
+    use std::ffi::CString;
+
+    /// Build a synthetic BAM record for testing.
+    ///
+    /// Creates a minimal Record with the given sequence, qualities, CIGAR,
+    /// and mapping position. All other fields are set to sensible defaults
+    /// (unmapped=false, mapq=60, proper_pair=true, forward strand).
+    fn build_record(seq: &[u8], qual: &[u8], cigar: &CigarString, pos: i64) -> Record {
+        let mut record = Record::new();
+        let qname = CString::new("test_read").unwrap();
+        record.set(
+            qname.as_bytes(), // qname
+            Some(cigar),       // cigar
+            seq,               // seq
+            qual,              // qual
+        );
+        record.set_pos(pos);
+        record.set_tid(0);
+        record.set_mapq(60);
+        // Set as mapped, proper pair, first in template
+        record.set_flags(0x01 | 0x02 | 0x40); // paired + proper + read1
+        record
+    }
+
+    /// Helper: build a Variant with the given position, ref, and alt alleles.
+    fn build_variant(pos: i64, ref_allele: &str, alt_allele: &str) -> Variant {
+        Variant {
+            chrom: "1".to_string(),
+            pos,
+            ref_allele: ref_allele.to_string(),
+            alt_allele: alt_allele.to_string(),
+            variant_type: String::new(),
+            ref_context: None,
+            ref_context_start: 0,
+            repeat_span: 0,
+        }
+    }
+
+    // ── MNP check_mnp tests ──
+
+    #[test]
+    fn test_mnp_high_quality_matches_ref() {
+        // 2bp MNP: REF=AT, ALT=CG. Read has AT (matches REF).
+        // All qualities >= 20.
+        let seq = b"AAATGCC";
+        let qual = &[30, 30, 30, 35, 30, 30, 30]; // all high quality
+        let cigar = CigarString(vec![Cigar::Match(7)]);
+        let record = build_record(seq, qual, &cigar, 100);
+
+        // Variant at pos 102-103 (0-based), REF=AT, ALT=CG
+        let variant = build_variant(102, "AT", "CG");
+        let result = check_mnp(&record, &variant, 20);
+
+        match result {
+            MnpResult::Ref(q) => assert!(q >= 20, "Quality should be >= 20, got {}", q),
+            other => panic!("Expected MnpResult::Ref, got {:?}", format_mnp_result(&other)),
+        }
+    }
+
+    #[test]
+    fn test_mnp_high_quality_matches_alt() {
+        // 2bp MNP: REF=AT, ALT=CG. Read has CG (matches ALT).
+        let seq = b"AACGGCC";
+        let qual = &[30, 30, 35, 38, 30, 30, 30];
+        let cigar = CigarString(vec![Cigar::Match(7)]);
+        let record = build_record(seq, qual, &cigar, 100);
+
+        let variant = build_variant(102, "AT", "CG");
+        let result = check_mnp(&record, &variant, 20);
+
+        match result {
+            MnpResult::Alt(q) => assert!(q >= 20, "Quality should be >= 20, got {}", q),
+            other => panic!("Expected MnpResult::Alt, got {:?}", format_mnp_result(&other)),
+        }
+    }
+
+    #[test]
+    fn test_mnp_one_low_quality_base() {
+        // 2bp MNP: REF=AT, ALT=CG. Read has CG (matches ALT).
+        // But one base has Q=8 < min_baseq=20.
+        // min(35, 8) = 8 < 20 → LowQuality, NOT Phase 3 fallback.
+        let seq = b"AACGGCC";
+        let qual = &[30, 30, 35, 8, 30, 30, 30]; // pos 3: Q=8 < 20
+        let cigar = CigarString(vec![Cigar::Match(7)]);
+        let record = build_record(seq, qual, &cigar, 100);
+
+        let variant = build_variant(102, "AT", "CG");
+        let result = check_mnp(&record, &variant, 20);
+
+        assert!(
+            matches!(result, MnpResult::LowQuality),
+            "Expected LowQuality for min(BQ) < threshold"
+        );
+    }
+
+    #[test]
+    fn test_mnp_all_low_quality() {
+        // Both bases below threshold.
+        let seq = b"AACGGCC";
+        let qual = &[30, 30, 5, 8, 30, 30, 30]; // pos 2: Q=5, pos 3: Q=8
+        let cigar = CigarString(vec![Cigar::Match(7)]);
+        let record = build_record(seq, qual, &cigar, 100);
+
+        let variant = build_variant(102, "AT", "CG");
+        let result = check_mnp(&record, &variant, 20);
+
+        assert!(
+            matches!(result, MnpResult::LowQuality),
+            "Expected LowQuality when all bases below threshold"
+        );
+    }
+
+    #[test]
+    fn test_mnp_third_allele() {
+        // 2bp MNP: REF=AT, ALT=CG. Read has TT (matches neither).
+        // All qualities pass threshold.
+        let seq = b"AATTGCC";
+        let qual = &[30, 30, 35, 38, 30, 30, 30];
+        let cigar = CigarString(vec![Cigar::Match(7)]);
+        let record = build_record(seq, qual, &cigar, 100);
+
+        let variant = build_variant(102, "AT", "CG");
+        let result = check_mnp(&record, &variant, 20);
+
+        assert!(
+            matches!(result, MnpResult::ThirdAllele),
+            "Expected ThirdAllele when bases match neither REF nor ALT"
+        );
+    }
+
+    #[test]
+    fn test_mnp_indel_in_block_structural() {
+        // 3bp MNP: REF=ATG, ALT=CGC. Read has CIGAR 1M 1I 1D 2M,
+        // creating a non-contiguous mapping across the MNP block.
+        // The contiguity check should detect this and return Structural.
+        let seq = b"AACXGCC"; // 7 bases, but CIGAR rearranges alignment
+        let qual = &[30, 30, 35, 38, 35, 30, 30];
+        // CIGAR: 2M 1I 1D 3M = consumes 2+0+1+3=6 ref, 2+1+0+3=6 read
+        let cigar = CigarString(vec![
+            Cigar::Match(2),
+            Cigar::Ins(1),
+            Cigar::Del(1),
+            Cigar::Match(3),
+        ]);
+        let record = build_record(seq, qual, &cigar, 100);
+
+        // Variant spans pos 102-104 (3bp MNP)
+        // With the indel, positions won't be contiguous in read space
+        let variant = build_variant(102, "ATG", "CGC");
+        let result = check_mnp(&record, &variant, 20);
+
+        assert!(
+            matches!(result, MnpResult::Structural),
+            "Expected Structural when indel exists in MNP block"
+        );
+    }
+
+    #[test]
+    fn test_mnp_partial_coverage_structural() {
+        // 3bp MNP but read only covers first 2 positions.
+        // Read: 3 bases starting at pos 101, so covers 101-103.
+        // Variant: pos 102-104 → pos 104 not covered.
+        let seq = b"ACG";
+        let qual = &[30, 35, 38];
+        let cigar = CigarString(vec![Cigar::Match(3)]);
+        let record = build_record(seq, qual, &cigar, 101);
+
+        let variant = build_variant(102, "ATG", "CGC");
+        let result = check_mnp(&record, &variant, 20);
+
+        assert!(
+            matches!(result, MnpResult::Structural),
+            "Expected Structural when read doesn't fully cover MNP"
+        );
+    }
+
+    #[test]
+    fn test_mnp_position_not_found_structural() {
+        // Read starts after the variant position.
+        let seq = b"ATCGATCG";
+        let qual = &[30; 8];
+        let cigar = CigarString(vec![Cigar::Match(8)]);
+        let record = build_record(seq, qual, &cigar, 200); // far beyond variant
+
+        let variant = build_variant(102, "AT", "CG");
+        let result = check_mnp(&record, &variant, 20);
+
+        assert!(
+            matches!(result, MnpResult::Structural),
+            "Expected Structural when variant position not in read"
+        );
+    }
+
+    #[test]
+    fn test_mnp_5bp_tert_pattern() {
+        // 5bp MNP mimicking TERT: GAGGG→AAGGA
+        // Read carries the ALT allele AAGGA at high quality.
+        let seq = b"CCAAGGATTT";
+        let qual = &[30, 30, 35, 38, 32, 36, 34, 30, 30, 30];
+        let cigar = CigarString(vec![Cigar::Match(10)]);
+        let record = build_record(seq, qual, &cigar, 100);
+
+        // Variant at pos 102-106
+        let variant = build_variant(102, "GAGGG", "AAGGA");
+        let result = check_mnp(&record, &variant, 20);
+
+        match result {
+            MnpResult::Alt(q) => assert!(q >= 20, "Quality should be >= 20, got {}", q),
+            other => panic!("Expected MnpResult::Alt for TERT-like 5bp MNP, got {:?}",
+                           format_mnp_result(&other)),
+        }
+    }
+
+    #[test]
+    fn test_mnp_min_bq_boundary() {
+        // Test the exact boundary: min(BQ) == min_baseq should PASS.
+        let seq = b"AACGGCC";
+        let qual = &[30, 30, 20, 30, 30, 30, 30]; // min BQ = 20 == threshold
+        let cigar = CigarString(vec![Cigar::Match(7)]);
+        let record = build_record(seq, qual, &cigar, 100);
+
+        let variant = build_variant(102, "AT", "CG");
+        let result = check_mnp(&record, &variant, 20);
+
+        match result {
+            MnpResult::Alt(q) => assert!(q >= 20, "Should pass at exact threshold boundary"),
+            other => panic!("Expected Alt at exact BQ threshold, got {:?}",
+                           format_mnp_result(&other)),
+        }
+    }
+
+    /// Helper to format MnpResult for panic messages
+    fn format_mnp_result(result: &MnpResult) -> String {
+        match result {
+            MnpResult::Ref(q) => format!("Ref({})", q),
+            MnpResult::Alt(q) => format!("Alt({})", q),
+            MnpResult::LowQuality => "LowQuality".to_string(),
+            MnpResult::ThirdAllele => "ThirdAllele".to_string(),
+            MnpResult::Structural => "Structural".to_string(),
+        }
+    }
 }
