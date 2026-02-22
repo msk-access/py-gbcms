@@ -11,7 +11,7 @@ use crate::types::{BaseCounts, Variant};
 use rayon::prelude::*;
 
 use anyhow::{Context, Result};
-use log::{debug, trace};
+use log::{debug, trace, warn};
 use bio::alignment::distance::levenshtein;
 use bio::alignment::pairwise::Aligner;
 
@@ -291,9 +291,11 @@ fn count_single_variant(
         anyhow::anyhow!("Chromosome not found in BAM: {}", variant.chrom)
     })?;
 
-    // Fetch region around the variant. For windowed indel detection (±5bp),
+    // Fetch region around the variant. For windowed indel detection,
     // we expand the window so that reads with shifted indels are also retrieved.
-    let window_pad: i64 = 5;
+    // The window scales with repeat_span to capture indels that aligners
+    // shift beyond 5bp in long homopolymers/microsatellites.
+    let window_pad: i64 = std::cmp::max(5, variant.repeat_span as i64 + 2);
     let start = (variant.pos - window_pad).max(0);
     let end = variant.pos + (variant.ref_allele.len() as i64) + window_pad;
 
@@ -935,14 +937,16 @@ fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
     } else if is_ref {
         (true, false, med_qual)
     } else {
-        // Tie or ambiguous. If the read mapped reasonably well (max score >= ~50%),
-        // count it as REF (background) to maintain accurate VAF denominators.
-        // Discarding it would artificially deflate Total Depth in regions with
-        // background polymorphisms or partial MNP matches.
+        // Tie or ambiguous: the read cannot confidently distinguish REF from
+        // ALT.  Route to "neither" so this read still contributes to physical
+        // DP (via the anchor overlap gate) but does NOT inflate RD or AD.
+        // This preserves an unbiased VAF = AD/(RD+AD) — critical for low-VAF
+        // cfDNA detection where even a handful of misrouted reads can push
+        // a variant below the Limit of Detection.
         let max_score = std::cmp::max(alt_aln.score, ref_aln.score);
         if max_score >= (read_len as i32) / 2 {
-            debug!("Ambiguous tie or non-ALT (alt={}, ref={}) but mapped well — assigning to REF to preserve denominator", alt_aln.score, ref_aln.score);
-            (true, false, med_qual)
+            debug!("Ambiguous tie (alt={}, ref={}) — routing to neither to preserve unbiased VAF", alt_aln.score, ref_aln.score);
+            (false, false, med_qual)
         } else {
             (false, false, 0)
         }
@@ -1203,7 +1207,9 @@ fn check_complex<F: Fn(u8, u8) -> i32>(
         // (e.g., incomplete MAF definition drops an adjacent SNV),
         // Levenshtein distance can still discriminate the closest allele.
         // Requires >1 edit margin for safety on very short strings.
-        if recon_len >= 2 {
+        // Skip for large variants (>50bp) — O(n×m) is wasteful when Phase 3
+        // SW handles them correctly with affine gap penalties.
+        if recon_len >= 2 && ref_bytes.len() <= 50 && alt_bytes.len() <= 50 {
             let d_ref = levenshtein(&reconstructed_seq, ref_bytes);
             let d_alt = levenshtein(&reconstructed_seq, alt_bytes);
             debug!(
@@ -1420,8 +1426,8 @@ fn check_insertion<F: Fn(u8, u8) -> i32>(
     let expected_ins_seq = &variant.alt_allele.as_bytes()[1..]; // ALT without anchor
     let original_anchor_base = variant.ref_allele.as_bytes()[0].to_ascii_uppercase();
 
-    // Windowed scan parameters
-    let window: i64 = 5;
+    // Windowed scan parameters — scales with repeat_span for MSI regions
+    let window: i64 = std::cmp::max(5, variant.repeat_span as i64 + 2);
     let window_start = (anchor_pos - window).max(0);
     let window_end = anchor_pos + window;
 
@@ -1541,13 +1547,17 @@ fn check_insertion<F: Fn(u8, u8) -> i32>(
                                                     == original_anchor_base
                                             } else {
                                                 debug!(
-                                                    "ref_context offset {} out of bounds (len={}), allowing",
+                                                    "ref_context offset {} out of bounds (len={}), rejecting",
                                                     ctx_offset, ctx.len()
                                                 );
-                                                true
+                                                false
                                             }
                                         }
-                                        None => true,
+                                        None => {
+                                            warn!("ref_context is None for variant at {}:{} — S3 cannot validate shifted insertion",
+                                                  variant.chrom, variant.pos + 1);
+                                            false
+                                        },
                                     };
 
                                     if anchor_ok {
@@ -1679,8 +1689,8 @@ fn check_deletion<F: Fn(u8, u8) -> i32>(
     // The expected deleted bases (REF without the anchor base)
     let expected_del_seq = &variant.ref_allele.as_bytes()[1..];
 
-    // Windowed scan parameters
-    let window: i64 = 5;
+    // Windowed scan parameters — scales with repeat_span for MSI regions
+    let window: i64 = std::cmp::max(5, variant.repeat_span as i64 + 2);
     let window_start = (anchor_pos - window).max(0);
     let window_end = anchor_pos + window;
 
@@ -1817,25 +1827,38 @@ fn check_deletion<F: Fn(u8, u8) -> i32>(
                                 match &variant.ref_context {
                                     Some(ctx) => {
                                         let ctx_bytes = ctx.as_bytes();
-                                        let ctx_offset =
-                                            (del_ref_pos - variant.ref_context_start) as usize;
-                                        if ctx_offset + del_len_usize <= ctx_bytes.len() {
-                                            let ref_at_shift = &ctx_bytes
-                                                [ctx_offset..ctx_offset + del_len_usize];
-                                            let ref_quals = vec![u8::MAX; del_len_usize];
-                                            let (mismatches, reliable) = masked_single_compare(
-                                                ref_at_shift, &ref_quals, expected_del_seq, 0
-                                            );
-                                            reliable > 0 && mismatches == 0
-                                        } else {
+                                        let ctx_offset_i64 =
+                                            del_ref_pos - variant.ref_context_start;
+                                        if ctx_offset_i64 < 0 {
                                             debug!(
-                                                "ref_context offset {} out of bounds (len={}), allowing",
-                                                ctx_offset, ctx_bytes.len()
+                                                "ref_context offset negative ({}), rejecting shifted deletion",
+                                                ctx_offset_i64
                                             );
-                                            true
+                                            false
+                                        } else {
+                                            let ctx_offset = ctx_offset_i64 as usize;
+                                            if ctx_offset + del_len_usize <= ctx_bytes.len() {
+                                                let ref_at_shift = &ctx_bytes
+                                                    [ctx_offset..ctx_offset + del_len_usize];
+                                                let ref_quals = vec![u8::MAX; del_len_usize];
+                                                let (mismatches, reliable) = masked_single_compare(
+                                                    ref_at_shift, &ref_quals, expected_del_seq, 0
+                                                );
+                                                reliable > 0 && mismatches == 0
+                                            } else {
+                                                debug!(
+                                                    "ref_context offset {} out of bounds (len={}), rejecting",
+                                                    ctx_offset, ctx_bytes.len()
+                                                );
+                                                false
+                                            }
                                         }
                                     }
-                                    None => true,
+                                    None => {
+                                        warn!("ref_context is None for variant at {}:{} — S3 cannot validate shifted deletion",
+                                              variant.chrom, variant.pos + 1);
+                                        false
+                                    },
                                 }
                             };
 
