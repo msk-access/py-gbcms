@@ -331,14 +331,15 @@ fn count_single_variant(
         let base_qual = result.qual;
         phase_counts[result.phase as usize] += 1;
 
-        // ── ANCHOR OVERLAP CHECK: The BAM fetch region is wider than the
-        // variant footprint (±5bp for shifted indel detection). Reads that
-        // were brought in by the wider fetch but don't actually overlap the
-        // variant's anchor position should NOT count toward DP — unless they
-        // were classified as REF/ALT (e.g., shifted indel matched via
-        // windowed detection). This ensures DP matches samtools pileup at
-        // the variant position.
-        let ref_len = variant.ref_allele.len().max(1) as i64;
+        // ── ANCHOR OVERLAP CHECK: DP is defined as depth at the variant's
+        // anchor position (VCF POS), consistent with Mutect2, VarDict, and
+        // samtools pileup.  For large deletions the REF span can be hundreds
+        // or thousands of bases; reads deep inside that span carry no
+        // information about the breakpoint and must NOT inflate DP/DPF.
+        //
+        // Reads classified as REF or ALT always pass (the !is_ref && !is_alt
+        // guard below), so windowed-indel matches and shifted reads still
+        // contribute to allele counts and depth.
         let read_start = record.pos();
         let read_end = {
             let mut rend = record.pos();
@@ -353,7 +354,7 @@ fn count_single_variant(
             }
             rend
         };
-        let overlaps_anchor = read_start < (variant.pos + ref_len)
+        let overlaps_anchor = read_start <= variant.pos
             && read_end > variant.pos;
         if !overlaps_anchor && !is_ref && !is_alt {
             continue;
