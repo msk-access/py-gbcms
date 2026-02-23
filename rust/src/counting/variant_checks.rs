@@ -865,18 +865,15 @@ pub fn check_insertion<F: Fn(u8, u8) -> i32>(
     }
 
     if found_ref_coverage {
-        // Fallback for paired-reads where R1 gets an 'I' but R2 is purely soft-clipped ('S').
-        // Without this, check_insertion blindly classifies the 'S' read as REF,
-        // causing fragment consensus to tie (ALT vs REF -> Discard).
-        if let Some(ref ctx) = variant.ref_context {
-            let win_start = variant.ref_context_start;
-            let win_end = win_start + ctx.len() as i64;
-            if is_worth_realignment(record, win_start, win_end) {
-                trace!("check_insertion: read has soft-clips/indels, falling back to Phase 3");
-                return phase3_classify(record, variant, min_baseq, alt_aligner, ref_aligner, backend);
-            }
-        }
-        return ClassifyResult::is_ref(anchor_qual, ClassifyPhase::Structural); // REF — read covers anchor without matching insertion
+        // CIGAR is definitive for pure insertions: if the read's Match op
+        // covers the anchor and no matching I op was found (strict or
+        // windowed), the read is REF. Soft-clipping elsewhere cannot
+        // represent a missing insertion at the anchor position.
+        //
+        // Note: reads with soft-clip AT the anchor have
+        // found_ref_coverage=false and are correctly routed to Phase 3
+        // via the !found_ref_coverage path above.
+        return ClassifyResult::is_ref(anchor_qual, ClassifyPhase::Structural);
     }
     ClassifyResult::neither(ClassifyPhase::Structural) // Read does not cover the variant region
 }
@@ -1188,18 +1185,15 @@ pub fn check_deletion<F: Fn(u8, u8) -> i32>(
     }
 
     if found_ref_coverage {
-        // Fallback for paired-reads where R1 gets a 'D' but R2 is purely soft-clipped ('S')
-        // or has mismatched bases. Without this, check_deletion blindly classifies
-        // the ambiguous read as REF, causing fragment consensus to tie.
-        if let Some(ref ctx) = variant.ref_context {
-            let win_start = variant.ref_context_start;
-            let win_end = win_start + ctx.len() as i64;
-            if is_worth_realignment(record, win_start, win_end) {
-                trace!("check_deletion: read has soft-clips/indels, falling back to Phase 3");
-                return phase3_classify(record, variant, min_baseq, alt_aligner, ref_aligner, backend);
-            }
-        }
-        return ClassifyResult::is_ref(anchor_qual, ClassifyPhase::Structural); // REF
+        // CIGAR is definitive for pure deletions: if the read's Match op
+        // covers the anchor and no matching D op was found (strict or
+        // windowed), the read is REF. Soft-clipping elsewhere cannot
+        // represent a missing deletion at the anchor position.
+        //
+        // Note: reads with soft-clip AT the anchor have
+        // found_ref_coverage=false and are correctly routed to Phase 3
+        // via the !found_ref_coverage path above.
+        return ClassifyResult::is_ref(anchor_qual, ClassifyPhase::Structural);
     }
     ClassifyResult::neither(ClassifyPhase::Structural) // Read does not cover the variant region
 }
