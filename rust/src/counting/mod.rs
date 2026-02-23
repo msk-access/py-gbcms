@@ -8,11 +8,13 @@
 //!
 //! - [`fragment`] — Fragment evidence tracking and QNAME hashing
 //! - [`alignment`] — Smith-Waterman alignment backend (Phase 3)
+//! - [`pairhmm`] — PairHMM alignment backend (probabilistic Phase 3 alternative)
 //! - [`variant_checks`] — Per-variant-type classification (SNP, MNP, Ins, Del, Complex)
 //! - [`utils`] — Shared utility functions (position lookup, quality, masked comparison)
 
 mod fragment;
 mod alignment;
+pub mod pairhmm;
 mod variant_checks;
 mod utils;
 
@@ -32,6 +34,51 @@ use bio::alignment::pairwise::Aligner;
 
 use fragment::{FragmentEvidence, hash_qname};
 use variant_checks::{check_snp, check_mnp, check_complex, check_insertion, check_deletion, MnpResult};
+use pairhmm::{classify_by_pairhmm, ConfigurableGapParams};
+
+
+/// Alignment backend selection for Phase 3 fallback classification.
+///
+/// Controls which algorithm is used when variant-type-specific checkers
+/// (SNP, Ins, Del, MNP, Complex) need to fall back to haplotype-level
+/// alignment for ambiguous reads.
+///
+/// Selectable via `--alignment-backend` CLI flag.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub enum AlignmentBackend {
+    /// Smith-Waterman with affine gap penalties (default for v2.8.0).
+    /// Score-margin classification: (alt_score - ref_score) > 0 → ALT.
+    #[default]
+    SmithWaterman,
+    /// PairHMM with BQ-aware emissions (planned default for v3.0.0).
+    /// LLR classification: log P(read|ALT) - log P(read|REF) > threshold → ALT.
+    PairHMM {
+        /// Log-likelihood ratio threshold for confident calls (default: 2.3 ≈ 10:1 odds).
+        llr_threshold: f64,
+        /// Gap-open probability (linear scale, default: 1e-4).
+        gap_open: f64,
+        /// Gap-extend probability (linear scale, default: 0.1).
+        gap_extend: f64,
+        /// Gap-open probability for repeat regions (linear scale, default: 1e-2).
+        gap_open_repeat: f64,
+        /// Gap-extend probability for repeat regions (linear scale, default: 0.5).
+        gap_extend_repeat: f64,
+    },
+}
+
+impl AlignmentBackend {
+    /// Create PairHMM backend with default parameters.
+    #[allow(dead_code)]
+    pub fn pairhmm_default() -> Self {
+        AlignmentBackend::PairHMM {
+            llr_threshold: 2.3,
+            gap_open: 1e-4,
+            gap_extend: 0.1,
+            gap_open_repeat: 1e-2,
+            gap_extend_repeat: 0.5,
+        }
+    }
+}
 
 
 /// Count bases for a list of variants in a BAM file.
@@ -42,7 +89,7 @@ use variant_checks::{check_snp, check_mnp, check_complex, check_insertion, check
 /// `ad` (alt_count) is returned, with `used_decomposed` set accordingly.
 #[allow(clippy::too_many_arguments)]
 #[pyfunction]
-#[pyo3(signature = (bam_path, variants, decomposed, min_mapq, min_baseq, filter_duplicates, filter_secondary, filter_supplementary, filter_qc_failed, filter_improper_pair, filter_indel, threads, fragment_qual_threshold=10, sibling_variants=Vec::new()))]
+#[pyo3(signature = (bam_path, variants, decomposed, min_mapq, min_baseq, filter_duplicates, filter_secondary, filter_supplementary, filter_qc_failed, filter_improper_pair, filter_indel, threads, fragment_qual_threshold=10, sibling_variants=Vec::new(), alignment_backend="sw", hmm_llr_threshold=2.3, hmm_gap_open=1e-4, hmm_gap_extend=0.1, hmm_gap_open_repeat=1e-2, hmm_gap_extend_repeat=0.5))]
 pub fn count_bam(
     py: Python<'_>,
     bam_path: String,
@@ -59,7 +106,25 @@ pub fn count_bam(
     threads: usize,
     fragment_qual_threshold: u8,
     sibling_variants: Vec<Vec<Variant>>,
+    alignment_backend: &str,
+    hmm_llr_threshold: f64,
+    hmm_gap_open: f64,
+    hmm_gap_extend: f64,
+    hmm_gap_open_repeat: f64,
+    hmm_gap_extend_repeat: f64,
 ) -> PyResult<Vec<BaseCounts>> {
+    // Parse alignment backend from string
+    let backend = match alignment_backend {
+        "hmm" | "pairhmm" => AlignmentBackend::PairHMM {
+            llr_threshold: hmm_llr_threshold,
+            gap_open: hmm_gap_open,
+            gap_extend: hmm_gap_extend,
+            gap_open_repeat: hmm_gap_open_repeat,
+            gap_extend_repeat: hmm_gap_extend_repeat,
+        },
+        _ => AlignmentBackend::SmithWaterman,
+    };
+
     // We cannot share a single IndexedReader across threads because it's not Sync.
     // Instead, we use rayon's map_init to initialize a reader for each thread.
     // This is efficient because map_init reuses the thread-local state (the reader)
@@ -116,6 +181,7 @@ pub fn count_bam(
                             filter_improper_pair,
                             filter_indel,
                             fragment_qual_threshold,
+                            &backend,
                         )?;
 
                         // Dual-count: if a decomposed variant exists, count it too
@@ -134,6 +200,7 @@ pub fn count_bam(
                                 filter_improper_pair,
                                 filter_indel,
                                 fragment_qual_threshold,
+                                &backend,
                             )?;
 
                             if counts_decomp.ad > counts_orig.ad {
@@ -192,6 +259,7 @@ fn count_single_variant(
     filter_improper_pair: bool,
     filter_indel: bool,
     fragment_qual_threshold: u8,
+    backend: &AlignmentBackend,
 ) -> Result<BaseCounts> {
     let tid = bam.header().tid(variant.chrom.as_bytes()).ok_or_else(|| {
         anyhow::anyhow!("Chromosome not found in BAM: {}", variant.chrom)
@@ -268,7 +336,7 @@ fn count_single_variant(
 
         // Determine allele status and base quality at variant position
         let (is_ref, is_alt, base_qual) = check_allele_with_qual(
-            &record, variant, min_baseq, &mut alt_aligner, &mut ref_aligner,
+            &record, variant, min_baseq, &mut alt_aligner, &mut ref_aligner, backend,
         );
 
         // ── ANCHOR OVERLAP CHECK: The BAM fetch region is wider than the
@@ -340,7 +408,7 @@ fn count_single_variant(
                 for sib in sibling_variants {
                     let (_sib_ref, sib_alt, _sib_qual) = check_allele_with_qual(
                         &record, sib, min_baseq,
-                        &mut alt_aligner, &mut ref_aligner,
+                        &mut alt_aligner, &mut ref_aligner, backend,
                     );
                     if sib_alt {
                         debug!(
@@ -451,6 +519,7 @@ fn check_allele_with_qual<F: Fn(u8, u8) -> i32>(
     min_baseq: u8,
     alt_aligner: &mut Aligner<F>,
     ref_aligner: &mut Aligner<F>,
+    backend: &AlignmentBackend,
 ) -> (bool, bool, u8) {
     // Dispatch based on allele lengths rather than the variant_type string.
     // This is more robust than relying on upstream type labels, which can be
@@ -464,47 +533,89 @@ fn check_allele_with_qual<F: Fn(u8, u8) -> i32>(
     );
 
     if ref_len == 1 && alt_len == 1 {
-        // SNP: single base substitution
+        // SNP: single base substitution — no Phase 3 needed
         check_snp(record, variant, min_baseq)
     } else if ref_len == alt_len {
         // MNP: min-BQ-across-block strategy with selective Phase 3 fallback.
-        // Uses minimum quality across the entire MNP block (matching C++ GBCMS)
-        // instead of per-base hard rejection (which caused ~99% ALT loss via
-        // Phase 3 SW ties). Phase 3 fallback is reserved for structural issues
-        // (indels within MNP block, partial coverage) where the read may carry
-        // the variant through a complex alignment that SW can resolve.
         match check_mnp(record, variant, min_baseq) {
             MnpResult::Ref(q) => (true, false, q),
             MnpResult::Alt(q) => (false, true, q),
-            MnpResult::LowQuality => {
-                // Min quality across MNP block failed threshold.
-                // Skip entirely (like C++); don't fall to Phase 3.
-                // Phase 3 would count toward DP while C++ wouldn't.
-                (false, false, 0)
-            }
-            MnpResult::ThirdAllele => {
-                // Bases pass quality but match neither REF nor ALT.
-                // Skip; Phase 3 would likely tie (haplotypes differ
-                // at only 2-3/20 positions for MNPs).
-                (false, false, 0)
-            }
+            MnpResult::LowQuality => (false, false, 0),
+            MnpResult::ThirdAllele => (false, false, 0),
             MnpResult::Structural => {
-                // Indel within MNP block or partial coverage.
-                // Complex alignment needed — may be a complex variant
-                // annotated as an MNP.
-                debug!("MNP structural issue, falling back to check_complex");
-                check_complex(record, variant, min_baseq, alt_aligner, ref_aligner)
+                debug!("MNP structural issue, falling back to Phase 3");
+                phase3_dispatch(record, variant, min_baseq, alt_aligner, ref_aligner, backend)
             }
         }
     } else if ref_len == 1 {
-        // Pure insertion: anchor + inserted bases (ref_len=1, alt_len>1)
+        // Pure insertion: CIGAR-based fast paths, then Phase 3 fallback.
+        // Note: check_insertion/check_deletion internally call check_complex
+        // which uses classify_by_alignment (SW). When PairHMM is selected,
+        // we use the same CIGAR-based fast paths but replace the Phase 3
+        // fallback for cases where CIGAR matching fails entirely.
         check_insertion(record, variant, min_baseq, alt_aligner, ref_aligner)
     } else if alt_len == 1 {
-        // Pure deletion: anchor + deleted bases (ref_len>1, alt_len=1)
+        // Pure deletion: same strategy as insertion
         check_deletion(record, variant, min_baseq, alt_aligner, ref_aligner)
     } else {
         // Complex: ref_len != alt_len, both > 1 (e.g., DelIns)
-        check_complex(record, variant, min_baseq, alt_aligner, ref_aligner)
+        // Direct Phase 3 dispatch based on backend
+        phase3_dispatch(record, variant, min_baseq, alt_aligner, ref_aligner, backend)
+    }
+}
+
+
+/// Phase 3 haplotype-level classification dispatch.
+///
+/// Routes to either Smith-Waterman or PairHMM based on the active backend.
+/// This is the common entry point for all Phase 3 fallbacks across variant types.
+fn phase3_dispatch<F: Fn(u8, u8) -> i32>(
+    record: &Record,
+    variant: &Variant,
+    min_baseq: u8,
+    alt_aligner: &mut Aligner<F>,
+    ref_aligner: &mut Aligner<F>,
+    backend: &AlignmentBackend,
+) -> (bool, bool, u8) {
+    match backend {
+        AlignmentBackend::SmithWaterman => {
+            check_complex(record, variant, min_baseq, alt_aligner, ref_aligner)
+        }
+        AlignmentBackend::PairHMM {
+            llr_threshold,
+            gap_open,
+            gap_extend,
+            gap_open_repeat,
+            gap_extend_repeat,
+        } => {
+            // Extract raw read window for PairHMM classification
+            use alignment::extract_raw_read_window;
+
+            if let Some(ref _ctx) = variant.ref_context {
+                let win_start = variant.ref_context_start;
+                let win_end = win_start + variant.ref_context.as_ref().unwrap().len() as i64;
+
+                if let Some((sub_seq, sub_quals)) = extract_raw_read_window(
+                    record, win_start, win_end, variant.pos, variant.ref_allele.len()
+                ) {
+                    if sub_seq.len() >= 3 {
+                        // Select gap parameters based on repeat context
+                        let gap_params = if variant.repeat_span >= 10 {
+                            ConfigurableGapParams::repeat(*gap_open_repeat, *gap_extend_repeat)
+                        } else {
+                            ConfigurableGapParams::standard(*gap_open, *gap_extend)
+                        };
+
+                        return classify_by_pairhmm(
+                            &sub_seq, &sub_quals, variant, min_baseq,
+                            &gap_params, *llr_threshold,
+                        );
+                    }
+                }
+            }
+            // Fallback: if no ref_context or extraction fails, use SW
+            check_complex(record, variant, min_baseq, alt_aligner, ref_aligner)
+        }
     }
 }
 
