@@ -10,7 +10,7 @@
 use rust_htslib::bam::record::Cigar;
 use rust_htslib::bam::Record;
 use bio::alignment::pairwise::Aligner;
-use log::debug;
+use log::trace;
 
 use crate::types::Variant;
 use super::utils::{median_qual, build_haplotypes, ClassifyResult, ClassifyPhase};
@@ -235,16 +235,16 @@ pub fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
     let read_len = read_seq.len();
     let usable_count = read_quals.iter().filter(|&&q| q >= min_baseq).count();
     if usable_count < 3 {
-        debug!("classify_by_alignment: only {} usable bases — skipping", usable_count);
+        trace!("classify_by_alignment: only {} usable bases — skipping", usable_count);
         return ClassifyResult::neither(ClassifyPhase::Alignment);
     }
 
     // Use the provided reusable aligners (created once per variant).
-    debug!(
+    trace!(
         "classify_by_alignment: read_len={} ref_hap_len={} alt_hap_len={} usable={}",
         read_len, ref_hap.len(), alt_hap.len(), usable_count
     );
-    debug!(
+    trace!(
         "classify_by_alignment seqs: read={} alt_hap={} ref_hap={}",
         String::from_utf8_lossy(&masked_seq),
         String::from_utf8_lossy(&alt_hap),
@@ -271,7 +271,7 @@ pub fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
     let mut is_alt = alt_aln.score >= ref_aln.score + margin;
     let mut is_ref = ref_aln.score >= alt_aln.score + margin;
 
-    debug!(
+    trace!(
         "classify_by_alignment: alt_score={} ref_score={} margin={} is_ref={} is_alt={} \
          read_len={} ref_hap={} alt_hap={}",
         alt_aln.score, ref_aln.score, margin, is_ref, is_alt,
@@ -310,7 +310,7 @@ pub fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
         let is_poor = max_score < perfect_score / 2;
 
         if is_borderline || is_poor {
-            debug!(
+            trace!(
                 "Phase 3 low-confidence (diff={}, max_score={}/{}, borderline={}, poor={}) \
                  → local fallback",
                 diff, max_score, perfect_score, is_borderline, is_poor
@@ -321,7 +321,7 @@ pub fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
             is_alt = alt_local.score >= ref_local.score + margin;
             is_ref = ref_local.score >= alt_local.score + margin;
 
-            debug!(
+            trace!(
                 "Phase 3 local result: alt_local={} ref_local={} is_alt={} is_ref={}",
                 alt_local.score, ref_local.score, is_alt, is_ref
             );
@@ -341,7 +341,7 @@ pub fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
         // a variant below the Limit of Detection.
         let max_score = std::cmp::max(alt_aln.score, ref_aln.score);
         if max_score >= (read_len as i32) / 2 {
-            debug!("Ambiguous tie (alt={}, ref={}) — routing to neither to preserve unbiased VAF", alt_aln.score, ref_aln.score);
+            trace!("Ambiguous tie (alt={}, ref={}) — routing to neither to preserve unbiased VAF", alt_aln.score, ref_aln.score);
             ClassifyResult::new(false, false, med_qual, ClassifyPhase::Alignment)
         } else {
             ClassifyResult::neither(ClassifyPhase::Alignment)

@@ -12,7 +12,7 @@ use rust_htslib::bam::record::Cigar;
 use rust_htslib::bam::Record;
 use bio::alignment::distance::levenshtein;
 use bio::alignment::pairwise::Aligner;
-use log::{debug, trace, warn};
+use log::{trace, warn};
 
 use crate::types::Variant;
 use super::alignment::{classify_by_alignment, extract_raw_read_window, is_worth_realignment};
@@ -264,7 +264,7 @@ pub fn check_complex<F: Fn(u8, u8) -> i32>(
     let mut reconstructed_seq: Vec<u8> = Vec::with_capacity(capacity);
     let mut quals_per_base: Vec<u8> = Vec::with_capacity(capacity);
 
-    debug!(
+    trace!(
         "check_complex start: pos={} ref={} alt={}",
         start_pos, variant.ref_allele, variant.alt_allele
     );
@@ -286,7 +286,7 @@ pub fn check_complex<F: Fn(u8, u8) -> i32>(
                 record, win_start, win_end, variant.pos, variant.ref_allele.len()
             ) {
                 if sub_seq.len() >= 3 {
-                    debug!(
+                    trace!(
                         "check_complex: bypassing Phase 1/2 due to soft-clips/indels, Phase 3 extracted {} bases",
                         sub_seq.len()
                     );
@@ -382,7 +382,7 @@ pub fn check_complex<F: Fn(u8, u8) -> i32>(
     }
 
     let reconstructed_str = String::from_utf8_lossy(&reconstructed_seq);
-    debug!(
+    trace!(
         "Reconstructed: '{}' (len={})",
         reconstructed_str,
         reconstructed_seq.len()
@@ -413,7 +413,7 @@ pub fn check_complex<F: Fn(u8, u8) -> i32>(
     let read_len = seq.len();
     let large_ref_threshold = std::cmp::max(50, read_len / 3);
     if ref_len > large_ref_threshold && recon_len > 0 && recon_len < ref_len / 10 {
-        debug!(
+        trace!(
             "check_complex: recon_len={} is <10% of ref_len={} — \
              skipping Phase 2 (unreliable direct comparison)",
             recon_len, ref_len
@@ -423,47 +423,47 @@ pub fn check_complex<F: Fn(u8, u8) -> i32>(
         let (mismatches_alt, mismatches_ref, reliable_count) =
             masked_dual_compare(&reconstructed_seq, &quals_per_base, alt_bytes, ref_bytes, min_baseq);
 
-        debug!(
+        trace!(
             "Case A: reliable={} mm_alt={} mm_ref={}",
             reliable_count, mismatches_alt, mismatches_ref
         );
 
         // Step 1: No reliable data → discard (MUST come first)
         if reliable_count == 0 {
-            debug!("No reliable bases — discarding");
+            trace!("No reliable bases — discarding");
             return ClassifyResult::neither(ClassifyPhase::MaskedCompare);
         }
 
         // Step 2: Ambiguity — reliable bases match both alleles → discard
         if mismatches_alt == 0 && mismatches_ref == 0 {
-            debug!("Ambiguous: reliable bases match both REF and ALT — discarding");
+            trace!("Ambiguous: reliable bases match both REF and ALT — discarding");
             return ClassifyResult::neither(ClassifyPhase::MaskedCompare);
         }
 
         // Step 3: Unambiguous match
         if mismatches_alt == 0 {
-            debug!("Matches ALT on {} reliable bases, med_qual={}", reliable_count, med_haplotype_qual);
+            trace!("Matches ALT on {} reliable bases, med_qual={}", reliable_count, med_haplotype_qual);
             return ClassifyResult::is_alt(med_haplotype_qual, ClassifyPhase::MaskedCompare);
         }
         if mismatches_ref == 0 {
-            debug!("Matches REF on {} reliable bases, med_qual={}", reliable_count, med_haplotype_qual);
+            trace!("Matches REF on {} reliable bases, med_qual={}", reliable_count, med_haplotype_qual);
             return ClassifyResult::is_ref(med_haplotype_qual, ClassifyPhase::MaskedCompare);
         }
 
         // Step 4: Neither matches on reliable bases
-        debug!("No match: mm_alt={} mm_ref={}", mismatches_alt, mismatches_ref);
+        trace!("No match: mm_alt={} mm_ref={}", mismatches_alt, mismatches_ref);
     } else if matches_alt_len {
         // Case B: Only ALT length matches (e.g., DelIns) — no ambiguity possible
         let (mismatches, reliable_count) =
             masked_single_compare(&reconstructed_seq, &quals_per_base, alt_bytes, min_baseq);
 
-        debug!(
+        trace!(
             "Case B (ALT-only): reliable={} mismatches={}",
             reliable_count, mismatches
         );
 
         if reliable_count > 0 && mismatches == 0 {
-            debug!("Matches ALT on {} reliable bases, med_qual={}", reliable_count, med_haplotype_qual);
+            trace!("Matches ALT on {} reliable bases, med_qual={}", reliable_count, med_haplotype_qual);
             return ClassifyResult::is_alt(med_haplotype_qual, ClassifyPhase::MaskedCompare);
         }
     } else if matches_ref_len {
@@ -471,17 +471,17 @@ pub fn check_complex<F: Fn(u8, u8) -> i32>(
         let (mismatches, reliable_count) =
             masked_single_compare(&reconstructed_seq, &quals_per_base, ref_bytes, min_baseq);
 
-        debug!(
+        trace!(
             "Case C (REF-only): reliable={} mismatches={}",
             reliable_count, mismatches
         );
 
         if reliable_count > 0 && mismatches == 0 {
-            debug!("Matches REF on {} reliable bases, med_qual={}", reliable_count, med_haplotype_qual);
+            trace!("Matches REF on {} reliable bases, med_qual={}", reliable_count, med_haplotype_qual);
             return ClassifyResult::is_ref(med_haplotype_qual, ClassifyPhase::MaskedCompare);
         }
     } else {
-        debug!(
+        trace!(
             "Length mismatch: recon={} alt={} ref={}",
             recon_len,
             alt_bytes.len(),
@@ -498,15 +498,15 @@ pub fn check_complex<F: Fn(u8, u8) -> i32>(
         if recon_len >= 2 && ref_bytes.len() <= 50 && alt_bytes.len() <= 50 {
             let d_ref = levenshtein(&reconstructed_seq, ref_bytes);
             let d_alt = levenshtein(&reconstructed_seq, alt_bytes);
-            debug!(
+            trace!(
                 "Phase 2.5: edit_dist to_ref={} to_alt={} recon_len={}",
                 d_ref, d_alt, recon_len
             );
             if d_alt + 1 < d_ref {
-                debug!("Phase 2.5 → ALT (edit distance margin)");
+                trace!("Phase 2.5 → ALT (edit distance margin)");
                 return ClassifyResult::is_alt(med_haplotype_qual, ClassifyPhase::Levenshtein);
             } else if d_ref + 1 < d_alt {
-                debug!("Phase 2.5 → REF (edit distance margin)");
+                trace!("Phase 2.5 → REF (edit distance margin)");
                 return ClassifyResult::is_ref(med_haplotype_qual, ClassifyPhase::Levenshtein);
             }
             // else: ambiguous, fall through to Phase 3
@@ -544,7 +544,7 @@ pub fn check_complex<F: Fn(u8, u8) -> i32>(
             record, win_start, win_end, variant.pos, variant.ref_allele.len()
         ) {
             if sub_seq.len() >= 3 {
-                debug!(
+                trace!(
                     "Phase 3 fallback: extracted {} raw bases over [{}, {})",
                     sub_seq.len(), win_start, win_end
                 );
@@ -657,7 +657,7 @@ pub fn check_insertion<F: Fn(u8, u8) -> i32>(
                                 );
                                 if reliable > 0 && mismatches == 0 {
                                     let qual = if read_pos < quals.len() { quals[read_pos] } else { 0 };
-                                    debug!(
+                                    trace!(
                                         "check_insertion: backward boundary match at pos {}, qual={}",
                                         anchor_pos, qual
                                     );
@@ -688,7 +688,7 @@ pub fn check_insertion<F: Fn(u8, u8) -> i32>(
                                     if reliable > 0 && mismatches == 0 {
                                         let arp = anchor_read_pos.unwrap_or(0);
                                         let qual = if arp < quals.len() { quals[arp] } else { 0 };
-                                        debug!(
+                                        trace!(
                                             "check_insertion: strict match at pos {}, anchor_qual={}",
                                             anchor_pos, qual
                                         );
@@ -735,7 +735,7 @@ pub fn check_insertion<F: Fn(u8, u8) -> i32>(
                                                 ctx.as_bytes()[ctx_offset].to_ascii_uppercase()
                                                     == original_anchor_base
                                             } else {
-                                                debug!(
+                                                trace!(
                                                     "ref_context offset {} out of bounds (len={}), rejecting",
                                                     ctx_offset, ctx.len()
                                                 );
@@ -759,7 +759,7 @@ pub fn check_insertion<F: Fn(u8, u8) -> i32>(
                                             best_windowed_match = Some(distance);
                                         }
                                     } else {
-                                        debug!(
+                                        trace!(
                                             "check_insertion: S3 reject at shifted pos {} \
                                              (anchor base mismatch)",
                                             shifted_anchor_pos
@@ -771,7 +771,7 @@ pub fn check_insertion<F: Fn(u8, u8) -> i32>(
                                     // differently (e.g., shifted insertion in a repeat).
                                     // Track this so Phase 3 SW can arbitrate.
                                     has_nearby_length_match = true;
-                                    debug!(
+                                    trace!(
                                         "check_insertion: windowed I({}) at pos {} seq \
                                          mismatch (mismatches={}, reliable={}), \
                                          flagging for Phase 3 fallback",
@@ -808,7 +808,7 @@ pub fn check_insertion<F: Fn(u8, u8) -> i32>(
 
     // Evaluate results after full CIGAR walk
     if best_windowed_match.is_some() {
-        debug!(
+        trace!(
             "check_insertion: windowed match for variant at pos {}, anchor_qual={}",
             anchor_pos, anchor_qual
         );
@@ -821,7 +821,7 @@ pub fn check_insertion<F: Fn(u8, u8) -> i32>(
     // positions with different inserted bases). Suppress found_ref_coverage to
     // let check_complex → Smith-Waterman arbitrate using full haplotype comparison.
     if has_nearby_length_match && found_ref_coverage {
-        debug!(
+        trace!(
             "check_insertion: nearby I({}) with seq mismatch at pos {}, \
              falling back to check_complex for Phase 3 SW",
             expected_ins_len, anchor_pos
@@ -837,7 +837,7 @@ pub fn check_insertion<F: Fn(u8, u8) -> i32>(
             let win_start = variant.ref_context_start;
             let win_end = win_start + ctx.len() as i64;
             if is_worth_realignment(record, win_start, win_end) {
-                debug!("check_insertion: read has soft-clips/indels, falling back to Phase 3");
+                trace!("check_insertion: read has soft-clips/indels, falling back to Phase 3");
                 return phase3_classify(record, variant, min_baseq, alt_aligner, ref_aligner, backend);
             }
         }
@@ -909,7 +909,7 @@ pub fn check_deletion<F: Fn(u8, u8) -> i32>(
                             if *del_len as usize == expected_del_len {
                                 let arp = anchor_read_pos.unwrap_or(0);
                                 let qual = if arp < quals.len() { quals[arp] } else { 0 };
-                                debug!(
+                                trace!(
                                     "check_deletion: strict match at pos {}, anchor_qual={}",
                                     anchor_pos, qual
                                 );
@@ -938,7 +938,7 @@ pub fn check_deletion<F: Fn(u8, u8) -> i32>(
                                     } else {
                                         0
                                     };
-                                    debug!(
+                                    trace!(
                                         "check_deletion: tolerant match D({}) ≈ D({}) \
                                          at pos {} (reciprocal_overlap={:.2}, \
                                          threshold=0.50, anchor_qual={})",
@@ -953,7 +953,7 @@ pub fn check_deletion<F: Fn(u8, u8) -> i32>(
 
                                 // Small deletion or low overlap: fall back to
                                 // check_complex for haplotype-based comparison.
-                                debug!(
+                                trace!(
                                     "check_deletion: D({}) at anchor {} but expected D({}), \
                                      reciprocal_overlap={:.2} (below 0.50 or del<50bp), \
                                      falling back to check_complex",
@@ -992,7 +992,7 @@ pub fn check_deletion<F: Fn(u8, u8) -> i32>(
                             let max_del = expected_del_len.max(del_len_usize);
                             let overlap = min_del as f64 / max_del as f64;
                             if overlap >= 0.5 {
-                                debug!(
+                                trace!(
                                     "check_deletion: windowed tolerant match \
                                      D({}) ≈ D({}) at pos {} (overlap={:.2})",
                                     del_len_usize, expected_del_len,
@@ -1020,7 +1020,7 @@ pub fn check_deletion<F: Fn(u8, u8) -> i32>(
                                         let ctx_offset_i64 =
                                             del_ref_pos - variant.ref_context_start;
                                         if ctx_offset_i64 < 0 {
-                                            debug!(
+                                            trace!(
                                                 "ref_context offset negative ({}), rejecting shifted deletion",
                                                 ctx_offset_i64
                                             );
@@ -1036,7 +1036,7 @@ pub fn check_deletion<F: Fn(u8, u8) -> i32>(
                                                 );
                                                 reliable > 0 && mismatches == 0
                                             } else {
-                                                debug!(
+                                                trace!(
                                                     "ref_context offset {} out of bounds (len={}), rejecting",
                                                     ctx_offset, ctx_bytes.len()
                                                 );
@@ -1062,7 +1062,7 @@ pub fn check_deletion<F: Fn(u8, u8) -> i32>(
                                     best_windowed_match = Some(distance);
                                 }
                             } else {
-                                debug!(
+                                trace!(
                                     "check_deletion: S3 reject at shifted pos {} \
                                      (deleted bases mismatch)",
                                     del_ref_pos
@@ -1096,7 +1096,7 @@ pub fn check_deletion<F: Fn(u8, u8) -> i32>(
 
     // Evaluate results after full CIGAR walk
     if best_windowed_match.is_some() {
-        debug!(
+        trace!(
             "check_deletion: windowed match for variant at pos {}, anchor_qual={}",
             anchor_pos, anchor_qual
         );
@@ -1143,7 +1143,7 @@ pub fn check_deletion<F: Fn(u8, u8) -> i32>(
         // Read must span the anchor position to have variant information.
         // anchor_pos is the 0-based position of the base before the deletion.
         if record.pos() <= anchor_pos && read_ref_end > anchor_pos {
-            debug!(
+            trace!(
                 "check_deletion: no CIGAR match at pos {}, falling back to check_complex",
                 anchor_pos
             );
@@ -1160,7 +1160,7 @@ pub fn check_deletion<F: Fn(u8, u8) -> i32>(
             let win_start = variant.ref_context_start;
             let win_end = win_start + ctx.len() as i64;
             if is_worth_realignment(record, win_start, win_end) {
-                debug!("check_deletion: read has soft-clips/indels, falling back to Phase 3");
+                trace!("check_deletion: read has soft-clips/indels, falling back to Phase 3");
                 return phase3_classify(record, variant, min_baseq, alt_aligner, ref_aligner, backend);
             }
         }

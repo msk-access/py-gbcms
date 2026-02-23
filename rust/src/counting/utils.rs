@@ -6,7 +6,7 @@
 
 use rust_htslib::bam::record::Cigar;
 use rust_htslib::bam::Record;
-use log::debug;
+use log::trace;
 
 use crate::types::Variant;
 
@@ -85,7 +85,7 @@ pub fn build_haplotypes(variant: &Variant) -> Option<(Vec<u8>, Vec<u8>)> {
     let ref_len = variant.ref_allele.len();
 
     if offset + ref_len > ref_context.len() {
-        debug!(
+        trace!(
             "build_haplotypes: offset {} + ref_len {} exceeds context len {}",
             offset, ref_len, ref_context.len()
         );

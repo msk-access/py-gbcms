@@ -29,7 +29,7 @@ use crate::types::{BaseCounts, Variant};
 use rayon::prelude::*;
 
 use anyhow::{Context, Result};
-use log::debug;
+use log::{debug, trace};
 use bio::alignment::pairwise::Aligner;
 
 use fragment::{FragmentEvidence, hash_qname};
@@ -424,7 +424,7 @@ fn count_single_variant(
                     );
                     let sib_alt = sib_result.is_alt;
                     if sib_alt {
-                        debug!(
+                        trace!(
                             "Multi-allelic guard: read is ALT for sibling {}>{} at {}:{}, \
                              excluding from REF for {}>{}",
                             sib.ref_allele, sib.alt_allele,
@@ -553,7 +553,7 @@ fn check_allele_with_qual<F: Fn(u8, u8) -> i32>(
     // pure deletion after normalization).
     let ref_len = variant.ref_allele.len();
     let alt_len = variant.alt_allele.len();
-    debug!(
+    trace!(
         "check_allele ref_len={} alt_len={} pos={} ref={} alt={}",
         ref_len, alt_len, variant.pos, variant.ref_allele, variant.alt_allele
     );
@@ -569,7 +569,7 @@ fn check_allele_with_qual<F: Fn(u8, u8) -> i32>(
             MnpResult::LowQuality => ClassifyResult::neither(ClassifyPhase::Structural),
             MnpResult::ThirdAllele => ClassifyResult::neither(ClassifyPhase::MaskedCompare),
             MnpResult::Structural => {
-                debug!("MNP structural issue, falling back to Phase 3");
+                trace!("MNP structural issue, falling back to Phase 3");
                 check_complex(record, variant, min_baseq, alt_aligner, ref_aligner, backend)
             }
         }

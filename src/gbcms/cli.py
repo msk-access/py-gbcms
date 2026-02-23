@@ -130,6 +130,11 @@ def run(
         1, "--threads", "-t", help="Number of threads for parallel processing"
     ),
     verbose: bool = typer.Option(False, "--verbose", "-V", help="Enable verbose debug logging"),
+    trace: bool = typer.Option(
+        False, "--trace", "-T",
+        help="Enable per-read Rust trace logging (slow). Implies --verbose. "
+             "Shows detailed per-read classification diagnostics from the counting engine.",
+    ),
     # Alignment backend (advanced)
     alignment_backend: str = typer.Option(
         "sw",
@@ -166,7 +171,7 @@ def run(
     Run gbcms on one or more BAM files.
     """
     # Configure logging
-    setup_logging(verbose=verbose)
+    setup_logging(verbose=verbose, trace=trace)
 
     # Parse BAM inputs
     bams_dict = _parse_bam_inputs(bam_files, bam_list)
@@ -244,6 +249,10 @@ def normalize(
     ),
     threads: int = typer.Option(1, "--threads", "-t", help="Number of threads"),
     verbose: bool = typer.Option(False, "--verbose", "-V", help="Enable verbose debug logging"),
+    trace: bool = typer.Option(
+        False, "--trace", "-T",
+        help="Enable per-read Rust trace logging (slow). Implies --verbose.",
+    ),
 ):
     """
     Normalize variants (left-align + validate REF) without counting.
@@ -254,7 +263,7 @@ def normalize(
     """
     from .normalize import normalize_variants
 
-    setup_logging(verbose=verbose)
+    setup_logging(verbose=verbose, trace=trace)
     normalize_variants(
         variant_file=variant_file,
         reference=reference,

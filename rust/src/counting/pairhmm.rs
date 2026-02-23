@@ -215,7 +215,7 @@ pub fn classify_by_pairhmm(
     // Skip if too few usable bases
     let usable_count = read_quals.iter().filter(|&&q| q >= min_baseq).count();
     if usable_count < 3 {
-        debug!("classify_by_pairhmm: only {} usable bases — skipping", usable_count);
+        trace!("classify_by_pairhmm: only {} usable bases — skipping", usable_count);
         return ClassifyResult::neither(ClassifyPhase::Alignment);
     }
 
@@ -243,7 +243,7 @@ pub fn classify_by_pairhmm(
 
     let med_qual = median_qual(read_quals, min_baseq);
 
-    debug!(
+    trace!(
         "classify_by_pairhmm: ll_alt={:.3} ll_ref={:.3} llr={:.3} threshold={:.3} \
          read_len={} ref_hap={} alt_hap={}",
         *ll_alt, *ll_ref, llr, llr_threshold,
@@ -262,7 +262,7 @@ pub fn classify_by_pairhmm(
     } else {
         // Ambiguous: LLR within threshold — route to "neither"
         // Same logic as SW tie handling: contributes to DP but not RD/AD
-        debug!(
+        trace!(
             "PairHMM ambiguous (|llr|={:.3} <= threshold={:.3}) — routing to neither",
             llr.abs(), llr_threshold
         );
