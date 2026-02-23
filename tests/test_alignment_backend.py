@@ -50,10 +50,10 @@ def test_alignment_config_invalid_backend():
 
 def test_alignment_config_invalid_params():
     """Out-of-range gap probabilities are rejected."""
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         AlignmentConfig(hmm_gap_open=-0.1)  # negative
 
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         AlignmentConfig(hmm_gap_extend=1.5)  # > 1.0
 
 

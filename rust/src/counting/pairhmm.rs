@@ -22,7 +22,7 @@ use bio::stats::pairhmm::{
     EmissionParameters, GapParameters, PairHMM, StartEndGapParameters, XYEmission,
 };
 use bio::stats::{LogProb, Prob};
-use log::{debug, trace};
+use log::trace;
 
 use crate::types::Variant;
 use super::utils::{median_qual, build_haplotypes, ClassifyResult, ClassifyPhase};
@@ -460,12 +460,11 @@ mod tests {
         quals[4] = 2; // Q2 at the SNP position
         let gap_params = ConfigurableGapParams::standard(1e-4, 0.1);
 
-        let r = classify_by_pairhmm(read, &quals, &variant, 20, &gap_params, 2.3);
+        let _r = classify_by_pairhmm(read, &quals, &variant, 20, &gap_params, 2.3);
         // With Q2 at the mismatch position, the penalty is minimal,
         // so LLR should be low → ambiguous
         // This tests that low BQ reduces discrimination power
         // (exact outcome depends on LLR threshold)
-        debug!("Low-quality test: is_ref={} is_alt={}", r.is_ref, r.is_alt);
     }
 
     #[test]
