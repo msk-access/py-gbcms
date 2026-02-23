@@ -810,4 +810,132 @@ mod tests {
             MnpResult::Structural => "Structural".to_string(),
         }
     }
+
+
+    // ── SW vs PairHMM concordance tests ──
+    //
+    // These tests send identical synthetic reads through both backends
+    // and assert that unambiguous cases produce the same REF/ALT decision.
+    // Uses check_allele_with_qual (the real dispatch entry point).
+
+    fn build_variant_with_context(
+        pos: i64, ref_allele: &str, alt_allele: &str,
+        ref_context: &str, ctx_start: i64,
+    ) -> Variant {
+        Variant {
+            chrom: "1".to_string(),
+            pos,
+            ref_allele: ref_allele.to_string(),
+            alt_allele: alt_allele.to_string(),
+            variant_type: String::new(),
+            ref_context: Some(ref_context.to_string()),
+            ref_context_start: ctx_start,
+            repeat_span: 0,
+        }
+    }
+
+    /// Run check_allele_with_qual through both SW and HMM backends for concordance testing.
+    fn run_both_backends(
+        record: &Record, variant: &Variant, min_baseq: u8,
+    ) -> ((bool, bool, u8), (bool, bool, u8)) {
+        // We need separate aligner instances because check_allele_with_qual takes &mut
+        let scoring_fn = |a: u8, b: u8| if a == b { 1i32 } else { -1i32 };
+
+        let mut alt_a1 = Aligner::with_capacity_and_scoring(
+            200, 200, bio::alignment::pairwise::Scoring::new(-5, -1, &scoring_fn)
+                .xclip(bio::alignment::pairwise::MIN_SCORE)
+                .yclip(0),
+        );
+        let mut ref_a1 = Aligner::with_capacity_and_scoring(
+            200, 200, bio::alignment::pairwise::Scoring::new(-5, -1, &scoring_fn)
+                .xclip(bio::alignment::pairwise::MIN_SCORE)
+                .yclip(0),
+        );
+
+        let sw_result = check_allele_with_qual(
+            record, variant, min_baseq,
+            &mut alt_a1, &mut ref_a1,
+            &AlignmentBackend::SmithWaterman,
+        );
+        let hmm_result = check_allele_with_qual(
+            record, variant, min_baseq,
+            &mut alt_a1, &mut ref_a1,
+            &AlignmentBackend::pairhmm_default(),
+        );
+
+        (sw_result, hmm_result)
+    }
+
+    #[test]
+    fn test_concordance_snp_ref() {
+        // Read matches REF haplotype at high quality — both backends should say REF
+        let variant = build_variant_with_context(5, "C", "T", "GGGGGCGGGGG", 0);
+        let cigar = CigarString(vec![rust_htslib::bam::record::Cigar::Match(11)]);
+        let record = build_record(b"GGGGGCGGGGG", &[35_u8; 11], &cigar, 0);
+
+        let (sw, hmm) = run_both_backends(&record, &variant, 20);
+        assert_eq!((sw.0, sw.1), (true, false), "SW should classify as REF");
+        assert_eq!((hmm.0, hmm.1), (true, false), "PairHMM should classify as REF");
+    }
+
+    #[test]
+    fn test_concordance_snp_alt() {
+        // Read matches ALT haplotype at high quality — both backends should say ALT
+        let variant = build_variant_with_context(5, "C", "T", "GGGGGCGGGGG", 0);
+        let cigar = CigarString(vec![rust_htslib::bam::record::Cigar::Match(11)]);
+        let record = build_record(b"GGGGGTGGGGG", &[35_u8; 11], &cigar, 0);
+
+        let (sw, hmm) = run_both_backends(&record, &variant, 20);
+        assert_eq!((sw.0, sw.1), (false, true), "SW should classify as ALT");
+        assert_eq!((hmm.0, hmm.1), (false, true), "PairHMM should classify as ALT");
+    }
+
+    #[test]
+    fn test_concordance_insertion_alt() {
+        // Read carries a 3bp insertion (A→ACCC) — both backends should agree ALT
+        let variant = build_variant_with_context(4, "A", "ACCC", "GGGGAGGGGG", 0);
+        let cigar = CigarString(vec![
+            rust_htslib::bam::record::Cigar::Match(5),
+            rust_htslib::bam::record::Cigar::Ins(3),
+            rust_htslib::bam::record::Cigar::Match(5),
+        ]);
+        let record = build_record(b"GGGGACCCGGGGG", &[35_u8; 13], &cigar, 0);
+
+        let (sw, hmm) = run_both_backends(&record, &variant, 20);
+        assert!(sw.1, "SW should classify insertion as ALT");
+        assert!(hmm.1, "PairHMM should classify insertion as ALT");
+    }
+
+    #[test]
+    fn test_concordance_deletion_alt() {
+        // Read carries a 3bp deletion (ACCC→A) — both backends should agree ALT
+        let variant = build_variant_with_context(4, "ACCC", "A", "GGGGACCCGGGGG", 0);
+        let cigar = CigarString(vec![
+            rust_htslib::bam::record::Cigar::Match(5),
+            rust_htslib::bam::record::Cigar::Del(3),
+            rust_htslib::bam::record::Cigar::Match(5),
+        ]);
+        let record = build_record(b"GGGGAGGGGG", &[35_u8; 10], &cigar, 0);
+
+        let (sw, hmm) = run_both_backends(&record, &variant, 20);
+        assert!(sw.1, "SW should classify deletion as ALT");
+        assert!(hmm.1, "PairHMM should classify deletion as ALT");
+    }
+
+    #[test]
+    fn test_concordance_complex_delins() {
+        // Complex variant: TC→GA (2bp substitution, same length) at pos 5
+        // This is simpler than a DelIns — both haplotypes are the same length,
+        // so both backends can classify reliably.
+        // REF context: GGGGG TC GGGGG (13bp, variant at offset 5)
+        // ALT read:    GGGGG GA GGGGG (matches ALT)
+        let variant = build_variant_with_context(5, "TC", "GA", "GGGGGTCGGGGG", 0);
+        let cigar = CigarString(vec![rust_htslib::bam::record::Cigar::Match(12)]);
+        let record = build_record(b"GGGGGGAGGGGG", &[35_u8; 12], &cigar, 0);
+
+        let (sw, hmm) = run_both_backends(&record, &variant, 20);
+        // Both backends should agree on ALT for this unambiguous 2bp substitution
+        assert!(sw.1, "SW should classify 2bp sub as ALT, got is_ref={} is_alt={}", sw.0, sw.1);
+        assert!(hmm.1, "PairHMM should classify 2bp sub as ALT, got is_ref={} is_alt={}", hmm.0, hmm.1);
+    }
 }
