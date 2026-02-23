@@ -16,7 +16,6 @@ Variant definitions used:
 """
 
 import pysam
-import pytest
 
 from gbcms._rs import Variant, count_bam
 
@@ -115,15 +114,14 @@ class TestCaseA_ExactMatch:
 class TestCaseA_MaskedComparison:
     """Case A: Quality-aware masked comparison with ambiguity detection."""
 
-    @pytest.mark.xfail(
-        reason="Pre-existing: count_bam without prepare_variants doesn't set "
-        "ref_context, so Phase 3 fallback unavailable for rescue classification"
-    )
     def test_rescue_low_qual_mismatch(self, tmp_path):
         """REF=AT, ALT=CG. Read='CA' where 'A' is Q5 (index 5).
         Reliable bases: 'C' at index 4 (Q30).
         vs ALT: 'C' matches 'C' ✓  |  vs REF: 'C' ≠ 'A' ✗
         → ALT (rescued). This is the core Phase 2b use case.
+
+        Flow: check_mnp → LowQuality (Q5 < 20) → check_complex Phase 2
+        Case A masked comparison → ALT on reliable bases.
         """
         quals = [30, 30, 30, 30, 30, 5, 30, 30, 30, 30]
         #                           ^C  ^A(Q5)
@@ -133,15 +131,14 @@ class TestCaseA_MaskedComparison:
         assert counts.ad == 1, f"Expected ad=1 (rescued ALT), got {counts.ad}"
         assert counts.rd == 0
 
-    @pytest.mark.xfail(
-        reason="Pre-existing: count_bam without prepare_variants doesn't set "
-        "ref_context, so Phase 3 fallback unavailable for rescue classification"
-    )
     def test_ambiguous_low_qual_tail(self, tmp_path):
         """REF=AT, ALT=CG. Read='AT' where 'T' is Q5 (only distinguishing base masked).
         Reliable bases: 'A' at index 4 (Q30).
         vs ALT: 'A' ≠ 'C' ✗  |  vs REF: 'A' == 'A' ✓
         → REF (not ambiguous because reliable base distinguishes).
+
+        Flow: check_mnp → LowQuality (Q5 < 20) → check_complex Phase 2
+        Case A masked comparison → REF on reliable bases.
         """
         quals = [30, 30, 30, 30, 30, 5, 30, 30, 30, 30]
         reads = [_make_read("r1", "AAAAATAAAA", 96, ((0, 10),), quals=quals)]

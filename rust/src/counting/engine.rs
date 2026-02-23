@@ -547,7 +547,13 @@ fn check_allele_with_qual<F: Fn(u8, u8) -> i32>(
         match check_mnp(record, variant, min_baseq) {
             MnpResult::Ref(q) => ClassifyResult::is_ref(q, ClassifyPhase::MaskedCompare),
             MnpResult::Alt(q) => ClassifyResult::is_alt(q, ClassifyPhase::MaskedCompare),
-            MnpResult::LowQuality => ClassifyResult::neither(ClassifyPhase::Structural),
+            MnpResult::LowQuality => {
+                // Min-BQ-across-block rejected the MNP — fall through to
+                // check_complex where Phase 2 quality-masked comparison
+                // can classify using only the reliable (high-quality) bases.
+                trace!("MNP low-quality block, falling back to check_complex for masked comparison");
+                check_complex(record, variant, min_baseq, alt_aligner, ref_aligner, backend)
+            }
             MnpResult::ThirdAllele => ClassifyResult::neither(ClassifyPhase::MaskedCompare),
             MnpResult::Structural => {
                 trace!("MNP structural issue, falling back to Phase 3");
