@@ -67,6 +67,10 @@ pub enum AlignmentBackend {
 
 impl AlignmentBackend {
     /// Create PairHMM backend with default parameters.
+    ///
+    /// Convenience constructor for tests and downstream consumers.
+    /// In production, the Python CLI passes params directly to the
+    /// `PairHMM { ... }` variant via `count_bam()`.
     #[allow(dead_code)]
     pub fn pairhmm_default() -> Self {
         AlignmentBackend::PairHMM {

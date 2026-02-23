@@ -208,6 +208,9 @@ pub fn is_worth_realignment(record: &Record, win_start: i64, win_end: i64) -> bo
 /// haplotype that matches the read — critical for large deletions where the
 /// REF haplotype (e.g. 501bp for a 500bp deletion) far exceeds the read length
 /// (~150bp), and for off-center reads that don't symmetrically overlap the variant.
+///
+/// See also [`classify_by_pairhmm`](super::pairhmm::classify_by_pairhmm) for a
+/// probabilistic alternative using BQ-aware emission probabilities.
 pub fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
     read_seq: &[u8],
     read_quals: &[u8],

@@ -22,7 +22,7 @@ use bio::stats::pairhmm::{
     EmissionParameters, GapParameters, PairHMM, StartEndGapParameters, XYEmission,
 };
 use bio::stats::{LogProb, Prob};
-use log::debug;
+use log::{debug, trace};
 
 use crate::types::Variant;
 use super::utils::{median_qual, build_haplotypes};
@@ -249,6 +249,11 @@ pub fn classify_by_pairhmm(
         *ll_alt, *ll_ref, llr, llr_threshold,
         read_seq.len(), ref_hap.len(), alt_hap.len()
     );
+
+    // Trace-level: dump full sequences for deep debugging
+    trace!("PairHMM read_seq={}", String::from_utf8_lossy(read_seq));
+    trace!("PairHMM ref_hap={}", String::from_utf8_lossy(&ref_hap));
+    trace!("PairHMM alt_hap={}", String::from_utf8_lossy(&alt_hap));
 
     if llr > llr_threshold {
         (false, true, med_qual)  // ALT
