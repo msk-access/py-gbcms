@@ -401,23 +401,50 @@ pub fn check_complex<F: Fn(u8, u8) -> i32>(
     let matches_ref_len = recon_len == ref_bytes.len();
 
     // Guard: pathologically short reconstruction for large-REF variants.
-    // When a large region (e.g. 1024bp deletion) produces a tiny reconstruction
-    // (e.g. 1bp), direct Phase 2 comparison is unreliable — a 1bp recon would
-    // trivially match a 1bp ALT allele, causing overcounting.
-    // Skip to Phase 3 (Smith-Waterman alignment) which uses full haplotype context.
-    // Threshold scales with read length to accommodate long-read data:
-    //   100bp reads → max(50, 33) = 50 (unchanged)
-    //   150bp reads → max(50, 50) = 50 (unchanged)
-    //   300bp reads → max(50, 100) = 100 (scales up)
+    // When REF is much longer than ALT, a truncated reconstruction can
+    // trivially match ALT length — reads that don't fully span the REF
+    // region (soft-clipped, partial coverage) produce short reconstructions
+    // that coincidentally match alt_len. This causes massive overcounting.
+    //
+    // Two tiers:
+    // 1. Very large REF (>50bp or >1/3 read length): if recon < 10% of REF,
+    //    skip Phase 2 entirely (original guard for 1kb+ deletions).
+    // 2. REF significantly longer than ALT (>2x): if recon matches alt_len
+    //    but not ref_len, the reconstruction is likely truncated, not ALT
+    //    evidence. Skip Phase 2 for this case — let Phase 3 (SW/HMM) decide
+    //    with full haplotype context.
+    //
+    // Example: ARID1A 1:27024008 REF=42bp ALT=5bp. Reads with 5bp recon
+    // would match alt_len=5 in Case B → false ALT. Guard catches ref_len=42
+    // > 2*5=10 and skips to Phase 3.
     let ref_len = ref_bytes.len();
+    let alt_len = alt_bytes.len();
     let read_len = seq.len();
     let large_ref_threshold = std::cmp::max(50, read_len / 3);
-    if ref_len > large_ref_threshold && recon_len > 0 && recon_len < ref_len / 10 {
+
+    let skip_phase2 = if ref_len > large_ref_threshold && recon_len > 0 && recon_len < ref_len / 10 {
+        // Tier 1: Massive REF (e.g., 1kb deletion), tiny recon
         trace!(
             "check_complex: recon_len={} is <10% of ref_len={} — \
              skipping Phase 2 (unreliable direct comparison)",
             recon_len, ref_len
         );
+        true
+    } else if ref_len > 2 * alt_len && matches_alt_len && !matches_ref_len {
+        // Tier 2: REF >> ALT and recon matches only ALT length.
+        // Reconstruction is likely truncated, not true ALT evidence.
+        trace!(
+            "check_complex: ref_len={} > 2*alt_len={}, recon_len={} matches alt_len \
+             but not ref_len — skipping Phase 2 (likely truncated recon)",
+            ref_len, alt_len, recon_len
+        );
+        true
+    } else {
+        false
+    };
+
+    if skip_phase2 {
+        // Fall through to Phase 2.5 / Phase 3
     } else if matches_alt_len && matches_ref_len {
         // Case A: Equal-length REF and ALT — need simultaneous check + ambiguity detection
         let (mismatches_alt, mismatches_ref, reliable_count) =
@@ -495,7 +522,15 @@ pub fn check_complex<F: Fn(u8, u8) -> i32>(
         // Requires >1 edit margin for safety on very short strings.
         // Skip for large variants (>50bp) — O(n×m) is wasteful when Phase 3
         // SW handles them correctly with affine gap penalties.
-        if recon_len >= 2 && ref_bytes.len() <= 50 && alt_bytes.len() <= 50 {
+        //
+        // Also skip when REF >> ALT (>2x): Levenshtein is structurally
+        // biased toward the shorter allele. A 20bp reconstruction has
+        // d_alt ≈ 15 to a 5bp ALT, but d_ref ≈ 22-37 to a 42bp REF,
+        // causing massive false ALT overcounting. Phase 3's full
+        // haplotype alignment handles this correctly.
+        if recon_len >= 2 && ref_bytes.len() <= 50 && alt_bytes.len() <= 50
+            && ref_len <= 2 * alt_len
+        {
             let d_ref = levenshtein(&reconstructed_seq, ref_bytes);
             let d_alt = levenshtein(&reconstructed_seq, alt_bytes);
             trace!(
