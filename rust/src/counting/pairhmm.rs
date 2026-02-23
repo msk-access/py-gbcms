@@ -25,7 +25,7 @@ use bio::stats::{LogProb, Prob};
 use log::{debug, trace};
 
 use crate::types::Variant;
-use super::utils::{median_qual, build_haplotypes};
+use super::utils::{median_qual, build_haplotypes, ClassifyResult, ClassifyPhase};
 
 
 /// Base-quality-aware emission model for PairHMM.
@@ -197,7 +197,7 @@ impl StartEndGapParameters for SemiglobalMode {
 /// - `gap_params`: gap open/extend probabilities
 /// - `llr_threshold`: log-likelihood ratio threshold for confident calls
 ///
-/// Returns `(is_ref, is_alt, base_qual)` — same signature as `classify_by_alignment`.
+/// Returns `ClassifyResult` — same interface as `classify_by_alignment`.
 pub fn classify_by_pairhmm(
     read_seq: &[u8],
     read_quals: &[u8],
@@ -205,18 +205,18 @@ pub fn classify_by_pairhmm(
     min_baseq: u8,
     gap_params: &ConfigurableGapParams,
     llr_threshold: f64,
-) -> (bool, bool, u8) {
+) -> ClassifyResult {
     // Build haplotypes
     let (ref_hap, alt_hap) = match build_haplotypes(variant) {
         Some(haps) => haps,
-        None => return (false, false, 0),
+        None => return ClassifyResult::neither(ClassifyPhase::Alignment),
     };
 
     // Skip if too few usable bases
     let usable_count = read_quals.iter().filter(|&&q| q >= min_baseq).count();
     if usable_count < 3 {
         debug!("classify_by_pairhmm: only {} usable bases — skipping", usable_count);
-        return (false, false, 0);
+        return ClassifyResult::neither(ClassifyPhase::Alignment);
     }
 
     // Create PairHMM instance (reuses internal DP matrix)
@@ -256,9 +256,9 @@ pub fn classify_by_pairhmm(
     trace!("PairHMM alt_hap={}", String::from_utf8_lossy(&alt_hap));
 
     if llr > llr_threshold {
-        (false, true, med_qual)  // ALT
+        ClassifyResult::is_alt(med_qual, ClassifyPhase::Alignment)  // ALT
     } else if llr < -llr_threshold {
-        (true, false, med_qual)  // REF
+        ClassifyResult::is_ref(med_qual, ClassifyPhase::Alignment)  // REF
     } else {
         // Ambiguous: LLR within threshold — route to "neither"
         // Same logic as SW tie handling: contributes to DP but not RD/AD
@@ -267,9 +267,9 @@ pub fn classify_by_pairhmm(
             llr.abs(), llr_threshold
         );
         if *ll_alt > f64::NEG_INFINITY && *ll_ref > f64::NEG_INFINITY {
-            (false, false, med_qual)
+            ClassifyResult::new(false, false, med_qual, ClassifyPhase::Alignment)
         } else {
-            (false, false, 0)
+            ClassifyResult::neither(ClassifyPhase::Alignment)
         }
     }
 }
@@ -426,10 +426,10 @@ mod tests {
         let quals = &[35; 10];
         let gap_params = ConfigurableGapParams::standard(1e-4, 0.1);
 
-        let (is_ref, is_alt, bq) = classify_by_pairhmm(read, quals, &variant, 20, &gap_params, 2.3);
-        assert!(is_ref, "Expected REF for read matching REF haplotype");
-        assert!(!is_alt, "Should not be ALT");
-        assert!(bq > 0, "Should have non-zero quality");
+        let r = classify_by_pairhmm(read, quals, &variant, 20, &gap_params, 2.3);
+        assert!(r.is_ref, "Expected REF for read matching REF haplotype");
+        assert!(!r.is_alt, "Should not be ALT");
+        assert!(r.qual > 0, "Should have non-zero quality");
     }
 
     #[test]
@@ -443,10 +443,10 @@ mod tests {
         let quals = &[35; 10];
         let gap_params = ConfigurableGapParams::standard(1e-4, 0.1);
 
-        let (is_ref, is_alt, bq) = classify_by_pairhmm(read, quals, &variant, 20, &gap_params, 2.3);
-        assert!(!is_ref, "Should not be REF");
-        assert!(is_alt, "Expected ALT for read matching ALT haplotype");
-        assert!(bq > 0, "Should have non-zero quality");
+        let r = classify_by_pairhmm(read, quals, &variant, 20, &gap_params, 2.3);
+        assert!(!r.is_ref, "Should not be REF");
+        assert!(r.is_alt, "Expected ALT for read matching ALT haplotype");
+        assert!(r.qual > 0, "Should have non-zero quality");
     }
 
     #[test]
@@ -460,12 +460,12 @@ mod tests {
         quals[4] = 2; // Q2 at the SNP position
         let gap_params = ConfigurableGapParams::standard(1e-4, 0.1);
 
-        let (is_ref, is_alt, _bq) = classify_by_pairhmm(read, &quals, &variant, 20, &gap_params, 2.3);
+        let r = classify_by_pairhmm(read, &quals, &variant, 20, &gap_params, 2.3);
         // With Q2 at the mismatch position, the penalty is minimal,
         // so LLR should be low → ambiguous
         // This tests that low BQ reduces discrimination power
         // (exact outcome depends on LLR threshold)
-        debug!("Low-quality test: is_ref={} is_alt={}", is_ref, is_alt);
+        debug!("Low-quality test: is_ref={} is_alt={}", r.is_ref, r.is_alt);
     }
 
     #[test]
@@ -477,9 +477,9 @@ mod tests {
         let quals = &[2, 2]; // both below min_baseq=20
         let gap_params = ConfigurableGapParams::standard(1e-4, 0.1);
 
-        let (is_ref, is_alt, bq) = classify_by_pairhmm(read, quals, &variant, 20, &gap_params, 2.3);
-        assert!(!is_ref && !is_alt, "Should return neither with < 3 usable bases");
-        assert_eq!(bq, 0);
+        let r = classify_by_pairhmm(read, quals, &variant, 20, &gap_params, 2.3);
+        assert!(!r.is_ref && !r.is_alt, "Should return neither with < 3 usable bases");
+        assert_eq!(r.qual, 0);
     }
 
     #[test]
@@ -494,10 +494,10 @@ mod tests {
         let quals = &[35; 13];
         let gap_params = ConfigurableGapParams::standard(1e-4, 0.1);
 
-        let (is_ref, is_alt, bq) = classify_by_pairhmm(read, quals, &variant, 20, &gap_params, 2.3);
-        assert!(is_alt, "Expected ALT for read carrying insertion");
-        assert!(!is_ref);
-        assert!(bq > 0);
+        let r = classify_by_pairhmm(read, quals, &variant, 20, &gap_params, 2.3);
+        assert!(r.is_alt, "Expected ALT for read carrying insertion");
+        assert!(!r.is_ref);
+        assert!(r.qual > 0);
     }
 
     #[test]
@@ -511,9 +511,9 @@ mod tests {
         let quals = &[35; 10];
         let gap_params = ConfigurableGapParams::standard(1e-4, 0.1);
 
-        let (is_ref, is_alt, bq) = classify_by_pairhmm(read, quals, &variant, 20, &gap_params, 2.3);
-        assert!(is_alt, "Expected ALT for read carrying deletion");
-        assert!(!is_ref);
-        assert!(bq > 0);
+        let r = classify_by_pairhmm(read, quals, &variant, 20, &gap_params, 2.3);
+        assert!(r.is_alt, "Expected ALT for read carrying deletion");
+        assert!(!r.is_ref);
+        assert!(r.qual > 0);
     }
 }

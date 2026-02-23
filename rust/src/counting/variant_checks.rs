@@ -17,7 +17,7 @@ use log::{debug, trace, warn};
 use crate::types::Variant;
 use super::alignment::{classify_by_alignment, extract_raw_read_window, is_worth_realignment};
 use super::pairhmm::{classify_by_pairhmm, ConfigurableGapParams};
-use super::utils::{find_read_pos, masked_dual_compare, masked_single_compare, median_qual};
+use super::utils::{find_read_pos, masked_dual_compare, masked_single_compare, median_qual, ClassifyResult, ClassifyPhase};
 use super::AlignmentBackend;
 
 
@@ -38,7 +38,7 @@ fn phase3_classify<F: Fn(u8, u8) -> i32>(
     alt_aligner: &mut Aligner<F>,
     ref_aligner: &mut Aligner<F>,
     backend: &AlignmentBackend,
-) -> (bool, bool, u8) {
+) -> ClassifyResult {
     match backend {
         AlignmentBackend::SmithWaterman => {
             // Full Phases 0-2.5 then Phase 3 SW
@@ -111,17 +111,17 @@ pub enum MnpResult {
 }
 
 
-/// Returns (is_ref, is_alt, base_qual) for SNP variants.
+/// Returns `ClassifyResult` for SNP variants. Always Phase 0 (Structural).
 /// Quality is the base quality at the variant position.
-pub fn check_snp(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bool, u8) {
+pub fn check_snp(record: &Record, variant: &Variant, min_baseq: u8) -> ClassifyResult {
     let read_pos = match find_read_pos(record, variant.pos) {
         Some(p) => p,
-        None => return (false, false, 0),
+        None => return ClassifyResult::neither(ClassifyPhase::Structural),
     };
 
     let qual = record.qual()[read_pos];
     if qual < min_baseq {
-        return (false, false, 0);
+        return ClassifyResult::neither(ClassifyPhase::Structural);
     }
 
     let base = record.seq()[read_pos] as char;
@@ -143,7 +143,7 @@ pub fn check_snp(record: &Record, variant: &Variant, min_baseq: u8) -> (bool, bo
     let is_alt = base_upper == alt_char;
     // Return quality for fragment consensus scoring
     let base_qual = if is_ref || is_alt { qual } else { 0 };
-    (is_ref, is_alt, base_qual)
+    ClassifyResult::new(is_ref, is_alt, base_qual, ClassifyPhase::Structural)
 }
 
 /// Classify a read for an MNP variant using min-BQ-across-block strategy.
@@ -240,7 +240,7 @@ pub fn check_mnp(record: &Record, variant: &Variant, min_baseq: u8) -> MnpResult
 /// - **Case B** (`recon == alt` length only): masked comparison against ALT only.
 /// - **Case C** (`recon == ref` length only): masked comparison against REF only.
 ///
-/// Returns (is_ref, is_alt, base_qual) where base_qual is the median quality
+/// Returns `ClassifyResult` where base_qual is the median quality
 /// across the reconstructed haplotype bases, used for fragment consensus.
 pub fn check_complex<F: Fn(u8, u8) -> i32>(
     record: &Record,
@@ -249,7 +249,7 @@ pub fn check_complex<F: Fn(u8, u8) -> i32>(
     alt_aligner: &mut Aligner<F>,
     ref_aligner: &mut Aligner<F>,
     backend: &AlignmentBackend,
-) -> (bool, bool, u8) {
+) -> ClassifyResult {
     let start_pos = variant.pos;
     let end_pos = variant.pos + variant.ref_allele.len() as i64; // exclusive
 
@@ -431,23 +431,23 @@ pub fn check_complex<F: Fn(u8, u8) -> i32>(
         // Step 1: No reliable data → discard (MUST come first)
         if reliable_count == 0 {
             debug!("No reliable bases — discarding");
-            return (false, false, 0);
+            return ClassifyResult::neither(ClassifyPhase::MaskedCompare);
         }
 
         // Step 2: Ambiguity — reliable bases match both alleles → discard
         if mismatches_alt == 0 && mismatches_ref == 0 {
             debug!("Ambiguous: reliable bases match both REF and ALT — discarding");
-            return (false, false, 0);
+            return ClassifyResult::neither(ClassifyPhase::MaskedCompare);
         }
 
         // Step 3: Unambiguous match
         if mismatches_alt == 0 {
             debug!("Matches ALT on {} reliable bases, med_qual={}", reliable_count, med_haplotype_qual);
-            return (false, true, med_haplotype_qual);
+            return ClassifyResult::is_alt(med_haplotype_qual, ClassifyPhase::MaskedCompare);
         }
         if mismatches_ref == 0 {
             debug!("Matches REF on {} reliable bases, med_qual={}", reliable_count, med_haplotype_qual);
-            return (true, false, med_haplotype_qual);
+            return ClassifyResult::is_ref(med_haplotype_qual, ClassifyPhase::MaskedCompare);
         }
 
         // Step 4: Neither matches on reliable bases
@@ -464,7 +464,7 @@ pub fn check_complex<F: Fn(u8, u8) -> i32>(
 
         if reliable_count > 0 && mismatches == 0 {
             debug!("Matches ALT on {} reliable bases, med_qual={}", reliable_count, med_haplotype_qual);
-            return (false, true, med_haplotype_qual);
+            return ClassifyResult::is_alt(med_haplotype_qual, ClassifyPhase::MaskedCompare);
         }
     } else if matches_ref_len {
         // Case C: Only REF length matches — no ambiguity possible
@@ -478,7 +478,7 @@ pub fn check_complex<F: Fn(u8, u8) -> i32>(
 
         if reliable_count > 0 && mismatches == 0 {
             debug!("Matches REF on {} reliable bases, med_qual={}", reliable_count, med_haplotype_qual);
-            return (true, false, med_haplotype_qual);
+            return ClassifyResult::is_ref(med_haplotype_qual, ClassifyPhase::MaskedCompare);
         }
     } else {
         debug!(
@@ -504,10 +504,10 @@ pub fn check_complex<F: Fn(u8, u8) -> i32>(
             );
             if d_alt + 1 < d_ref {
                 debug!("Phase 2.5 → ALT (edit distance margin)");
-                return (false, true, med_haplotype_qual);
+                return ClassifyResult::is_alt(med_haplotype_qual, ClassifyPhase::Levenshtein);
             } else if d_ref + 1 < d_alt {
                 debug!("Phase 2.5 → REF (edit distance margin)");
-                return (true, false, med_haplotype_qual);
+                return ClassifyResult::is_ref(med_haplotype_qual, ClassifyPhase::Levenshtein);
             }
             // else: ambiguous, fall through to Phase 3
         }
@@ -537,7 +537,7 @@ pub fn check_complex<F: Fn(u8, u8) -> i32>(
                 "Phase 3 skipped: read has clean CIGAR over [{}, {})",
                 win_start, win_end
             );
-            return (false, false, 0);
+            return ClassifyResult::neither(ClassifyPhase::Alignment);
         }
 
         if let Some((sub_seq, sub_quals)) = extract_raw_read_window(
@@ -572,7 +572,7 @@ pub fn check_complex<F: Fn(u8, u8) -> i32>(
         }
     }
 
-    (false, false, 0)
+    ClassifyResult::neither(ClassifyPhase::Alignment)
 }
 
 
@@ -604,7 +604,7 @@ pub fn check_insertion<F: Fn(u8, u8) -> i32>(
     alt_aligner: &mut Aligner<F>,
     ref_aligner: &mut Aligner<F>,
     backend: &AlignmentBackend,
-) -> (bool, bool, u8) {
+) -> ClassifyResult {
     let cigar_view = record.cigar();
     let quals = record.qual();
     let mut ref_pos = record.pos();
@@ -661,7 +661,7 @@ pub fn check_insertion<F: Fn(u8, u8) -> i32>(
                                         "check_insertion: backward boundary match at pos {}, qual={}",
                                         anchor_pos, qual
                                     );
-                                    return (false, true, qual); // ALT — backward match
+                                    return ClassifyResult::is_alt(qual, ClassifyPhase::Structural); // ALT — backward match
                                 }
                             }
                         }
@@ -692,7 +692,7 @@ pub fn check_insertion<F: Fn(u8, u8) -> i32>(
                                             "check_insertion: strict match at pos {}, anchor_qual={}",
                                             anchor_pos, qual
                                         );
-                                        return (false, true, qual); // ALT — strict match
+                                        return ClassifyResult::is_alt(qual, ClassifyPhase::Structural); // ALT — strict match
                                     }
                                 }
                             }
@@ -812,7 +812,7 @@ pub fn check_insertion<F: Fn(u8, u8) -> i32>(
             "check_insertion: windowed match for variant at pos {}, anchor_qual={}",
             anchor_pos, anchor_qual
         );
-        return (false, true, anchor_qual); // ALT — windowed match
+        return ClassifyResult::is_alt(anchor_qual, ClassifyPhase::CigarRecon); // ALT — windowed match
     }
 
     // Phase 3 haplotype fallback: when a length-matching insertion exists nearby
@@ -841,9 +841,9 @@ pub fn check_insertion<F: Fn(u8, u8) -> i32>(
                 return phase3_classify(record, variant, min_baseq, alt_aligner, ref_aligner, backend);
             }
         }
-        return (true, false, anchor_qual); // REF — read covers anchor without matching insertion
+        return ClassifyResult::is_ref(anchor_qual, ClassifyPhase::Structural); // REF — read covers anchor without matching insertion
     }
-    (false, false, 0) // Read does not cover the variant region
+    ClassifyResult::neither(ClassifyPhase::Structural) // Read does not cover the variant region
 }
 
 /// Check if a read supports a deletion variant.
@@ -868,7 +868,7 @@ pub fn check_deletion<F: Fn(u8, u8) -> i32>(
     alt_aligner: &mut Aligner<F>,
     ref_aligner: &mut Aligner<F>,
     backend: &AlignmentBackend,
-) -> (bool, bool, u8) {
+) -> ClassifyResult {
     let cigar_view = record.cigar();
     let quals = record.qual();
     let mut ref_pos = record.pos();
@@ -913,7 +913,7 @@ pub fn check_deletion<F: Fn(u8, u8) -> i32>(
                                     "check_deletion: strict match at pos {}, anchor_qual={}",
                                     anchor_pos, qual
                                 );
-                                return (false, true, qual); // ALT — strict match
+                                return ClassifyResult::is_alt(qual, ClassifyPhase::Structural); // ALT — strict match
                             } else {
                                 // P0-3: D found at anchor but wrong length.
                                 // Use SV-caller-style reciprocal overlap matching:
@@ -948,7 +948,7 @@ pub fn check_deletion<F: Fn(u8, u8) -> i32>(
                                         reciprocal_overlap,
                                         qual
                                     );
-                                    return (false, true, qual); // ALT — tolerant match
+                                    return ClassifyResult::is_alt(qual, ClassifyPhase::Structural); // ALT — tolerant match
                                 }
 
                                 // Small deletion or low overlap: fall back to
@@ -1100,7 +1100,7 @@ pub fn check_deletion<F: Fn(u8, u8) -> i32>(
             "check_deletion: windowed match for variant at pos {}, anchor_qual={}",
             anchor_pos, anchor_qual
         );
-        return (false, true, anchor_qual); // ALT — windowed match
+        return ClassifyResult::is_alt(anchor_qual, ClassifyPhase::CigarRecon); // ALT — windowed match
     }
 
     // Note: an earlier version had an "interior REF guard" here that classified
@@ -1164,7 +1164,7 @@ pub fn check_deletion<F: Fn(u8, u8) -> i32>(
                 return phase3_classify(record, variant, min_baseq, alt_aligner, ref_aligner, backend);
             }
         }
-        return (true, false, anchor_qual); // REF
+        return ClassifyResult::is_ref(anchor_qual, ClassifyPhase::Structural); // REF
     }
-    (false, false, 0) // Read does not cover the variant region
+    ClassifyResult::neither(ClassifyPhase::Structural) // Read does not cover the variant region
 }

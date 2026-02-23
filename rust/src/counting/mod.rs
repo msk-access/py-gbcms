@@ -34,6 +34,7 @@ use bio::alignment::pairwise::Aligner;
 
 use fragment::{FragmentEvidence, hash_qname};
 use variant_checks::{check_snp, check_mnp, check_complex, check_insertion, check_deletion, MnpResult};
+use utils::{ClassifyResult, ClassifyPhase};
 
 
 /// Alignment backend selection for Phase 3 fallback classification.
@@ -305,6 +306,10 @@ fn count_single_variant(
     let mut alt_aligner = Aligner::new(gap_open, gap_extend, &score_fn);
     let mut ref_aligner = Aligner::new(gap_open, gap_extend, &score_fn);
 
+    // Per-phase classification counters
+    // Indices: 0=Structural, 1=CigarRecon, 2=MaskedCompare, 3=Levenshtein, 4=Alignment
+    let mut phase_counts = [0u32; 5];
+
     for result in bam.records() {
         let record = result.context("Error reading BAM record")?;
 
@@ -338,9 +343,13 @@ fn count_single_variant(
         }
 
         // Determine allele status and base quality at variant position
-        let (is_ref, is_alt, base_qual) = check_allele_with_qual(
+        let result = check_allele_with_qual(
             &record, variant, min_baseq, &mut alt_aligner, &mut ref_aligner, backend,
         );
+        let is_ref = result.is_ref;
+        let is_alt = result.is_alt;
+        let base_qual = result.qual;
+        phase_counts[result.phase as usize] += 1;
 
         // ── ANCHOR OVERLAP CHECK: The BAM fetch region is wider than the
         // variant footprint (±5bp for shifted indel detection). Reads that
@@ -409,10 +418,11 @@ fn count_single_variant(
             if !sibling_variants.is_empty() {
                 let mut is_sibling_alt = false;
                 for sib in sibling_variants {
-                    let (_sib_ref, sib_alt, _sib_qual) = check_allele_with_qual(
+                    let sib_result = check_allele_with_qual(
                         &record, sib, min_baseq,
                         &mut alt_aligner, &mut ref_aligner, backend,
                     );
+                    let sib_alt = sib_result.is_alt;
                     if sib_alt {
                         debug!(
                             "Multi-allelic guard: read is ALT for sibling {}>{} at {}:{}, \
@@ -501,13 +511,26 @@ fn count_single_variant(
     counts.fsb_pval = fsb_pval;
     counts.fsb_or = fsb_or;
 
+    // Log per-phase classification breakdown
+    debug!(
+        "Phase stats {}:{} {}→{}: P0(Structural)={} P1(CigarRecon)={} P2(Masked)={} P2.5(Lev)={} P3(Align)={} ({} backend)",
+        variant.chrom, variant.pos, variant.ref_allele, variant.alt_allele,
+        phase_counts[0], phase_counts[1], phase_counts[2], phase_counts[3], phase_counts[4],
+        match backend {
+            AlignmentBackend::SmithWaterman => "SW",
+            AlignmentBackend::PairHMM { .. } => "HMM",
+        }
+    );
+
     Ok(counts)
 }
 
 
 /// Check if a read supports the reference or alternate allele.
-/// Returns (is_ref, is_alt, base_quality) where base_quality is the
-/// quality score at the variant position (used for fragment consensus).
+/// Returns `ClassifyResult` containing (is_ref, is_alt, base_quality, phase)
+/// where base_quality is the quality score at the variant position
+/// (used for fragment consensus) and phase indicates which classification
+/// stage resolved the read.
 ///
 /// Each variant-type handler returns quality directly from its own CIGAR
 /// walk, ensuring correct quality extraction even for reads carrying
@@ -523,7 +546,7 @@ fn check_allele_with_qual<F: Fn(u8, u8) -> i32>(
     alt_aligner: &mut Aligner<F>,
     ref_aligner: &mut Aligner<F>,
     backend: &AlignmentBackend,
-) -> (bool, bool, u8) {
+) -> ClassifyResult {
     // Dispatch based on allele lengths rather than the variant_type string.
     // This is more robust than relying on upstream type labels, which can be
     // inconsistent (e.g., a caller emitting "COMPLEX" for what is really a
@@ -541,10 +564,10 @@ fn check_allele_with_qual<F: Fn(u8, u8) -> i32>(
     } else if ref_len == alt_len {
         // MNP: min-BQ-across-block strategy with selective Phase 3 fallback.
         match check_mnp(record, variant, min_baseq) {
-            MnpResult::Ref(q) => (true, false, q),
-            MnpResult::Alt(q) => (false, true, q),
-            MnpResult::LowQuality => (false, false, 0),
-            MnpResult::ThirdAllele => (false, false, 0),
+            MnpResult::Ref(q) => ClassifyResult::is_ref(q, ClassifyPhase::MaskedCompare),
+            MnpResult::Alt(q) => ClassifyResult::is_alt(q, ClassifyPhase::MaskedCompare),
+            MnpResult::LowQuality => ClassifyResult::neither(ClassifyPhase::Structural),
+            MnpResult::ThirdAllele => ClassifyResult::neither(ClassifyPhase::MaskedCompare),
             MnpResult::Structural => {
                 debug!("MNP structural issue, falling back to Phase 3");
                 check_complex(record, variant, min_baseq, alt_aligner, ref_aligner, backend)
@@ -837,7 +860,7 @@ mod tests {
     /// Run check_allele_with_qual through both SW and HMM backends for concordance testing.
     fn run_both_backends(
         record: &Record, variant: &Variant, min_baseq: u8,
-    ) -> ((bool, bool, u8), (bool, bool, u8)) {
+    ) -> (ClassifyResult, ClassifyResult) {
         // We need separate aligner instances because check_allele_with_qual takes &mut
         let scoring_fn = |a: u8, b: u8| if a == b { 1i32 } else { -1i32 };
 
@@ -874,8 +897,8 @@ mod tests {
         let record = build_record(b"GGGGGCGGGGG", &[35_u8; 11], &cigar, 0);
 
         let (sw, hmm) = run_both_backends(&record, &variant, 20);
-        assert_eq!((sw.0, sw.1), (true, false), "SW should classify as REF");
-        assert_eq!((hmm.0, hmm.1), (true, false), "PairHMM should classify as REF");
+        assert_eq!((sw.is_ref, sw.is_alt), (true, false), "SW should classify as REF");
+        assert_eq!((hmm.is_ref, hmm.is_alt), (true, false), "PairHMM should classify as REF");
     }
 
     #[test]
@@ -886,8 +909,8 @@ mod tests {
         let record = build_record(b"GGGGGTGGGGG", &[35_u8; 11], &cigar, 0);
 
         let (sw, hmm) = run_both_backends(&record, &variant, 20);
-        assert_eq!((sw.0, sw.1), (false, true), "SW should classify as ALT");
-        assert_eq!((hmm.0, hmm.1), (false, true), "PairHMM should classify as ALT");
+        assert_eq!((sw.is_ref, sw.is_alt), (false, true), "SW should classify as ALT");
+        assert_eq!((hmm.is_ref, hmm.is_alt), (false, true), "PairHMM should classify as ALT");
     }
 
     #[test]
@@ -902,8 +925,8 @@ mod tests {
         let record = build_record(b"GGGGACCCGGGGG", &[35_u8; 13], &cigar, 0);
 
         let (sw, hmm) = run_both_backends(&record, &variant, 20);
-        assert!(sw.1, "SW should classify insertion as ALT");
-        assert!(hmm.1, "PairHMM should classify insertion as ALT");
+        assert!(sw.is_alt, "SW should classify insertion as ALT");
+        assert!(hmm.is_alt, "PairHMM should classify insertion as ALT");
     }
 
     #[test]
@@ -918,8 +941,8 @@ mod tests {
         let record = build_record(b"GGGGAGGGGG", &[35_u8; 10], &cigar, 0);
 
         let (sw, hmm) = run_both_backends(&record, &variant, 20);
-        assert!(sw.1, "SW should classify deletion as ALT");
-        assert!(hmm.1, "PairHMM should classify deletion as ALT");
+        assert!(sw.is_alt, "SW should classify deletion as ALT");
+        assert!(hmm.is_alt, "PairHMM should classify deletion as ALT");
     }
 
     #[test]
@@ -935,7 +958,7 @@ mod tests {
 
         let (sw, hmm) = run_both_backends(&record, &variant, 20);
         // Both backends should agree on ALT for this unambiguous 2bp substitution
-        assert!(sw.1, "SW should classify 2bp sub as ALT, got is_ref={} is_alt={}", sw.0, sw.1);
-        assert!(hmm.1, "PairHMM should classify 2bp sub as ALT, got is_ref={} is_alt={}", hmm.0, hmm.1);
+        assert!(sw.is_alt, "SW should classify 2bp sub as ALT, got is_ref={} is_alt={}", sw.is_ref, sw.is_alt);
+        assert!(hmm.is_alt, "PairHMM should classify 2bp sub as ALT, got is_ref={} is_alt={}", hmm.is_ref, hmm.is_alt);
     }
 }

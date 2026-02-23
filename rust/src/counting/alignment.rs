@@ -13,7 +13,7 @@ use bio::alignment::pairwise::Aligner;
 use log::debug;
 
 use crate::types::Variant;
-use super::utils::{median_qual, build_haplotypes};
+use super::utils::{median_qual, build_haplotypes, ClassifyResult, ClassifyPhase};
 
 /// Extract contiguous **raw** read bases spanning a genomic window `[win_start, win_end)`.
 ///
@@ -218,10 +218,10 @@ pub fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
     min_baseq: u8,
     alt_aligner: &mut Aligner<F>,
     ref_aligner: &mut Aligner<F>,
-) -> (bool, bool, u8) {
+) -> ClassifyResult {
     let (ref_hap, alt_hap) = match build_haplotypes(variant) {
         Some(haps) => haps,
-        None => return (false, false, 0),
+        None => return ClassifyResult::neither(ClassifyPhase::Alignment),
     };
 
     // Mask low-quality bases as N so they don't bias scoring.
@@ -236,7 +236,7 @@ pub fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
     let usable_count = read_quals.iter().filter(|&&q| q >= min_baseq).count();
     if usable_count < 3 {
         debug!("classify_by_alignment: only {} usable bases — skipping", usable_count);
-        return (false, false, 0);
+        return ClassifyResult::neither(ClassifyPhase::Alignment);
     }
 
     // Use the provided reusable aligners (created once per variant).
@@ -329,9 +329,9 @@ pub fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
     }
 
     if is_alt {
-        (false, true, med_qual)
+        ClassifyResult::is_alt(med_qual, ClassifyPhase::Alignment)
     } else if is_ref {
-        (true, false, med_qual)
+        ClassifyResult::is_ref(med_qual, ClassifyPhase::Alignment)
     } else {
         // Tie or ambiguous: the read cannot confidently distinguish REF from
         // ALT.  Route to "neither" so this read still contributes to physical
@@ -342,9 +342,9 @@ pub fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
         let max_score = std::cmp::max(alt_aln.score, ref_aln.score);
         if max_score >= (read_len as i32) / 2 {
             debug!("Ambiguous tie (alt={}, ref={}) — routing to neither to preserve unbiased VAF", alt_aln.score, ref_aln.score);
-            (false, false, med_qual)
+            ClassifyResult::new(false, false, med_qual, ClassifyPhase::Alignment)
         } else {
-            (false, false, 0)
+            ClassifyResult::neither(ClassifyPhase::Alignment)
         }
     }
 }

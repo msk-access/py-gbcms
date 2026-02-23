@@ -11,6 +11,64 @@ use log::debug;
 use crate::types::Variant;
 
 
+/// Which classification phase resolved a read's allele assignment.
+///
+/// Used by `ClassifyResult` to track where in the multi-phase pipeline
+/// each read was classified. Phases are ordered by computational cost
+/// (cheapest first).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClassifyPhase {
+    /// Phase 0: Direct CIGAR pattern match (SNPs, structural indels)
+    Structural,
+    /// Phase 1: CIGAR-based sequence reconstruction + exact comparison
+    CigarRecon,
+    /// Phase 2: BQ-masked sequence comparison (tolerates low-quality bases)
+    MaskedCompare,
+    /// Phase 2.5: Levenshtein edit distance tiebreaker
+    Levenshtein,
+    /// Phase 3: Haplotype alignment (Smith-Waterman or PairHMM)
+    Alignment,
+}
+
+/// Result of per-read allele classification.
+///
+/// Replaces the raw `(bool, bool, u8)` tuple to carry phase provenance,
+/// enabling per-variant phase usage statistics.
+#[derive(Debug, Clone, Copy)]
+pub struct ClassifyResult {
+    pub is_ref: bool,
+    pub is_alt: bool,
+    pub qual: u8,
+    pub phase: ClassifyPhase,
+}
+
+impl ClassifyResult {
+    /// Create a new ClassifyResult.
+    #[inline]
+    pub fn new(is_ref: bool, is_alt: bool, qual: u8, phase: ClassifyPhase) -> Self {
+        Self { is_ref, is_alt, qual, phase }
+    }
+
+    /// Neither REF nor ALT — read didn't classify (e.g., no coverage, low quality).
+    #[inline]
+    pub fn neither(phase: ClassifyPhase) -> Self {
+        Self { is_ref: false, is_alt: false, qual: 0, phase }
+    }
+
+    /// Shorthand for REF classification.
+    #[inline]
+    pub fn is_ref(qual: u8, phase: ClassifyPhase) -> Self {
+        Self { is_ref: true, is_alt: false, qual, phase }
+    }
+
+    /// Shorthand for ALT classification.
+    #[inline]
+    pub fn is_alt(qual: u8, phase: ClassifyPhase) -> Self {
+        Self { is_ref: false, is_alt: true, qual, phase }
+    }
+
+}
+
 /// Build REF and ALT haplotypes from a variant's reference context.
 ///
 /// Shared by both Smith-Waterman (`classify_by_alignment`) and PairHMM
