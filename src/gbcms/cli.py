@@ -9,6 +9,7 @@ import typer
 
 from . import __version__
 from .models.core import (
+    AlignmentConfig,
     GbcmsConfig,
     OutputConfig,
     OutputFormat,
@@ -129,12 +130,48 @@ def run(
         1, "--threads", "-t", help="Number of threads for parallel processing"
     ),
     verbose: bool = typer.Option(False, "--verbose", "-V", help="Enable verbose debug logging"),
+    trace: bool = typer.Option(
+        False, "--trace", "-T",
+        help="Enable per-read Rust trace logging (slow). Implies --verbose. "
+             "Shows detailed per-read classification diagnostics from the counting engine.",
+    ),
+    # Alignment backend (advanced)
+    alignment_backend: str = typer.Option(
+        "sw",
+        "--alignment-backend",
+        help="Alignment backend for Phase 3 classification: 'sw' (Smith-Waterman, default) or 'hmm' (PairHMM).",
+    ),
+    hmm_llr_threshold: float = typer.Option(
+        2.3,
+        "--llr-threshold",
+        help="PairHMM log-likelihood ratio threshold for confident calls (default: ln(10) ≈ 2.3).",
+    ),
+    hmm_gap_open: float = typer.Option(
+        1e-4,
+        "--gap-open-prob",
+        help="PairHMM gap-open probability for non-repeat regions.",
+    ),
+    hmm_gap_extend: float = typer.Option(
+        0.1,
+        "--gap-extend-prob",
+        help="PairHMM gap-extend probability for non-repeat regions.",
+    ),
+    hmm_gap_open_repeat: float = typer.Option(
+        1e-2,
+        "--repeat-gap-open-prob",
+        help="PairHMM gap-open probability for tandem repeat regions.",
+    ),
+    hmm_gap_extend_repeat: float = typer.Option(
+        0.5,
+        "--repeat-gap-extend-prob",
+        help="PairHMM gap-extend probability for tandem repeat regions.",
+    ),
 ):
     """
     Run gbcms on one or more BAM files.
     """
     # Configure logging
-    setup_logging(verbose=verbose)
+    setup_logging(verbose=verbose, trace=trace)
 
     # Parse BAM inputs
     bams_dict = _parse_bam_inputs(bam_files, bam_list)
@@ -172,6 +209,15 @@ def run(
             indel=filter_indel,
         )
 
+        alignment_config = AlignmentConfig(
+            backend=alignment_backend,
+            hmm_llr_threshold=hmm_llr_threshold,
+            hmm_gap_open=hmm_gap_open,
+            hmm_gap_extend=hmm_gap_extend,
+            hmm_gap_open_repeat=hmm_gap_open_repeat,
+            hmm_gap_extend_repeat=hmm_gap_extend_repeat,
+        )
+
         config = GbcmsConfig(
             variant_file=variant_file,
             bam_files=bams_dict,
@@ -180,6 +226,7 @@ def run(
             quality=quality_config,
             filters=filter_config,
             threads=threads,
+            alignment=alignment_config,
             show_normalization=show_normalization,
         )
 
@@ -202,6 +249,10 @@ def normalize(
     ),
     threads: int = typer.Option(1, "--threads", "-t", help="Number of threads"),
     verbose: bool = typer.Option(False, "--verbose", "-V", help="Enable verbose debug logging"),
+    trace: bool = typer.Option(
+        False, "--trace", "-T",
+        help="Enable per-read Rust trace logging (slow). Implies --verbose.",
+    ),
 ):
     """
     Normalize variants (left-align + validate REF) without counting.
@@ -212,7 +263,7 @@ def normalize(
     """
     from .normalize import normalize_variants
 
-    setup_logging(verbose=verbose)
+    setup_logging(verbose=verbose, trace=trace)
     normalize_variants(
         variant_file=variant_file,
         reference=reference,

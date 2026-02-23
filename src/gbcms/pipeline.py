@@ -278,6 +278,9 @@ class Pipeline:
                     sibling_variants.append([])
 
             rust_start = time.perf_counter()
+            align_cfg = self.config.alignment
+            if align_cfg.backend != "sw":
+                logger.info("Using alignment backend: %s", align_cfg.backend)
             counts_list = _get_rs().count_bam(
                 str(bam_path),
                 rs_variants,
@@ -293,6 +296,12 @@ class Pipeline:
                 threads=self.config.threads,
                 fragment_qual_threshold=self.config.quality.fragment_qual_threshold,
                 sibling_variants=sibling_variants,
+                alignment_backend=align_cfg.backend,
+                hmm_llr_threshold=align_cfg.hmm_llr_threshold,
+                hmm_gap_open=align_cfg.hmm_gap_open,
+                hmm_gap_extend=align_cfg.hmm_gap_extend,
+                hmm_gap_open_repeat=align_cfg.hmm_gap_open_repeat,
+                hmm_gap_extend_repeat=align_cfg.hmm_gap_extend_repeat,
             )
             rust_time = time.perf_counter() - rust_start
             logger.debug("Rust count_bam completed in %.3fs", rust_time)
