@@ -25,7 +25,7 @@ use bio::stats::{LogProb, Prob};
 use log::debug;
 
 use crate::types::Variant;
-use super::utils::median_qual;
+use super::utils::{median_qual, build_haplotypes};
 
 
 /// Base-quality-aware emission model for PairHMM.
@@ -170,47 +170,6 @@ impl StartEndGapParameters for SemiglobalMode {
     }
 }
 
-
-/// Build ref and alt haplotypes from a variant's reference context.
-///
-/// This is the shared haplotype construction logic used by both the
-/// SW backend (`classify_by_alignment`) and the PairHMM backend
-/// (`classify_by_pairhmm`).
-///
-/// Returns `None` if the variant has no ref_context or the offset is invalid.
-/// Returns `Some((ref_hap, alt_hap))` on success.
-pub fn build_haplotypes(variant: &Variant) -> Option<(Vec<u8>, Vec<u8>)> {
-    let ref_context = variant.ref_context.as_ref()?.as_bytes();
-    let offset = (variant.pos - variant.ref_context_start) as usize;
-    let ref_len = variant.ref_allele.len();
-
-    if offset + ref_len > ref_context.len() {
-        debug!(
-            "build_haplotypes: offset {} + ref_len {} exceeds context len {}",
-            offset, ref_len, ref_context.len()
-        );
-        return None;
-    }
-
-    let left_ctx = &ref_context[..offset];
-    let right_ctx = &ref_context[offset + ref_len..];
-
-    let ref_hap: Vec<u8> = left_ctx
-        .iter()
-        .chain(variant.ref_allele.as_bytes())
-        .chain(right_ctx.iter())
-        .copied()
-        .collect();
-
-    let alt_hap: Vec<u8> = left_ctx
-        .iter()
-        .chain(variant.alt_allele.as_bytes())
-        .chain(right_ctx.iter())
-        .copied()
-        .collect();
-
-    Some((ref_hap, alt_hap))
-}
 
 
 /// Classify a read subsequence as REF or ALT using PairHMM.

@@ -16,7 +16,68 @@ use log::{debug, trace, warn};
 
 use crate::types::Variant;
 use super::alignment::{classify_by_alignment, extract_raw_read_window, is_worth_realignment};
+use super::pairhmm::{classify_by_pairhmm, ConfigurableGapParams};
 use super::utils::{find_read_pos, masked_dual_compare, masked_single_compare, median_qual};
+use super::AlignmentBackend;
+
+
+/// Backend-aware Phase 3 classification.
+///
+/// Routes to Smith-Waterman (`classify_by_alignment`) or PairHMM
+/// (`classify_by_pairhmm`) based on the active backend. Called from all
+/// Phase 3 fallback sites in variant_checks (check_complex, check_insertion,
+/// check_deletion).
+///
+/// For PairHMM: extracts the raw read window and computes LLR-based
+/// classification. Falls back to SW if extraction fails or the read
+/// window is too short.
+fn phase3_classify<F: Fn(u8, u8) -> i32>(
+    record: &Record,
+    variant: &Variant,
+    min_baseq: u8,
+    alt_aligner: &mut Aligner<F>,
+    ref_aligner: &mut Aligner<F>,
+    backend: &AlignmentBackend,
+) -> (bool, bool, u8) {
+    match backend {
+        AlignmentBackend::SmithWaterman => {
+            // Full Phases 0-2.5 then Phase 3 SW
+            check_complex(record, variant, min_baseq, alt_aligner, ref_aligner, backend)
+        }
+        AlignmentBackend::PairHMM {
+            llr_threshold,
+            gap_open,
+            gap_extend,
+            gap_open_repeat,
+            gap_extend_repeat,
+        } => {
+            // Try PairHMM directly with extracted read window
+            if let Some(ref _ctx) = variant.ref_context {
+                let win_start = variant.ref_context_start;
+                let win_end = win_start + variant.ref_context.as_ref().unwrap().len() as i64;
+
+                if let Some((sub_seq, sub_quals)) = extract_raw_read_window(
+                    record, win_start, win_end, variant.pos, variant.ref_allele.len()
+                ) {
+                    if sub_seq.len() >= 3 {
+                        let gap_params = if variant.repeat_span >= 10 {
+                            ConfigurableGapParams::repeat(*gap_open_repeat, *gap_extend_repeat)
+                        } else {
+                            ConfigurableGapParams::standard(*gap_open, *gap_extend)
+                        };
+
+                        return classify_by_pairhmm(
+                            &sub_seq, &sub_quals, variant, min_baseq,
+                            &gap_params, *llr_threshold,
+                        );
+                    }
+                }
+            }
+            // Fallback: if extraction fails, use check_complex (SW path)
+            check_complex(record, variant, min_baseq, alt_aligner, ref_aligner, backend)
+        }
+    }
+}
 
 
 /// Result from MNP classification — distinguishes failure reason so the
@@ -187,6 +248,7 @@ pub fn check_complex<F: Fn(u8, u8) -> i32>(
     min_baseq: u8,
     alt_aligner: &mut Aligner<F>,
     ref_aligner: &mut Aligner<F>,
+    backend: &AlignmentBackend,
 ) -> (bool, bool, u8) {
     let start_pos = variant.pos;
     let end_pos = variant.pos + variant.ref_allele.len() as i64; // exclusive
@@ -228,10 +290,26 @@ pub fn check_complex<F: Fn(u8, u8) -> i32>(
                         "check_complex: bypassing Phase 1/2 due to soft-clips/indels, Phase 3 extracted {} bases",
                         sub_seq.len()
                     );
-                    return classify_by_alignment(
-                        &sub_seq, &sub_quals, variant, min_baseq,
-                        alt_aligner, ref_aligner,
-                    );
+                    return match backend {
+                        AlignmentBackend::SmithWaterman => classify_by_alignment(
+                            &sub_seq, &sub_quals, variant, min_baseq,
+                            alt_aligner, ref_aligner,
+                        ),
+                        AlignmentBackend::PairHMM {
+                            llr_threshold, gap_open, gap_extend,
+                            gap_open_repeat, gap_extend_repeat,
+                        } => {
+                            let gap_params = if variant.repeat_span >= 10 {
+                                ConfigurableGapParams::repeat(*gap_open_repeat, *gap_extend_repeat)
+                            } else {
+                                ConfigurableGapParams::standard(*gap_open, *gap_extend)
+                            };
+                            classify_by_pairhmm(
+                                &sub_seq, &sub_quals, variant, min_baseq,
+                                &gap_params, *llr_threshold,
+                            )
+                        }
+                    };
                 }
             }
         }
@@ -470,10 +548,26 @@ pub fn check_complex<F: Fn(u8, u8) -> i32>(
                     "Phase 3 fallback: extracted {} raw bases over [{}, {})",
                     sub_seq.len(), win_start, win_end
                 );
-                return classify_by_alignment(
-                    &sub_seq, &sub_quals, variant, min_baseq,
-                    alt_aligner, ref_aligner,
-                );
+                return match backend {
+                    AlignmentBackend::SmithWaterman => classify_by_alignment(
+                        &sub_seq, &sub_quals, variant, min_baseq,
+                        alt_aligner, ref_aligner,
+                    ),
+                    AlignmentBackend::PairHMM {
+                        llr_threshold, gap_open, gap_extend,
+                        gap_open_repeat, gap_extend_repeat,
+                    } => {
+                        let gap_params = if variant.repeat_span >= 10 {
+                            ConfigurableGapParams::repeat(*gap_open_repeat, *gap_extend_repeat)
+                        } else {
+                            ConfigurableGapParams::standard(*gap_open, *gap_extend)
+                        };
+                        classify_by_pairhmm(
+                            &sub_seq, &sub_quals, variant, min_baseq,
+                            &gap_params, *llr_threshold,
+                        )
+                    }
+                };
             }
         }
     }
@@ -509,6 +603,7 @@ pub fn check_insertion<F: Fn(u8, u8) -> i32>(
     min_baseq: u8,
     alt_aligner: &mut Aligner<F>,
     ref_aligner: &mut Aligner<F>,
+    backend: &AlignmentBackend,
 ) -> (bool, bool, u8) {
     let cigar_view = record.cigar();
     let quals = record.qual();
@@ -731,7 +826,7 @@ pub fn check_insertion<F: Fn(u8, u8) -> i32>(
              falling back to check_complex for Phase 3 SW",
             expected_ins_len, anchor_pos
         );
-        return check_complex(record, variant, min_baseq, alt_aligner, ref_aligner);
+        return phase3_classify(record, variant, min_baseq, alt_aligner, ref_aligner, backend);
     }
 
     if found_ref_coverage {
@@ -742,8 +837,8 @@ pub fn check_insertion<F: Fn(u8, u8) -> i32>(
             let win_start = variant.ref_context_start;
             let win_end = win_start + ctx.len() as i64;
             if is_worth_realignment(record, win_start, win_end) {
-                debug!("check_insertion: read has soft-clips/indels, falling back to check_complex for Phase 3 SW");
-                return check_complex(record, variant, min_baseq, alt_aligner, ref_aligner);
+                debug!("check_insertion: read has soft-clips/indels, falling back to Phase 3");
+                return phase3_classify(record, variant, min_baseq, alt_aligner, ref_aligner, backend);
             }
         }
         return (true, false, anchor_qual); // REF — read covers anchor without matching insertion
@@ -772,6 +867,7 @@ pub fn check_deletion<F: Fn(u8, u8) -> i32>(
     min_baseq: u8,
     alt_aligner: &mut Aligner<F>,
     ref_aligner: &mut Aligner<F>,
+    backend: &AlignmentBackend,
 ) -> (bool, bool, u8) {
     let cigar_view = record.cigar();
     let quals = record.qual();
@@ -866,7 +962,7 @@ pub fn check_deletion<F: Fn(u8, u8) -> i32>(
                                     expected_del_len,
                                     reciprocal_overlap
                                 );
-                                return check_complex(record, variant, min_baseq, alt_aligner, ref_aligner);
+                                return phase3_classify(record, variant, min_baseq, alt_aligner, ref_aligner, backend);
                             }
                         }
                         found_ref_coverage = true;
@@ -1051,7 +1147,7 @@ pub fn check_deletion<F: Fn(u8, u8) -> i32>(
                 "check_deletion: no CIGAR match at pos {}, falling back to check_complex",
                 anchor_pos
             );
-            return check_complex(record, variant, min_baseq, alt_aligner, ref_aligner);
+            return phase3_classify(record, variant, min_baseq, alt_aligner, ref_aligner, backend);
         }
         // Otherwise: read doesn't overlap the anchor → no variant info
     }
@@ -1064,8 +1160,8 @@ pub fn check_deletion<F: Fn(u8, u8) -> i32>(
             let win_start = variant.ref_context_start;
             let win_end = win_start + ctx.len() as i64;
             if is_worth_realignment(record, win_start, win_end) {
-                debug!("check_deletion: read has soft-clips/indels, falling back to check_complex for Phase 3 SW");
-                return check_complex(record, variant, min_baseq, alt_aligner, ref_aligner);
+                debug!("check_deletion: read has soft-clips/indels, falling back to Phase 3");
+                return phase3_classify(record, variant, min_baseq, alt_aligner, ref_aligner, backend);
             }
         }
         return (true, false, anchor_qual); // REF

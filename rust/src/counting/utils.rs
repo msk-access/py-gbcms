@@ -1,11 +1,58 @@
 //! Shared utility functions for the counting engine.
 //!
 //! Contains helper functions used by multiple counting submodules:
-//! position lookup in BAM records, quality computation, and masked
-//! sequence comparison functions.
+//! position lookup in BAM records, quality computation, masked
+//! sequence comparison functions, and haplotype construction.
 
 use rust_htslib::bam::record::Cigar;
 use rust_htslib::bam::Record;
+use log::debug;
+
+use crate::types::Variant;
+
+
+/// Build REF and ALT haplotypes from a variant's reference context.
+///
+/// Shared by both Smith-Waterman (`classify_by_alignment`) and PairHMM
+/// (`classify_by_pairhmm`) backends. The haplotypes are constructed by
+/// splicing the variant's alleles into the reference context:
+///
+///   ref_hap = left_ctx + REF_allele + right_ctx  (should equal ref_context)
+///   alt_hap = left_ctx + ALT_allele + right_ctx
+///
+/// Returns `None` if the variant has no `ref_context` or the offset is invalid.
+pub fn build_haplotypes(variant: &Variant) -> Option<(Vec<u8>, Vec<u8>)> {
+    let ref_context = variant.ref_context.as_ref()?.as_bytes();
+    let offset = (variant.pos - variant.ref_context_start) as usize;
+    let ref_len = variant.ref_allele.len();
+
+    if offset + ref_len > ref_context.len() {
+        debug!(
+            "build_haplotypes: offset {} + ref_len {} exceeds context len {}",
+            offset, ref_len, ref_context.len()
+        );
+        return None;
+    }
+
+    let left_ctx = &ref_context[..offset];
+    let right_ctx = &ref_context[offset + ref_len..];
+
+    let ref_hap: Vec<u8> = left_ctx
+        .iter()
+        .chain(variant.ref_allele.as_bytes())
+        .chain(right_ctx.iter())
+        .copied()
+        .collect();
+
+    let alt_hap: Vec<u8> = left_ctx
+        .iter()
+        .chain(variant.alt_allele.as_bytes())
+        .chain(right_ctx.iter())
+        .copied()
+        .collect();
+
+    Some((ref_hap, alt_hap))
+}
 
 /// Find the read index corresponding to a genomic position.
 pub fn find_read_pos(record: &Record, target_pos: i64) -> Option<usize> {

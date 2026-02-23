@@ -13,7 +13,7 @@ use bio::alignment::pairwise::Aligner;
 use log::debug;
 
 use crate::types::Variant;
-use super::utils::median_qual;
+use super::utils::{median_qual, build_haplotypes};
 
 /// Extract contiguous **raw** read bases spanning a genomic window `[win_start, win_end)`.
 ///
@@ -216,44 +216,10 @@ pub fn classify_by_alignment<F: Fn(u8, u8) -> i32>(
     alt_aligner: &mut Aligner<F>,
     ref_aligner: &mut Aligner<F>,
 ) -> (bool, bool, u8) {
-    let ref_context = match &variant.ref_context {
-        Some(ctx) => ctx.as_bytes(),
+    let (ref_hap, alt_hap) = match build_haplotypes(variant) {
+        Some(haps) => haps,
         None => return (false, false, 0),
     };
-
-    // Build haplotypes from ref_context.
-    // ref_context covers [ref_context_start, ref_context_start + len).
-    // The variant sits at variant.pos within this context.
-    let offset = (variant.pos - variant.ref_context_start) as usize;
-    let ref_len = variant.ref_allele.len();
-
-    // Guard: ensure offset is valid within ref_context
-    if offset + ref_len > ref_context.len() {
-        debug!(
-            "classify_by_alignment: offset {} + ref_len {} exceeds context len {}",
-            offset, ref_len, ref_context.len()
-        );
-        return (false, false, 0);
-    }
-
-    let left_ctx = &ref_context[..offset];
-    let right_ctx = &ref_context[offset + ref_len..];
-
-    // ref_hap = left_ctx + REF + right_ctx (should equal ref_context)
-    let ref_hap: Vec<u8> = left_ctx
-        .iter()
-        .chain(variant.ref_allele.as_bytes())
-        .chain(right_ctx.iter())
-        .copied()
-        .collect();
-
-    // alt_hap = left_ctx + ALT + right_ctx
-    let alt_hap: Vec<u8> = left_ctx
-        .iter()
-        .chain(variant.alt_allele.as_bytes())
-        .chain(right_ctx.iter())
-        .copied()
-        .collect();
 
     // Mask low-quality bases as N so they don't bias scoring.
     let masked_seq: Vec<u8> = read_seq

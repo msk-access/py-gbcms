@@ -34,7 +34,6 @@ use bio::alignment::pairwise::Aligner;
 
 use fragment::{FragmentEvidence, hash_qname};
 use variant_checks::{check_snp, check_mnp, check_complex, check_insertion, check_deletion, MnpResult};
-use pairhmm::{classify_by_pairhmm, ConfigurableGapParams};
 
 
 /// Alignment backend selection for Phase 3 fallback classification.
@@ -544,80 +543,22 @@ fn check_allele_with_qual<F: Fn(u8, u8) -> i32>(
             MnpResult::ThirdAllele => (false, false, 0),
             MnpResult::Structural => {
                 debug!("MNP structural issue, falling back to Phase 3");
-                phase3_dispatch(record, variant, min_baseq, alt_aligner, ref_aligner, backend)
+                check_complex(record, variant, min_baseq, alt_aligner, ref_aligner, backend)
             }
         }
     } else if ref_len == 1 {
-        // Pure insertion: CIGAR-based fast paths, then Phase 3 fallback.
-        // Note: check_insertion/check_deletion internally call check_complex
-        // which uses classify_by_alignment (SW). When PairHMM is selected,
-        // we use the same CIGAR-based fast paths but replace the Phase 3
-        // fallback for cases where CIGAR matching fails entirely.
-        check_insertion(record, variant, min_baseq, alt_aligner, ref_aligner)
+        // Pure insertion: CIGAR-based fast paths, then backend-aware Phase 3 fallback
+        check_insertion(record, variant, min_baseq, alt_aligner, ref_aligner, backend)
     } else if alt_len == 1 {
-        // Pure deletion: same strategy as insertion
-        check_deletion(record, variant, min_baseq, alt_aligner, ref_aligner)
+        // Pure deletion: CIGAR-based fast paths, then backend-aware Phase 3 fallback
+        check_deletion(record, variant, min_baseq, alt_aligner, ref_aligner, backend)
     } else {
         // Complex: ref_len != alt_len, both > 1 (e.g., DelIns)
-        // Direct Phase 3 dispatch based on backend
-        phase3_dispatch(record, variant, min_baseq, alt_aligner, ref_aligner, backend)
+        check_complex(record, variant, min_baseq, alt_aligner, ref_aligner, backend)
     }
 }
 
 
-/// Phase 3 haplotype-level classification dispatch.
-///
-/// Routes to either Smith-Waterman or PairHMM based on the active backend.
-/// This is the common entry point for all Phase 3 fallbacks across variant types.
-fn phase3_dispatch<F: Fn(u8, u8) -> i32>(
-    record: &Record,
-    variant: &Variant,
-    min_baseq: u8,
-    alt_aligner: &mut Aligner<F>,
-    ref_aligner: &mut Aligner<F>,
-    backend: &AlignmentBackend,
-) -> (bool, bool, u8) {
-    match backend {
-        AlignmentBackend::SmithWaterman => {
-            check_complex(record, variant, min_baseq, alt_aligner, ref_aligner)
-        }
-        AlignmentBackend::PairHMM {
-            llr_threshold,
-            gap_open,
-            gap_extend,
-            gap_open_repeat,
-            gap_extend_repeat,
-        } => {
-            // Extract raw read window for PairHMM classification
-            use alignment::extract_raw_read_window;
-
-            if let Some(ref _ctx) = variant.ref_context {
-                let win_start = variant.ref_context_start;
-                let win_end = win_start + variant.ref_context.as_ref().unwrap().len() as i64;
-
-                if let Some((sub_seq, sub_quals)) = extract_raw_read_window(
-                    record, win_start, win_end, variant.pos, variant.ref_allele.len()
-                ) {
-                    if sub_seq.len() >= 3 {
-                        // Select gap parameters based on repeat context
-                        let gap_params = if variant.repeat_span >= 10 {
-                            ConfigurableGapParams::repeat(*gap_open_repeat, *gap_extend_repeat)
-                        } else {
-                            ConfigurableGapParams::standard(*gap_open, *gap_extend)
-                        };
-
-                        return classify_by_pairhmm(
-                            &sub_seq, &sub_quals, variant, min_baseq,
-                            &gap_params, *llr_threshold,
-                        );
-                    }
-                }
-            }
-            // Fallback: if no ref_context or extraction fails, use SW
-            check_complex(record, variant, min_baseq, alt_aligner, ref_aligner)
-        }
-    }
-}
 
 
 #[cfg(test)]
