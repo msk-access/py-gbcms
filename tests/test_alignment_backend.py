@@ -77,10 +77,14 @@ def _base_args(vcf, bam, fasta, output_dir):
     """Build base CLI args for the 'run' command."""
     return [
         "run",
-        "-v", str(vcf),
-        "-b", str(bam),
-        "-f", str(fasta),
-        "-o", str(output_dir),
+        "-v",
+        str(vcf),
+        "-b",
+        str(bam),
+        "-f",
+        str(fasta),
+        "-o",
+        str(output_dir),
     ]
 
 
@@ -121,12 +125,18 @@ def test_cli_custom_hmm_params(mock_pipeline_cls, tmp_path):
     mock_pipeline_cls.return_value = MagicMock()
 
     args = _base_args(vcf, bam, fasta, output_dir) + [
-        "--alignment-backend", "hmm",
-        "--llr-threshold", "3.0",
-        "--gap-open-prob", "1e-3",
-        "--gap-extend-prob", "0.2",
-        "--repeat-gap-open-prob", "5e-2",
-        "--repeat-gap-extend-prob", "0.6",
+        "--alignment-backend",
+        "hmm",
+        "--llr-threshold",
+        "3.0",
+        "--gap-open-prob",
+        "1e-3",
+        "--gap-extend-prob",
+        "0.2",
+        "--repeat-gap-open-prob",
+        "5e-2",
+        "--repeat-gap-extend-prob",
+        "0.6",
     ]
     result = runner.invoke(app, args)
     assert result.exit_code == 0
@@ -145,7 +155,8 @@ def test_cli_invalid_backend(tmp_path):
     vcf, bam, fasta, output_dir = _make_test_files(tmp_path)
 
     args = _base_args(vcf, bam, fasta, output_dir) + [
-        "--alignment-backend", "invalid_backend",
+        "--alignment-backend",
+        "invalid_backend",
     ]
     result = runner.invoke(app, args)
     # Should fail with validation error from AlignmentConfig

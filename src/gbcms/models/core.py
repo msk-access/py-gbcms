@@ -175,9 +175,7 @@ class AlignmentConfig(BaseModel):
         """Validate backend is a supported value."""
         v = v.lower().strip()
         if v not in ("sw", "hmm", "pairhmm"):
-            raise ValueError(
-                f"Invalid alignment backend '{v}'. Must be 'sw' or 'hmm'."
-            )
+            raise ValueError(f"Invalid alignment backend '{v}'. Must be 'sw' or 'hmm'.")
         return v
 
 

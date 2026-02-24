@@ -131,9 +131,11 @@ def run(
     ),
     verbose: bool = typer.Option(False, "--verbose", "-V", help="Enable verbose debug logging"),
     trace: bool = typer.Option(
-        False, "--trace", "-T",
+        False,
+        "--trace",
+        "-T",
         help="Enable per-read Rust trace logging (slow). Implies --verbose. "
-             "Shows detailed per-read classification diagnostics from the counting engine.",
+        "Shows detailed per-read classification diagnostics from the counting engine.",
     ),
     # Alignment backend (advanced)
     alignment_backend: str = typer.Option(
@@ -250,7 +252,9 @@ def normalize(
     threads: int = typer.Option(1, "--threads", "-t", help="Number of threads"),
     verbose: bool = typer.Option(False, "--verbose", "-V", help="Enable verbose debug logging"),
     trace: bool = typer.Option(
-        False, "--trace", "-T",
+        False,
+        "--trace",
+        "-T",
         help="Enable per-read Rust trace logging (slow). Implies --verbose.",
     ),
 ):
