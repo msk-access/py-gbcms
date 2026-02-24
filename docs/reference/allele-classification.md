@@ -511,9 +511,9 @@ When Phase 2's strict length comparison fails (Case A/B/C don't match), py-gbcms
 !!! note "Phase 2.5 is Supplementary"
     Phase 2.5 helps edge cases with longer reconstructions. For variants like EPHA7 where the strict reconstruction is only 1bp (`"C"`), the `recon_len >= 2` guard skips Phase 2.5 entirely — the fix comes from Phase 3's local fallback instead.
 
-### Phase 3: Smith-Waterman Fallback
+### Phase 3: Alignment Fallback
 
-When Phase 2 and Phase 2.5 both fail, the engine expands to the full `ref_context` window and performs **dual-haplotype Smith-Waterman alignment** (inspired by [indelpost](https://doi.org/10.1093/bioinformatics/btab601)):
+When Phase 2 and Phase 2.5 both fail, the engine expands to the full `ref_context` window and performs **dual-haplotype alignment** using one of two backends:
 
 1. **Build haplotypes**: `REF_hap = left_ctx + REF + right_ctx`, `ALT_hap = left_ctx + ALT + right_ctx`
 2. **Mask**: Replace low-quality bases with `N` (scores 0 against any base)
@@ -530,6 +530,9 @@ When Phase 2 and Phase 2.5 both fail, the engine expands to the full `ref_contex
 | Score margin | ≥2 | Prevents ambiguous calls |
 | Min usable bases | 3 | Reads with <3 usable bases are skipped |
 
+!!! tip "Alternative: PairHMM Backend"
+    Pass `--alignment-backend hmm` to use a **PairHMM** (pair hidden Markov model) instead of Smith-Waterman. PairHMM integrates base quality probabilities directly into the alignment score, using Log-Likelihood Ratio (LLR) instead of edit-distance scoring. Default LLR threshold: 2.3 (≈ ln(10), i.e., 10:1 odds). Gap probabilities are tunable separately for repeat vs non-repeat regions. See [CLI Reference](../cli/run.md#advanced-alignment-backend).
+
 #### Dual-Trigger Local Fallback
 
 For **complex variants** (both alleles > 1bp with different lengths), semiglobal alignment can produce confident but incorrect calls when the MAF/VCF definition is incomplete (e.g., a complex variant missing an adjacent SNV). The ALT haplotype then has a "frameshifted flank" — right-context bases that don't match the biological read. Semiglobal forces gap penalties through this invalid flank.
@@ -545,10 +548,6 @@ Two conditions detect low-confidence semiglobal results:
 | **Poor quality** | `max(scores) < read_len / 2` | Both haplotypes heavily penalized |
 
 When **either** trigger fires, the engine retries with **local alignment** (`Aligner::local()`), which soft-clips the bad flank and finds the best matching substring without penalizing overhangs on either side.
-
-!!! tip "Performance: Pre-Filter"
-    To avoid expensive O(n×m) alignment on clean REF reads (~80-90% at any locus) containing complex structural shifts, `is_worth_realignment()` checks if the read has soft-clips, indels, or mismatches near the variant window. Clean M-only reads are skipped. 
-    **Exception:** Because Multi-Nucleotide Variants (MNPs) natively map cleanly without structural CIGAR shifts, they explicitly bypass this filter to enter Phase 3 extraction securely.
 
 !!! tip "Performance: Aligner Reuse"
     SW aligners are created **once per variant** in `count_single_variant()` and reused for all reads. The `bio::alignment::pairwise::Aligner` reuses internal DP buffers, avoiding repeated heap allocation.
