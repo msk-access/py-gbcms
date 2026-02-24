@@ -8,7 +8,7 @@ If you use py-gbcms in your research, please cite:
 @software{py-gbcms,
   author = {Shah, Ronak H.},
   title = {py-gbcms: High-performance variant counting from BAM files},
-  year = {2024},
+  year = {2025},
   url = {https://github.com/msk-access/py-gbcms},
   organization = {Memorial Sloan Kettering Cancer Center}
 }

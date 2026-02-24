@@ -14,8 +14,8 @@
 
 === "Docker"
     ```bash
-    docker pull ghcr.io/msk-access/py-gbcms:2.7.0
-    docker run --rm ghcr.io/msk-access/py-gbcms:2.7.0 gbcms --help
+    docker pull ghcr.io/msk-access/py-gbcms:X.Y.Z
+    docker run --rm ghcr.io/msk-access/py-gbcms:X.Y.Z gbcms --help
     ```
 
 === "From Source"
@@ -75,19 +75,19 @@ For RHEL 8, CentOS 8, or HPC systems with glibc < 2.34:
 
 === "Singularity (HPC)"
     ```bash
-    singularity pull docker://ghcr.io/msk-access/py-gbcms:2.7.0
-    singularity exec py-gbcms_2.7.0.sif gbcms --help
+    singularity pull docker://ghcr.io/msk-access/py-gbcms:X.Y.Z
+    singularity exec py-gbcms_X.Y.Z.sif gbcms --help
     
     # With data binding
-    singularity exec -B /path/to/data:/data py-gbcms_2.7.0.sif gbcms run \
+    singularity exec -B /path/to/data:/data py-gbcms_X.Y.Z.sif gbcms run \
       --variants /data/variants.vcf --bam /data/sample.bam \
       --fasta /data/ref.fa --output-dir /data/results/
     ```
 
 === "Docker"
     ```bash
-    docker pull ghcr.io/msk-access/py-gbcms:2.7.0
-    docker run --rm -v $(pwd):/data ghcr.io/msk-access/py-gbcms:2.7.0 gbcms --help
+    docker pull ghcr.io/msk-access/py-gbcms:X.Y.Z
+    docker run --rm -v $(pwd):/data ghcr.io/msk-access/py-gbcms:X.Y.Z gbcms --help
     ```
 
 !!! note "Why not pip install?"
@@ -102,7 +102,7 @@ For RHEL 8, CentOS 8, or HPC systems with glibc < 2.34:
 ```bash
 # Check installation
 gbcms --version
-# Expected: 2.7.0
+# Expected: X.Y.Z (your installed version)
 
 # Test help
 gbcms --help
@@ -115,7 +115,7 @@ gbcms --help
 ```bash
 docker run --rm \
   -v $(pwd):/data \
-  ghcr.io/msk-access/py-gbcms:2.7.0 \
+  ghcr.io/msk-access/py-gbcms:X.Y.Z \
   gbcms run \
     --variants /data/variants.vcf \
     --bam /data/sample.bam \

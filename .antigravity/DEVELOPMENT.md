@@ -17,28 +17,30 @@ gbcms run -v variants.vcf -b sample.bam -f reference.fa -o output/
 
 ```
 py-gbcms/
-├── src/gbcms/          # Python package
-│   ├── cli.py          # Entry point
-│   ├── pipeline.py     # Orchestration
+├── src/gbcms/          # Python package (~2100 LOC)
+│   ├── cli.py          # Entry point (~350 LOC)
+│   ├── pipeline.py     # Orchestration (~450 LOC)
 │   ├── io/             # I/O adapters
 │   ├── core/           # Coordinate kernel
-│   ├── models/         # Pydantic models
+│   ├── models/         # Pydantic models (GbcmsConfig, AlignmentConfig)
 │   └── utils/          # Logging utilities
-├── rust/               # Rust extension (top-level)
+├── rust/               # Rust extension (~5000 LOC)
 │   ├── src/
-│   │   ├── counting.rs # BAM processing (~1070 LOC)
+│   │   ├── counting/   # 7 modules: engine, variant_checks, alignment, pairhmm, fragment, utils, mod
+│   │   ├── normalize/  # 7 modules: engine, left_align, decomp, fasta, repeat, types, mod
 │   │   ├── types.rs    # PyO3 bindings
 │   │   ├── stats.rs    # Fisher's test
 │   │   └── lib.rs      # Module exports
 │   └── Cargo.toml
-├── tests/              # Test suite (47 tests)
+├── tests/              # Test suite (14 test files)
 │   ├── test_accuracy.py
 │   ├── test_shifted_indels.py   # Windowed indel detection
 │   ├── test_fuzzy_complex.py    # Masked complex matching
+│   ├── test_alignment_backend.py # SW vs PairHMM
 │   ├── test_filters.py
 │   ├── test_strand_counts.py
 │   └── ...
-└── docs/               # Documentation
+└── docs/               # Documentation (MkDocs)
 ```
 
 ## Building (Unified Python + Rust)

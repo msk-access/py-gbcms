@@ -33,35 +33,33 @@ Each read passing filters is counted independently. No deduplication is applied 
 
 ```mermaid
 flowchart TD
-    subgraph ReadLevel ["📖 Read-Level Counting"]
-        R1[Read 1 fwd → ALT]:::altread
-        R2[Read 2 rev → ALT]:::altread
-        R3[Read 3 fwd → REF]:::refread
-        R4[Read 4 rev → REF]:::refread
-        R5[Read 5 fwd → ALT]:::altread
-        R6[Read 6 rev → REF]:::refread
-    end
+    Fetch(["📥 Fetch reads from<br/>±5bp window"]) --> Filters["🔍 Apply read filters<br/>(MAPQ, dup, etc.)"]
+    Filters --> Classify["🧬 Allele classification<br/>(check_snp / check_insertion / etc.)"]
+    Classify --> Anchor{"Read start ≤<br/>variant POS?"}
+    Anchor -->|"Yes"| DP["✅ Count in DP<br/>(REF, ALT, or neither)"]
+    Anchor -->|"No"| ClassCheck{"Classified as<br/>REF or ALT?"}
+    ClassCheck -->|"Yes (shifted indel)"| DP
+    ClassCheck -->|"No"| Skip(["⏭️ Skip — outside<br/>variant footprint"]):::skip
+    DP --> Allele{"Allele?"}
+    Allele -->|REF| RD["RD += 1"]:::ref
+    Allele -->|ALT| AD["AD += 1"]:::alt
+    Allele -->|Neither| Neither["DP only<br/>(no RD/AD)"]:::neither
 
-    subgraph Results ["📊 Read Counts"]
-        Counts["DP=6  RD=3  AD=3<br/>DP_fwd=3  DP_rev=3<br/>RD_fwd=1  RD_rev=2<br/>AD_fwd=2  AD_rev=1"]
-    end
-
-    R1 --> Results
-    R2 --> Results
-    R3 --> Results
-    R4 --> Results
-    R5 --> Results
-    R6 --> Results
-
-    classDef altread fill:#e74c3c15,stroke:#e74c3c;
-    classDef refread fill:#27ae6015,stroke:#27ae60;
+    classDef ref fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px;
+    classDef alt fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px;
+    classDef neither fill:#95a5a6,color:#fff,stroke:#7f8c8d,stroke-width:2px;
+    classDef skip fill:#bdc3c7,color:#000,stroke:#95a5a6;
 ```
+
+
+!!! info "Anchor Overlap Standard"
+    DP gating uses **single-position** anchor overlap: `read_start ≤ variant.pos`. This matches the depth definition used by Mutect2, VarDictJava, and `samtools mpileup` — depth is measured at the variant position, not across the entire REF allele span. Reads fetched from the wider ±5bp window that don't overlap the anchor are excluded from DP unless classified as REF/ALT via shifted indel detection.
 
 ### Read Metrics
 
 | Metric | Description |
 |:-------|:------------|
-| **DP** | Total depth (reads supporting REF or ALT) |
+| **DP** | Total depth — **all** mapped, quality-filtered reads whose alignment start ≤ variant POS, regardless of allele classification. Includes reads that are neither REF nor ALT (e.g., third alleles at multi-allelic sites). `DP ≥ RD + AD`. |
 | **RD** / **AD** | Reference / Alternate read counts |
 | **DP_fwd** / **DP_rev** | Strand-specific total depth |
 | **RD_fwd** / **RD_rev** | Strand-specific reference counts |
@@ -179,6 +177,9 @@ Computed at **both** levels:
 | **SB_pval** / **SB_OR** | Read | Strand bias from individual reads |
 | **FSB_pval** / **FSB_OR** | Fragment | Strand bias from collapsed fragments |
 
+!!! warning "Paired-End Data: Use FSB, Not SB"
+    For paired-end sequencing (e.g., MSK-ACCESS), R1 and R2 from the same fragment are **not** independent observations. Read-level SB (`SB_pval`) artificially doubles the sample size N in the Fisher's test contingency table, producing deflated p-values that can falsely flag true variants as strand bias artifacts. **Clinical filtering pipelines should use `FSB_pval`** (fragment-level), which correctly treats each physical fragment as a single independent observation.
+
 !!! example "Strand Bias Example"
     If a variant has `AD_fwd=15, AD_rev=1`, that's suspicious — almost all ALT-supporting reads are on the forward strand. Fisher's test would yield a low p-value, flagging this as a potential artifact.
 
@@ -190,7 +191,7 @@ All fields in the `BaseCounts` struct returned by `count_bam()`:
 
 | Column | Type | Description |
 |:-------|:-----|:------------|
-| `dp` | u32 | Total read depth |
+| `dp` | u32 | Total read depth — reads overlapping the variant anchor position, including 'neither' reads |
 | `rd` | u32 | Reference read count |
 | `ad` | u32 | Alternate read count |
 | `dp_fwd` / `dp_rev` | u32 | Strand-specific total depth |

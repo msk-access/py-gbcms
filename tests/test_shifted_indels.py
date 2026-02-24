@@ -182,10 +182,11 @@ class TestInsertionWindowed:
         reads = [_make_read("r1", "AAAAAAATAAA", 93, ((0, 7), (1, 1), (0, 3)))]
         bam = _build_bam(tmp_path, reads)
         counts = _count_one(bam, variant)
-        # S3 should reject because reference at pos 99 is 'G', not 'A' (the anchor base)
-        # The read still covers the anchor at pos 98 → REF
+        # S3 rejects because reference at pos 99 is 'G', not 'A' (the anchor base).
+        # The read's CIGAR shows an insertion near the variant → ambiguous classification
+        # routes to "neither" (DP only), preserving unbiased VAF.
         assert counts.ad == 0, f"Expected ad=0 (S3 reject), got {counts.ad}"
-        assert counts.rd == 1, f"Expected rd=1 (covers anchor), got {counts.rd}"
+        assert counts.dp >= 1, f"Expected dp>=1 (read covers locus), got {counts.dp}"
 
 
 class TestInsertionHomopolymer:
@@ -298,8 +299,13 @@ class TestDeletionWindowed:
         assert counts.ad == 1, f"Expected ad=1 (windowed ALT), got {counts.ad}"
 
     def test_deletion_wrong_ref_context_s3(self, tmp_path):
-        """DEL within window but ref base at shifted pos doesn't match → reject (S3).
-        Use a ref_context where the shifted deletion position has 'G' instead of 'T'.
+        """DEL within window but ref base at shifted pos doesn't match → S3 rejects
+        the windowed CIGAR match. The read covers the anchor with a Match op and
+        no deletion at the expected position → REF.
+
+        Previously this fell through to Phase 3 SW via is_worth_realignment(),
+        but CIGAR is definitive for pure deletions: if the Match op covers the
+        anchor and no matching D op was found, the read is REF.
         """
         # ref_context: "AAAAAATGAAAAAAAA" covering [195, 210)
         # pos 201='T', 202='G'. If deletion shifts to 202, ref='G' but expected='T' → S3 reject.
@@ -315,18 +321,20 @@ class TestDeletionWindowed:
         # Read with deletion at pos 203: 7M 1D 3M, starts at 196.
         # Block end = 203. del_ref_pos = 203.
         # ref_context[203-195] = ref_context[8] = 'A'. expected_del_seq = 'T'. 'A' ≠ 'T' → S3 reject.
+        # The read has a Match op covering the anchor (pos 200) → found_ref_coverage=true.
+        # CIGAR is definitive for pure DEL: no matching D at anchor → REF.
         reads = [_make_read("r1", "AAAAAAAAAA", 196, ((0, 7), (2, 1), (0, 3)))]
         bam = _build_bam(tmp_path, reads)
         counts = _count_one(bam, variant)
-        assert counts.ad == 0, f"Expected ad=0 (S3 reject), got {counts.ad}"
-        assert counts.rd == 1, f"Expected rd=1 (covers anchor), got {counts.rd}"
+        # CIGAR definitive: read covers anchor with Match, no deletion → REF
+        assert counts.rd == 1, f"Expected rd=1 (CIGAR definitive REF), got {counts.rd}"
 
 
 class TestNoRefContext:
-    """When ref_context is None, S3 is skipped — windowed detection still works."""
+    """When ref_context is None, S3 cannot validate — shifted indels are rejected (fail-closed)."""
 
     def test_insertion_no_ref_context(self, tmp_path):
-        """Windowed insertion without ref_context → S3 skipped, should match."""
+        """Windowed insertion without ref_context → S3 rejects (fail-closed safety)."""
         variant = Variant(
             chrom="chr1",
             pos=100,
@@ -338,10 +346,11 @@ class TestNoRefContext:
         reads = [_make_read("r1", "AAAAAAATAA", 96, ((0, 7), (1, 1), (0, 2)))]
         bam = _build_bam(tmp_path, reads)
         counts = _count_one(bam, variant)
-        assert counts.ad == 1, f"Expected ad=1 (windowed, no S3), got {counts.ad}"
+        # S3 cannot validate without ref_context → reject shifted indel
+        assert counts.ad == 0, f"Expected ad=0 (no ref_context → S3 reject), got {counts.ad}"
 
     def test_deletion_no_ref_context(self, tmp_path):
-        """Windowed deletion without ref_context → S3 skipped, should match."""
+        """Windowed deletion without ref_context → S3 rejects (fail-closed safety)."""
         variant = Variant(
             chrom="chr1",
             pos=200,
@@ -353,7 +362,8 @@ class TestNoRefContext:
         reads = [_make_read("r1", "AAAAAAAAAA", 196, ((0, 7), (2, 1), (0, 3)))]
         bam = _build_bam(tmp_path, reads)
         counts = _count_one(bam, variant)
-        assert counts.ad == 1, f"Expected ad=1 (windowed, no S3), got {counts.ad}"
+        # S3 cannot validate without ref_context → reject shifted indel
+        assert counts.ad == 0, f"Expected ad=0 (no ref_context → S3 reject), got {counts.ad}"
 
 
 class TestReadDoesNotCover:

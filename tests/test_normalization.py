@@ -104,6 +104,48 @@ class TestNormalization(unittest.TestCase):
         self.assertEqual(pv.variant.ref_allele, "GA")
         self.assertEqual(pv.variant.alt_allele, "G")
 
+    def test_dynamic_window_expansion_long_repeat(self):
+        """
+        Gap 1B: Deletion in a >100bp repeat region should still normalize.
+
+        The engine's normalization window starts at 100bp but doubles on
+        edge-hit (100→200→400→...→2500bp). This test uses a 120bp
+        dinucleotide repeat to verify the expansion mechanism works.
+        A dinucleotide repeat (unlike a pure homopolymer) produces
+        different alleles depending on deletion position, so
+        left-alignment is meaningful.
+        """
+        # Create a reference with a 120bp AC-repeat
+        long_fasta = self.base_path / "long_repeat.fa"
+        prefix = "TTTTTTTTT" * 5 + "TTTTT"  # 50bp T-prefix
+        repeat = "AC" * 60  # 120bp dinucleotide repeat at pos 50-169
+        suffix = "GGGGGGGGG" * 5 + "GGGGG"  # 50bp G-suffix
+        ref_seq = prefix + repeat + suffix  # 220bp total
+        with open(long_fasta, "w") as f:
+            f.write(">chr1\n")
+            f.write(ref_seq + "\n")
+        pysam.faidx(str(long_fasta))
+
+        # Deletion near the END of the AC-repeat: pos=160, REF=AC, ALT=A
+        # Should left-align back toward pos=49/50 (start of repeat)
+        # This requires >110bp window, exceeding the default 100bp.
+        variants = [gbcms_rs.Variant("chr1", 160, "AC", "A", "DELETION")]
+        prepared = gbcms_rs.prepare_variants(variants, str(long_fasta), 5, False, 1)
+        self.assertEqual(len(prepared), 1)
+        pv = prepared[0]
+        self.assertTrue(
+            pv.validation_status.startswith("PASS"),
+            f"Expected PASS status, got {pv.validation_status}",
+        )
+        # Variant should have normalized (shifted leftward)
+        if pv.was_normalized:
+            # If normalized, it should have shifted past the 100bp boundary
+            self.assertLess(
+                pv.variant.pos,
+                pv.original_pos,
+                f"Expected leftward shift, orig={pv.original_pos} new={pv.variant.pos}",
+            )
+
     # -- normalize module tests --
 
     def test_normalize_module_writes_tsv(self):

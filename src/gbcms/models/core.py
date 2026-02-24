@@ -27,6 +27,7 @@ __all__ = [
     "OutputFormat",
     "ReadFilters",
     "QualityThresholds",
+    "AlignmentConfig",
     "OutputConfig",
     "GbcmsConfig",
 ]
@@ -122,6 +123,62 @@ class QualityThresholds(BaseModel):
     )
 
 
+class AlignmentConfig(BaseModel):
+    """Alignment backend configuration for Phase 3 read classification.
+
+    Controls which algorithm is used for haplotype-level alignment when
+    variant-type-specific CIGAR matching is inconclusive. Smith-Waterman (sw)
+    is the default; PairHMM (hmm) is an alternative that uses per-base
+    quality-aware emission probabilities.
+    """
+
+    backend: str = Field(
+        default="sw",
+        description="Alignment backend: 'sw' (Smith-Waterman) or 'hmm' (PairHMM).",
+    )
+    hmm_llr_threshold: float = Field(
+        default=2.3,
+        gt=0.0,
+        description=(
+            "PairHMM log-likelihood ratio threshold for confident calls. "
+            "ln(10) ≈ 2.3 = 10:1 odds ratio (default)."
+        ),
+    )
+    hmm_gap_open: float = Field(
+        default=1e-4,
+        gt=0.0,
+        lt=1.0,
+        description="PairHMM gap-open probability for non-repeat regions.",
+    )
+    hmm_gap_extend: float = Field(
+        default=0.1,
+        gt=0.0,
+        lt=1.0,
+        description="PairHMM gap-extend probability for non-repeat regions.",
+    )
+    hmm_gap_open_repeat: float = Field(
+        default=1e-2,
+        gt=0.0,
+        lt=1.0,
+        description="PairHMM gap-open probability for tandem repeat regions.",
+    )
+    hmm_gap_extend_repeat: float = Field(
+        default=0.5,
+        gt=0.0,
+        lt=1.0,
+        description="PairHMM gap-extend probability for tandem repeat regions.",
+    )
+
+    @field_validator("backend")
+    @classmethod
+    def validate_backend(cls, v: str) -> str:
+        """Validate backend is a supported value."""
+        v = v.lower().strip()
+        if v not in ("sw", "hmm", "pairhmm"):
+            raise ValueError(f"Invalid alignment backend '{v}'. Must be 'sw' or 'hmm'.")
+        return v
+
+
 class OutputConfig(BaseModel):
     """Output configuration settings."""
 
@@ -173,6 +230,9 @@ class GbcmsConfig(BaseModel):
 
     # Performance
     threads: int = Field(default=1, ge=1, description="Number of threads")
+
+    # Alignment backend
+    alignment: AlignmentConfig = Field(default_factory=AlignmentConfig)
 
     # Advanced
     show_normalization: bool = Field(

@@ -38,6 +38,17 @@ Complete reference for all pipeline parameters.
 | `--filter_by_sample` | `false` | Filter multi-sample MAF by `Tumor_Sample_Barcode` ([details](samplesheet.md#multi-sample-maf-filtering)) |
 | `--show_normalization` | `false` | Add `norm_*` columns showing left-aligned coordinates in output |
 
+## Alignment Backend (Advanced)
+
+| Parameter | Default | Description |
+|:----------|:--------|:------------|
+| `--alignment_backend` | `sw` | Phase 3 alignment backend: `sw` (Smith-Waterman) or `hmm` (PairHMM). See [CLI Reference](../cli/run.md#advanced-alignment-backend). |
+| `--llr_threshold` | `2.3` | PairHMM log-likelihood ratio threshold for confident calls |
+| `--gap_open_prob` | `1e-4` | PairHMM gap-open probability for non-repeat regions |
+| `--gap_extend_prob` | `0.1` | PairHMM gap-extend probability for non-repeat regions |
+| `--gap_open_prob_repeat` | `1e-2` | PairHMM gap-open probability for tandem repeat regions |
+| `--gap_extend_prob_repeat` | `0.5` | PairHMM gap-extend probability for tandem repeat regions |
+
 ## Resource Limits
 
 | Parameter | Default | Description |

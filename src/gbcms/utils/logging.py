@@ -27,14 +27,20 @@ __all__ = [
 _console = Console()
 
 
-def setup_logging(verbose: bool = False, log_file: str | None = None) -> None:
+def setup_logging(verbose: bool = False, trace: bool = False, log_file: str | None = None) -> None:
     """
     Configure logging for gbcms.
 
     Args:
         verbose: If True, set log level to DEBUG. Otherwise INFO.
+        trace: If True, enable Rust per-read trace logging (slow).
+            Implies verbose. Sets the ``gbcms_rs`` Python logger to
+            level 5 (TRACE) so pyo3-log forwards Rust ``trace!()``
+            calls through the GIL.
         log_file: Optional path to write logs to file.
     """
+    if trace:
+        verbose = True
     log_level = logging.DEBUG if verbose else logging.INFO
 
     handlers: list[logging.Handler] = [
@@ -60,6 +66,15 @@ def setup_logging(verbose: bool = False, log_file: str | None = None) -> None:
         handlers=handlers,
         force=True,  # Override existing config
     )
+
+    # Enable Rust trace-level logs when --trace is active.
+    # pyo3-log maps Rust trace!() to Python level 5 (below DEBUG=10).
+    # By default, pyo3-log caches that level 5 is disabled and
+    # short-circuits all trace!() calls in Rust with zero GIL cost.
+    # Setting the logger to level 5 lets them through (slow but
+    # comprehensive per-read diagnostics).
+    if trace:
+        logging.getLogger("gbcms_rs").setLevel(5)  # TRACE level
 
 
 def get_logger(name: str) -> logging.Logger:

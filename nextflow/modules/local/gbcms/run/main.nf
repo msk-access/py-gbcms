@@ -4,7 +4,7 @@ process GBCMS_RUN {
 
     publishDir "${params.outdir}/gbcms", mode: params.publish_dir_mode
 
-    container "ghcr.io/msk-access/py-gbcms:2.7.0"
+    container "ghcr.io/msk-access/py-gbcms:2.8.0"
 
     input:
     tuple val(meta), path(bam), path(bai), path(variants)
@@ -38,6 +38,11 @@ process GBCMS_RUN {
 
     // Adaptive context padding in repeat regions
     def adaptive_arg = params.adaptive_context ? "" : "--no-adaptive-context"
+
+    // Alignment backend (advanced — only pass if non-default)
+    def backend_arg = params.alignment_backend != 'sw' ? "--alignment-backend ${params.alignment_backend}" : ""
+    def hmm_args = params.alignment_backend == 'hmm' ? \
+        "--llr-threshold ${params.llr_threshold} --gap-open-prob ${params.gap_open_prob} --gap-extend-prob ${params.gap_extend_prob} --repeat-gap-open-prob ${params.gap_open_prob_repeat} --repeat-gap-extend-prob ${params.gap_extend_prob_repeat}" : ""
     
     // Construct filter arguments
     def filters = ""
@@ -60,6 +65,8 @@ process GBCMS_RUN {
         ${preserve_barcode_arg} \\
         ${show_norm_arg} \\
         ${adaptive_arg} \\
+        ${backend_arg} \\
+        ${hmm_args} \\
         --threads ${task.cpus} \\
         --min-mapq ${params.min_mapq} \\
         --min-baseq ${params.min_baseq} \\
@@ -70,7 +77,7 @@ process GBCMS_RUN {
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        gbcms: \$(python -c "import gbcms; print(gbcms.__version__)" 2>/dev/null || echo "2.0.0")
+        gbcms: \$(python -c "import gbcms; print(gbcms.__version__)" 2>/dev/null || echo "0.0.0")
     END_VERSIONS
     """
 }

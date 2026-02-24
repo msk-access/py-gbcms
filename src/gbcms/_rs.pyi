@@ -71,6 +71,13 @@ def count_bam(
     filter_indel: bool = False,
     threads: int = 1,
     fragment_qual_threshold: int = 10,
+    sibling_variants: list[list[Variant]] | None = None,
+    alignment_backend: str = "sw",
+    hmm_llr_threshold: float = 2.3,
+    hmm_gap_open: float = 1e-4,
+    hmm_gap_extend: float = 0.1,
+    hmm_gap_open_repeat: float = 1e-2,
+    hmm_gap_extend_repeat: float = 0.5,
 ) -> list[BaseCounts]: ...
 def prepare_variants(
     variants: list[Variant],

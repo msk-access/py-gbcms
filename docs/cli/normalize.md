@@ -33,8 +33,9 @@ This is useful for:
 
 | Option | Default | Description |
 |:-------|:--------|:------------|
-| `--threads` | `1` | Number of threads |
-| `--verbose` | `false` | Enable debug logging |
+| `--threads`, `-t` | `1` | Number of threads |
+| `--verbose`, `-V` | `false` | Enable debug logging |
+| `--trace`, `-T` | `false` | Enable per-read Rust trace logging (slow). Implies `--verbose`. |
 
 ## Output Columns
 

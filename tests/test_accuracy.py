@@ -213,17 +213,11 @@ def test_snp_accuracy(synthetic_bam):
     assert counts.rd_rev == 3
     assert counts.ad_fwd == 4
     assert counts.ad_rev == 2
-    assert counts.dp == 14  # 5+3+4+2 = 14. (Total reads covering position passing filters)
-    # Note: DP might include reads that are neither Ref nor Alt if we had them, but here we only have Ref/Alt.
-    # Actually, DP is usually Ref+Alt+Others.
-    # Wait, does DP include filtered reads? No, usually raw depth after mapq filter.
-    # Let's check implementation: DP increments if mapq passes.
-    # But we also check allele status.
-    # If !is_ref and !is_alt, we continue. So DP only counts reads that match one of the alleles?
-    # Looking at counting.rs:
-    # if !is_ref && !is_alt { continue; }
-    # counts.dp += 1;
-    # So yes, DP only counts reads matching Ref or Alt (or specific alleles if multi-allelic support was better).
+    assert counts.dp == 15  # 5+3+4+2 = 14 REF/ALT + 1 'neither' read = 15 total.
+    # DP now includes ALL mapped quality-filtered reads at the locus,
+    # regardless of allele classification (Gap 1D fix).
+    # The 15th read carries a third allele — it's neither REF nor ALT,
+    # but represents real physical coverage at this position.
 
     assert counts.rd == 8
     assert counts.ad == 6
@@ -257,6 +251,10 @@ def test_insertion_accuracy(synthetic_bam):
     # Alt Fwd: 2
     assert counts.ad_fwd == 2
     assert counts.ad == 2
+    # Gap 1D invariant: DP includes 'neither' reads
+    assert (
+        counts.dp >= counts.rd + counts.ad
+    ), f"DP invariant failed: dp={counts.dp} < rd+ad={counts.rd + counts.ad}"
 
 
 def test_complex_accuracy(synthetic_bam):
@@ -380,12 +378,14 @@ def test_complex_accuracy(synthetic_bam):
     # ALT read: C (matches ALT C) -> AD=1
     assert counts[0].rd == 1
     assert counts[0].ad == 1
+    assert counts[0].dp >= counts[0].rd + counts[0].ad
 
     # Case 2: SNP + Ins
     # REF read: A (matches REF A) -> RD=1
     # ALT read: CT (matches ALT CT) -> AD=1
     assert counts[1].rd == 1
     assert counts[1].ad == 1
+    assert counts[1].dp >= counts[1].rd + counts[1].ad
 
 
 def test_deletion_accuracy(synthetic_bam):
@@ -416,6 +416,8 @@ def test_deletion_accuracy(synthetic_bam):
     # Alt Fwd: 3
     assert counts.ad_fwd == 3
     assert counts.ad == 3
+    # Gap 1D invariant: DP includes 'neither' reads
+    assert counts.dp >= counts.rd + counts.ad
 
 
 def test_mnp_accuracy(synthetic_bam):
@@ -447,3 +449,5 @@ def test_mnp_accuracy(synthetic_bam):
     assert counts.rd_rev == 1
     assert counts.ad == 2
     assert counts.rd == 1
+    # Gap 1D invariant: DP includes 'neither' reads
+    assert counts.dp >= counts.rd + counts.ad

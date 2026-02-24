@@ -1,4 +1,4 @@
-# Contributing to GetBaseCounts
+# Contributing to py-gbcms
 
 Thank you for your interest in contributing to GetBaseCounts! This document provides guidelines and instructions for contributing.
 
@@ -17,7 +17,12 @@ Thank you for your interest in contributing to GetBaseCounts! This document prov
 
 3. **Install development dependencies**
    ```bash
-   uv pip install -e ".[dev]"
+   # Install Rust (if not installed)
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   
+   # Build and install in development mode
+   pip install maturin
+   maturin develop --release
    ```
 
 
@@ -34,7 +39,7 @@ pytest
 pytest --cov=gbcms --cov-report=html
 
 # Run specific test file
-pytest tests/test_counter.py
+pytest tests/test_accuracy.py
 
 # Run with verbose output
 pytest -v
@@ -78,6 +83,17 @@ docker build -t gbcms:latest .
 - Use descriptive test names
 - Use fixtures for common test setup
 - Test edge cases and error conditions
+
+### Counting Engine Changes
+
+Changes to `rust/src/counting.rs` require additional verification:
+
+- **Unit tests**: `cargo test` must pass (all existing tests + new tests for the change)
+- **22-BAM regression**: Run the regression suite and verify no unintended count shifts
+- **Variant-type coverage**: If modifying a specific variant type (SNP/MNP/Indel/Complex),
+  ensure the regression MAF includes representative variants of that type
+- **MnpResult paths**: Any changes to MNP handling must test all 5 `MnpResult` variants:
+  `Ref`, `Alt`, `LowQuality`, `ThirdAllele`, `Structural`
 
 ## Pull Request Process
 
