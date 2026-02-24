@@ -165,8 +165,17 @@ To contribute to documentation, see the [`gh-pages` branch](https://github.com/m
 
 If you use `py-gbcms` in your research, please cite:
 
-```
-[Citation to be added]
+> Shah, R. et al. (2026). *py-gbcms: A high-performance orientation-aware genotype counting system for genomic variants.* Available at: https://github.com/msk-access/py-gbcms
+
+**BibTeX:**
+```bibtex
+@software{pygbcms,
+  author       = {Shah, Ronak and contributors},
+  title        = {py-gbcms: A high-performance orientation-aware genotype counting system for genomic variants},
+  year         = {2025},
+  url          = {https://github.com/msk-access/py-gbcms},
+  note         = {GitHub repository}
+}
 ```
 
 ---
