@@ -1,4 +1,4 @@
-# Contributing to GetBaseCounts
+# Contributing to py-gbcms
 
 Thank you for your interest in contributing to GetBaseCounts! This document provides guidelines and instructions for contributing.
 
@@ -17,7 +17,12 @@ Thank you for your interest in contributing to GetBaseCounts! This document prov
 
 3. **Install development dependencies**
    ```bash
-   uv pip install -e ".[dev]"
+   # Install Rust (if not installed)
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   
+   # Build and install in development mode
+   pip install maturin
+   maturin develop --release
    ```
 
 
@@ -34,7 +39,7 @@ pytest
 pytest --cov=gbcms --cov-report=html
 
 # Run specific test file
-pytest tests/test_counter.py
+pytest tests/test_accuracy.py
 
 # Run with verbose output
 pytest -v

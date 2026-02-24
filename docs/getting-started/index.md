@@ -9,7 +9,7 @@ Welcome to py-gbcms! This section will help you get up and running quickly.
 
 ## Prerequisites
 
-- Python 3.9+
+- Python 3.10+
 - BAM file(s) with index (.bai)
 - Reference FASTA with index (.fai)
 - VCF or MAF file with variant positions

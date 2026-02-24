@@ -104,7 +104,7 @@ gbcms run \
 ## Docker
 
 ```bash
-docker run --rm -v $(pwd):/data ghcr.io/msk-access/py-gbcms:2.7.0 \
+docker run --rm -v $(pwd):/data ghcr.io/msk-access/py-gbcms:X.Y.Z \
     gbcms run \
     --variants /data/variants.vcf \
     --bam /data/sample.bam \
@@ -130,6 +130,9 @@ gbcms run --help
 | `--min-mapq` | 20 | Minimum mapping quality |
 | `--min-baseq` | 20 | Minimum base quality |
 | `--threads` | 1 | Number of threads |
+
+
+> 📖 See [CLI Reference](../cli/run.md) for the complete list of options including alignment backend, debugging, and advanced filtering parameters.
 
 ---
 

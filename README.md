@@ -12,7 +12,7 @@
 - 📊 **Orientation-Aware**: Forward and reverse strand analysis with fragment counting
 - 🔬 **Statistical Analysis**: Fisher's exact test for strand bias
 - 📁 **Flexible I/O**: VCF and MAF input/output formats
-- 🎯 **Quality Filters**: 7 configurable read filtering options
+- 🎯 **Quality Filters**: 8 configurable read and quality filtering options
 
 ## Installation
 
@@ -30,8 +30,10 @@ pip install .
 
 **Docker:**
 ```bash
-docker pull ghcr.io/msk-access/py-gbcms:2.1.0
+docker pull ghcr.io/msk-access/py-gbcms:X.Y.Z  # Replace X.Y.Z with latest from PyPI
 ```
+
+> 💡 Find the latest version on [PyPI](https://pypi.org/project/py-gbcms/) or [GHCR](https://github.com/msk-access/py-gbcms/pkgs/container/py-gbcms).
 
 📖 **Full documentation:** https://msk-access.github.io/py-gbcms/
 
@@ -56,8 +58,8 @@ gbcms run \
 **Output:** `results/sample1.vcf`
 
 **Learn more:**
-- 📘 [CLI Quick Start](https://cmo-ci.gitbook.io/py-gbcms/quick-start)
-- 📖 [CLI Reference](https://cmo-ci.gitbook.io/py-gbcms/cli_features)
+- 📘 [CLI Quick Start](https://msk-access.github.io/py-gbcms/getting-started/quickstart/)
+- 📖 [CLI Reference](https://msk-access.github.io/py-gbcms/cli/run/)
 
 ---
 
@@ -80,8 +82,8 @@ nextflow run nextflow/main.nf \
 - ✅ Resume failed runs
 
 **Learn more:**
-- 🔄 [Nextflow Workflow Guide](https://cmo-ci.gitbook.io/py-gbcms/nextflow)
-- 📋 [Usage Patterns Comparison](https://cmo-ci.gitbook.io/py-gbcms/workflows)
+- 🔄 [Nextflow Workflow Guide](https://msk-access.github.io/py-gbcms/nextflow/)
+- 📋 [Usage Patterns Comparison](https://msk-access.github.io/py-gbcms/getting-started/)
 
 ---
 
@@ -138,15 +140,15 @@ nextflow run nextflow/main.nf \
 
 ## Documentation
 
-📚 **Full Documentation:** https://cmo-ci.gitbook.io/py-gbcms/
+📚 **Full Documentation:** https://msk-access.github.io/py-gbcms/
 
 **Quick Links:**
-- [Installation](https://cmo-ci.gitbook.io/py-gbcms/installation)
-- [CLI Quick Start](https://cmo-ci.gitbook.io/py-gbcms/quick-start)
-- [Nextflow Workflow](https://cmo-ci.gitbook.io/py-gbcms/nextflow)
-- [CLI Reference](https://cmo-ci.gitbook.io/py-gbcms/cli_features)
-- [Input & Output Formats](https://cmo-ci.gitbook.io/py-gbcms/input_output)
-- [Architecture](https://cmo-ci.gitbook.io/py-gbcms/architecture)
+- [Installation](https://msk-access.github.io/py-gbcms/getting-started/installation/)
+- [CLI Quick Start](https://msk-access.github.io/py-gbcms/getting-started/quickstart/)
+- [Nextflow Workflow](https://msk-access.github.io/py-gbcms/nextflow/)
+- [CLI Reference](https://msk-access.github.io/py-gbcms/cli/run/)
+- [Input & Output Formats](https://msk-access.github.io/py-gbcms/reference/input-formats/)
+- [Architecture](https://msk-access.github.io/py-gbcms/reference/architecture/)
 
 ---
 

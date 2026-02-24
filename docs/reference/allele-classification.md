@@ -319,7 +319,7 @@ flowchart TD
     Contig -->|Indel found| Structural3([🔄 Structural → check_complex]):::fallback
     Contig -->|Contiguous| MinBQ{"min(BQ across block) ≥ threshold?"}
 
-    MinBQ -->|No| LowQ([⬜ LowQuality — skip read]):::neither
+    MinBQ -->|No| LowQ(["🔄 LowQuality → check_complex"]):::fallback
     MinBQ -->|Yes| Compare[Compare all bases to REF and ALT]
 
     Compare --> Final{All bases match?}
@@ -337,14 +337,15 @@ flowchart TD
 !!! info "Min-BQ-Across-Block Strategy"
     MNP quality is assessed using the **minimum** base quality across the entire MNP block, matching C++ GBCMS `baseCountDNP` behavior. If `min(BQ) < threshold`, the read is skipped entirely — it contributes to neither REF, ALT, nor DP. This replaces the previous per-base rejection which routed low-quality reads to Phase 3 Smith-Waterman, where MNP haplotypes (differing at only 2-3 of ~20 positions) generated ties ~95% of the time, causing catastrophic ALT loss.
 
-!!! warning "Selective Phase 3 Fallback"
-    Phase 3 (`check_complex`) is reserved for **structural** issues only:
+!!! warning "Phase 3 Fallback Conditions"
+    `check_complex` is invoked for both **structural** issues and **quality** issues:
 
     - Read position not found in CIGAR walk
     - Read doesn't cover the entire MNP region
     - Indel detected within the MNP block (contiguity check)
+    - **Low quality**: `min(BQ across block) < threshold` — Phase 2 masked comparison can still classify using only reliable bases
 
-    These cases indicate a complex variant misannotated as an MNP, where Smith-Waterman alignment can genuinely resolve the structural complexity.
+    The first three indicate a complex variant misannotated as an MNP; the last leverages quality-masking to rescue low-quality reads that strict MNP matching would discard.
 
 ### Contiguity Check
 
@@ -384,7 +385,9 @@ flowchart TD
 
     Phase1 --> LargeGuard{"ref_len > 50 AND<br/>recon < 10% of ref?"}
     LargeGuard -->|Yes| SkipP2[Skip Phase 2<br/>unreliable]:::neither
-    LargeGuard -->|No| Phase2
+    LargeGuard -->|No| LenRatio{"ref_len > 2 × alt_len?"}
+    LenRatio -->|Yes| SkipP2B[Skip Phase 2 Case B<br/>+ Phase 2.5]:::neither
+    LenRatio -->|No| Phase2
 
     subgraph Phase2 ["Phase 2: Masked Comparison"]
         direction TB
@@ -413,13 +416,16 @@ flowchart TD
     RefMatch -->|No| NoMatch
 
     SkipP2 --> Phase25
+    SkipP2B --> Phase3
     NoMatch --> Phase25
 
     subgraph Phase25 ["Phase 2.5: Edit Distance"]
         direction TB
         ReconLen{"recon_len ≥ 2?"}
         ReconLen -->|No| SkipED[Skip to Phase 3]
-        ReconLen -->|Yes| EditDist["Compute Levenshtein distance<br/>to REF and ALT alleles"]
+        ReconLen -->|Yes| RatioGuard{"ref_len > 2 × alt_len?"}
+        RatioGuard -->|Yes| SkipED
+        RatioGuard -->|No| EditDist["Compute Levenshtein distance<br/>to REF and ALT alleles"]
         EditDist --> EDMargin{">1 edit margin?"}
         EDMargin -->|"ALT closer"| Alt25([🔴 ALT]):::alt
         EDMargin -->|"REF closer"| Ref25([✅ REF]):::ref
@@ -428,17 +434,19 @@ flowchart TD
 
     SkipED --> Phase3
 
-    subgraph Phase3 ["Phase 3: Smith-Waterman Fallback"]
+    subgraph Phase3 ["Phase 3: Alignment Fallback"]
         direction TB
         IsMNP{"Is cleanly MNP?<br/>(ref == alt > 1)"}
-        PreFilter{"is_worth_realignment?<br/>(indels/clips near window)"}
-        
+
         IsMNP -->|Yes| Extract[Extract raw read window]
-        IsMNP -->|No| PreFilter
-        PreFilter -->|No| Neither2([Neither]):::neither
-        PreFilter -->|Yes| Extract
-        Extract --> SW["Semiglobal SW alignment<br/>vs REF and ALT haplotypes"]
+        IsMNP -->|No| Extract
+        Extract --> Backend{"--alignment-backend?"}
+        Backend -->|"sw (default)"| SW["Semiglobal SW alignment<br/>vs REF and ALT haplotypes"]
+        Backend -->|"hmm"| HMM["PairHMM likelihood<br/>vs REF and ALT haplotypes"]
         SW --> Margin{"Score difference ≥ 2?"}
+        HMM --> LLR{"LLR > threshold?"}
+        LLR -->|"Confident"| ConfResult2
+        LLR -->|"Below threshold"| Neither4([Neither]):::neither
         Margin -->|"Confident call"| ConfCheck
         Margin -->|"Within margin"| Neither3([Neither]):::neither
 
@@ -452,6 +460,8 @@ flowchart TD
 
         ConfResult -->|ALT| Alt3([🔴 ALT]):::alt
         ConfResult -->|REF| Ref3([✅ REF]):::ref
+        ConfResult2 -->|ALT| Alt3c([🔴 ALT]):::alt
+        ConfResult2 -->|REF| Ref3c([✅ REF]):::ref
         Margin -->|"Ambiguous Tie"| Tie1([Neither]):::neither
     end
 

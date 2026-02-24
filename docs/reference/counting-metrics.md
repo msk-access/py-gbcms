@@ -35,7 +35,7 @@ Each read passing filters is counted independently. No deduplication is applied 
 flowchart TD
     Fetch(["📥 Fetch reads from<br/>±5bp window"]) --> Filters["🔍 Apply read filters<br/>(MAPQ, dup, etc.)"]
     Filters --> Classify["🧬 Allele classification<br/>(check_snp / check_insertion / etc.)"]
-    Classify --> Anchor{"Read overlaps<br/>variant anchor position?"}
+    Classify --> Anchor{"Read start ≤<br/>variant POS?"}
     Anchor -->|"Yes"| DP["✅ Count in DP<br/>(REF, ALT, or neither)"]
     Anchor -->|"No"| ClassCheck{"Classified as<br/>REF or ALT?"}
     ClassCheck -->|"Yes (shifted indel)"| DP
@@ -51,11 +51,15 @@ flowchart TD
     classDef skip fill:#bdc3c7,color:#000,stroke:#95a5a6;
 ```
 
+
+!!! info "Anchor Overlap Standard"
+    DP gating uses **single-position** anchor overlap: `read_start ≤ variant.pos`. This matches the depth definition used by Mutect2, VarDictJava, and `samtools mpileup` — depth is measured at the variant position, not across the entire REF allele span. Reads fetched from the wider ±5bp window that don't overlap the anchor are excluded from DP unless classified as REF/ALT via shifted indel detection.
+
 ### Read Metrics
 
 | Metric | Description |
 |:-------|:------------|
-| **DP** | Total depth — **all** mapped, quality-filtered reads that **overlap the variant's anchor position**, regardless of allele classification. Includes reads that are neither REF nor ALT (e.g., third alleles at multi-allelic sites, duplex N bases). Reads from the wider fetch window (±5bp) that don't overlap the anchor are excluded from DP unless classified as REF/ALT via shifted indel detection. `DP ≥ RD + AD`. |
+| **DP** | Total depth — **all** mapped, quality-filtered reads whose alignment start ≤ variant POS, regardless of allele classification. Includes reads that are neither REF nor ALT (e.g., third alleles at multi-allelic sites). `DP ≥ RD + AD`. |
 | **RD** / **AD** | Reference / Alternate read counts |
 | **DP_fwd** / **DP_rev** | Strand-specific total depth |
 | **RD_fwd** / **RD_rev** | Strand-specific reference counts |

@@ -76,14 +76,22 @@ nextflow run nextflow/main.nf \
 | `--suffix` | Suffix to append to output filenames | `''` (empty) |
 | `--column_prefix` | Prefix for gbcms count columns in MAF output | `''` (empty) |
 | `--preserve_barcode` | Keep original Tumor_Sample_Barcode from input MAF | `false` |
+| `--show_normalization` | Add `norm_*` columns showing left-aligned coordinates | `false` |
 | `--min_mapq` | Minimum mapping quality | `20` |
 | `--min_baseq` | Minimum base quality | `20` |
+| `--fragment_qual_threshold` | Quality margin for fragment consensus | `10` |
+| `--context_padding` | Minimum flanking bases for alignment | `5` |
+| `--adaptive_context` | Auto-increase context in tandem repeats | `true` |
 | `--filter_duplicates` | Filter duplicate reads | `true` |
 | `--filter_secondary` | Filter secondary alignments | `false` |
 | `--filter_supplementary` | Filter supplementary alignments | `false` |
 | `--filter_qc_failed` | Filter QC failed reads | `false` |
 | `--filter_improper_pair` | Filter improperly paired reads | `false` |
 | `--filter_indel` | Filter reads with indels | `false` |
+| `--filter_by_sample` | Filter multi-sample MAF by Tumor_Sample_Barcode | `false` |
+| `--alignment_backend` | Phase 3 alignment: `sw` or `hmm` | `sw` |
+
+See [Full Parameter Reference](docs/nextflow/parameters.md) for all options including PairHMM tuning parameters.
 
 ### Resource Limits
 | Parameter | Description | Default |
@@ -96,7 +104,7 @@ nextflow run nextflow/main.nf \
 
 - `-profile docker`: Use Docker containers (recommended for local)
 - `-profile singularity`: Use Singularity images (recommended for HPC)
-- `-profile slurm`: Run on SLURM cluster with Singularity (queue: `cpu_medium`)
+- `-profile slurm`: Run on SLURM cluster with Singularity (queue: `cmobic_cpu`)
 - `-profile debug`: Print hostname for debugging
 
 ## Customizing for Your Cluster

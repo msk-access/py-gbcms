@@ -13,7 +13,7 @@ flowchart TB
     end
     
     subgraph Rust [🦀 Rust Layer]
-        Counter[count_bam - counting.rs] --> CIGAR[CIGAR Parser]
+        Counter[count_bam - counting/engine.rs] --> CIGAR[CIGAR Parser]
         Counter --> Stats[Strand Bias - stats.rs]
     end
     
@@ -109,8 +109,8 @@ Low p-value (< 0.05) indicates potential strand bias artifact.
 
 ```
 src/gbcms/
-├── cli.py           # Typer CLI
-├── pipeline.py      # Orchestration
+├── cli.py           # Typer CLI (~350 LOC)
+├── pipeline.py      # Orchestration (~450 LOC)
 ├── normalize.py     # Standalone normalization workflow
 ├── core/
 │   └── kernel.py    # Coordinate normalization
@@ -118,16 +118,30 @@ src/gbcms/
 │   ├── input.py     # VcfReader, MafReader
 │   └── output.py    # VcfWriter, MafWriter
 ├── models/
-│   └── core.py      # Pydantic config
+│   └── core.py      # Pydantic config (GbcmsConfig, AlignmentConfig)
 └── utils/
     └── logging.py   # Structured logging
 
 rust/src/
-├── lib.rs           # PyO3 module (_rs)
-├── counting.rs      # BAM processing, FragmentEvidence, dual-counting
-├── normalize.rs     # Variant preparation, left-alignment, homopolymer detection
-├── stats.rs         # Fisher's exact test
-└── types.rs         # Variant, BaseCounts
+├── lib.rs                    # PyO3 module exports
+├── counting/
+│   ├── mod.rs                # Submodule re-exports
+│   ├── engine.rs             # Main loop, DP gating, read iteration (~950 LOC)
+│   ├── variant_checks.rs     # check_snp/mnp/ins/del/complex (~1200 LOC)
+│   ├── alignment.rs          # Smith-Waterman implementation (~350 LOC)
+│   ├── pairhmm.rs            # PairHMM alignment backend (~520 LOC)
+│   ├── fragment.rs           # FragmentEvidence, quality consensus
+│   └── utils.rs              # Helpers, reconstruction, soft-clip
+├── normalize/
+│   ├── mod.rs                # Submodule re-exports
+│   ├── engine.rs             # Normalization pipeline (~810 LOC)
+│   ├── left_align.rs         # bcftools-style left-alignment
+│   ├── decomp.rs             # Homopolymer decomposition
+│   ├── fasta.rs              # Reference sequence fetcher
+│   ├── repeat.rs             # Tandem repeat detection
+│   └── types.rs              # NormResult enum
+├── stats.rs                  # Fisher's exact test
+└── types.rs                  # Variant, BaseCounts, PyO3 bindings
 ```
 
 ---
@@ -141,10 +155,12 @@ flowchart TB
     GbcmsConfig --> OutputConfig[Output Settings]
     GbcmsConfig --> ReadFilters[Read Filters]
     GbcmsConfig --> QualityThresholds[Quality Thresholds]
+    GbcmsConfig --> AlignmentConfig[Alignment Backend]
     
     OutputConfig --> D1[output_dir, format, suffix, column_prefix]
     ReadFilters --> D2[exclude_secondary, exclude_duplicates]
     QualityThresholds --> D3["min_mapq, min_baseq, fragment_qual_threshold"]
+    AlignmentConfig --> D4["backend: sw|hmm, llr_threshold, gap_*_prob"]
 ```
 
 See [models/core.py](file:///src/gbcms/models/core.py) for definitions.

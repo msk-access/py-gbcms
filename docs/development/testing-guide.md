@@ -33,6 +33,7 @@ pytest tests/test_accuracy.py -v
 | MAF | `test_maf_*.py` | MAF column preservation, reader |
 | Pipeline | `test_pipeline_v2.py` | End-to-end workflow |
 | Strand | `test_strand_counts.py` | Strand-specific counts |
+| Alignment Backend | `test_alignment_backend.py` | SW vs PairHMM concordance, backend integration |
 
 ### Rust-Level Tests
 

@@ -14,7 +14,7 @@ Before starting a release, ensure:
 
 ## Version Locations
 
-All these files must be updated with the new version (17 references total):
+All these files must be updated with the new version (5 references total):
 
 | File | Lines | Count | Format |
 |:-----|:------|:-----:|:-------|
@@ -22,10 +22,10 @@ All these files must be updated with the new version (17 references total):
 | `src/gbcms/__init__.py` | 11 | 1 | `__version__ = "X.Y.Z"` |
 | `rust/Cargo.toml` | 3 | 1 | `version = "X.Y.Z"` |
 | `nextflow/modules/local/gbcms/run/main.nf` | 7 | 1 | `container "ghcr.io/msk-access/py-gbcms:X.Y.Z"` |
-| `docs/getting-started/installation.md` | 17,18,78,79,82,89,90,105,118 | 9 | Docker/Singularity pull/run/exec + expected version |
-| `docs/getting-started/quickstart.md` | 107 | 1 | `ghcr.io/msk-access/py-gbcms:X.Y.Z` |
-| `docs/development/developer-guide.md` | 144,147,149 | 3 | Git-flow diagram release branch labels |
 | `CHANGELOG.md` | Top section | — | `## [X.Y.Z] - YYYY-MM-DD` (new entry) |
+
+!!! tip "Doc versions are now templated"
+    Installation, quickstart, troubleshooting, and developer-guide docs use generic `X.Y.Z` notation. **No doc version bumps needed during release.**
 
 !!! tip "Verify all references"
     After updating, run this to ensure no stale versions remain:

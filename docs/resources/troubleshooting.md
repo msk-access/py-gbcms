@@ -51,13 +51,13 @@ samtools index sample.bam
 
 ### Container Not Found
 
-**Error:** `Unable to find image 'ghcr.io/msk-access/py-gbcms:latest'`
+**Error:** `Unable to find image 'ghcr.io/msk-access/py-gbcms:X.Y.Z'`
 
 **Solution:** Pull manually:
 ```bash
-docker pull ghcr.io/msk-access/py-gbcms:latest
+docker pull ghcr.io/msk-access/py-gbcms:X.Y.Z
 # or
-singularity pull docker://ghcr.io/msk-access/py-gbcms:latest
+singularity pull docker://ghcr.io/msk-access/py-gbcms:X.Y.Z
 ```
 
 ### Task Metrics Error

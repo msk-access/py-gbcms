@@ -38,6 +38,14 @@ Technical terms used throughout the documentation.
 | **ctDNA** | Circulating tumor DNA — tumor-derived cfDNA |
 | **Duplex** | Reads from both strands of original molecule |
 
+## Alignment Backends
+
+| Term | Definition |
+|:-----|:-----------|
+| **Smith-Waterman (SW)** | Default Phase 3 alignment backend. Uses edit-distance scoring to align reads against REF and ALT haplotypes. Confident call requires ≥2 score margin. |
+| **PairHMM** | Alternative Phase 3 alignment backend (`--alignment-backend hmm`). Uses pair hidden Markov model with base quality probabilities for probabilistic alignment scoring. |
+| **LLR** | Log-Likelihood Ratio — PairHMM confidence metric. `LLR = ln(P(read|ALT)) - ln(P(read|REF))`. Default threshold: 2.3 (≈ ln(10), i.e., 10:1 odds). |
+
 ## Fragment Metrics
 
 | Term | Definition |
