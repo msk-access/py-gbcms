@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.0] - 2026-02-23
+
+### ✨ Added
+- **PairHMM alignment backend**: Alternative Phase 3 alignment via `--alignment-backend hmm` with probabilistic scoring using base quality probabilities. Configurable LLR threshold (default 2.3 ≈ ln(10)) and gap probabilities for repeat/non-repeat regions. 6 new CLI options. Exposed as first-class Nextflow params in `nextflow.config`
+- **MNP min-BQ-across-block quality strategy**: MNP quality now assessed using min(BQ) across the entire block, matching C++ GBCMS `baseCountDNP`. Low-quality MNP reads now fall through to `check_complex` for masked comparison instead of being silently skipped
+- **Per-phase ClassifyResult counters**: Diagnostic counters track how many reads are resolved in each classification phase (Phase 1/2/2.5/3)
+- **`--trace` flag**: Two-tier Rust logging — `--verbose` for debug, `--trace` for per-read classification diagnostics via pyo3-log
+
+### 🔧 Fixed
+- **Phase 2/2.5 overcounting**: Complex variants with `REF >> ALT` now skip Phase 2 Case B and Phase 2.5 when `ref_len > 2 × alt_len` — short ALT trivially matches, edit distance is biased toward shorter allele
+- **Phase 3 bypass for pure DEL/INS**: Removed `is_worth_realignment` prefilter — CIGAR structure is ground truth for pure deletions/insertions, prefilter was overcounting
+- **DP anchor overlap**: Now uses single-position check (`read_start ≤ variant.pos`), matching Mutect2, VarDictJava, and samtools mpileup standard
+- **MNP LowQuality routing**: LowQuality reads now fall through to `check_complex` for masked comparison instead of being skipped entirely
+- **S3 underflow guard**: Guards against negative `ctx_offset` in deletion S3 validation
+
+### 🏗️ Refactored
+- **Rust module structure**: Split `counting.rs` (1904 LOC) and `normalize.rs` (1221 LOC) into idiomatic module directories: `counting/` (7 modules) and `normalize/` (7 modules)
+- **AlignmentBackend threading**: `AlignmentBackend` enum threaded through all Phase 3 call sites
+
+### 📚 Documentation
+- **Comprehensive audit**: 28 fixes across 23 files — all GitBook URLs → MkDocs, version templating (X.Y.Z), undocumented CLI options, 5 mermaid diagrams updated for post-2.7.0 logic, architecture module tree refreshed, PairHMM documented end-to-end
+- Deleted stale `nextflow/CHANGES.md`
+
+### 🧹 Chores
+- Fix all cargo clippy warnings
+- Fix ruff lint issues, black formatting
+- Update test expectations for new behavior
+- CI: skip test workflow for docs-only changes
+
+### 🧪 Tests
+- 8 Python alignment backend integration tests
+- 5 SW-vs-PairHMM concordance tests
+- 10 MNP unit tests
+- Multi-allelic isolation, DP/neither, fragment consensus, normalization tests
+
 ## [2.7.0] - 2026-02-19
 
 ### ✨ Added
