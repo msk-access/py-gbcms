@@ -60,7 +60,7 @@ jobs:
       - name: Deploy development docs
         if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
         run: |
-          mike deploy --push --force --update-aliases dev develop
+          mike deploy --push --rebase --update-aliases dev develop
 
       # Deploy 'main' branch as the stable version (e.g. "2.3.0")
       # and set it as the default landing page
@@ -68,5 +68,5 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
-          mike deploy --push --force --update-aliases "$VERSION" stable
-          mike set-default --push --force stable
+          mike deploy --push --rebase --update-aliases "$VERSION" stable
+          mike set-default --push stable
