@@ -56,11 +56,16 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
 
+      - name: Sync gh-pages
+        if: github.event_name == 'push'
+        run: |
+          git fetch origin gh-pages:gh-pages 2>/dev/null || true
+
       # Deploy 'develop' branch as "dev" version
       - name: Deploy development docs
         if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
         run: |
-          mike deploy --push --rebase --update-aliases dev develop
+          mike deploy --push --update-aliases dev develop
 
       # Deploy 'main' branch as the stable version (e.g. "2.3.0")
       # and set it as the default landing page
@@ -68,5 +73,5 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
-          mike deploy --push --rebase --update-aliases "$VERSION" stable
+          mike deploy --push --update-aliases "$VERSION" stable
           mike set-default --push stable
