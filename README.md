@@ -4,6 +4,7 @@
 
 [![Tests](https://github.com/msk-access/py-gbcms/workflows/Tests/badge.svg)](https://github.com/msk-access/py-gbcms/actions)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/msk-access/py-gbcms)
 
 ## Features
 
