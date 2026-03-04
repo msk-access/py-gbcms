@@ -533,3 +533,45 @@ def test_normalize_rejects_unsupported_extension(mock_normalize, tmp_path):
 
     assert result.exit_code == 1
     mock_normalize.assert_not_called()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# .vcf.bgz support
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@patch("gbcms.cli.Pipeline")
+def test_vcf_bgz_accepted_by_run(mock_pipeline_cls, tmp_path):
+    """.vcf.bgz is accepted as a valid variant file extension by 'gbcms run'."""
+    bgz = tmp_path / "variants.vcf.bgz"
+    bgz.touch()
+    bam = tmp_path / "test.bam"
+    bam.touch()
+    fasta = tmp_path / "ref.fasta"
+    fasta.touch()
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    mock_pipeline_cls.return_value = MagicMock()
+
+    result = runner.invoke(app, [
+        "run", "-v", str(bgz), "-b", str(bam), "-f", str(fasta), "-o", str(output_dir),
+    ])
+
+    assert result.exit_code == 0, result.output
+
+
+@patch("gbcms.normalize.normalize_variants")
+def test_vcf_bgz_accepted_by_normalize(mock_normalize, tmp_path):
+    """.vcf.bgz is accepted as a valid variant file extension by 'gbcms normalize'."""
+    bgz = tmp_path / "variants.vcf.bgz"
+    bgz.touch()
+    fasta = tmp_path / "ref.fasta"
+    fasta.touch()
+    output = tmp_path / "out.tsv"
+
+    result = runner.invoke(app, [
+        "normalize", "-v", str(bgz), "-f", str(fasta), "-o", str(output),
+    ])
+
+    assert result.exit_code == 0, result.output
+    mock_normalize.assert_called_once()

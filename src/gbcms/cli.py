@@ -50,13 +50,29 @@ class AlignmentBackend(StrEnum):
     HMM = "hmm"
 
 
-# Valid variant file extensions (checked before Pydantic config construction)
+# Valid variant file extensions (checked before Pydantic config construction).
+# .vcf.gz  — bgzip/gzip-compressed VCF (tabix-indexable, most common HPC format)
+# .vcf.bgz — BGZip-compressed VCF, alternative extension used by some pipelines
+# .vcf     — uncompressed VCF
+# .maf     — Mutation Annotation Format
 _VALID_VARIANT_EXTENSIONS: frozenset[str] = frozenset({".vcf", ".maf"})
+_COMPRESSED_VCF_SUFFIXES: tuple[str, ...] = (".vcf.gz", ".vcf.bgz")
 
 # Column-prefix charset: only letters, digits, underscores
 _COLUMN_PREFIX_RE = re.compile(r"^[A-Za-z0-9_]*$")
 
 app = typer.Typer(help="gbcms: Get Base Counts Multi-Sample")
+
+
+def _is_compressed_vcf(path: Path) -> bool:
+    """Return True if *path* has a compressed-VCF suffix (.vcf.gz or .vcf.bgz).
+
+    BGZip (.vcf.bgz) and gzip (.vcf.gz) are both block-gzip compatible and
+    are handled identically by pysam.  We accept both so users can pass
+    tabix-indexed .bgz files without renaming.
+    """
+    name_lower = path.name.lower()
+    return any(name_lower.endswith(suffix) for suffix in _COMPRESSED_VCF_SUFFIXES)
 
 
 def version_callback(value: bool) -> None:
@@ -227,12 +243,12 @@ def run(
     # ── 2. Pre-model validation (semantic + cross-option checks) ──────────────
 
     # GAP 12: Reject unsupported variant file extensions before any I/O.
-    _is_vcf_gz = variant_file.name.lower().endswith(".vcf.gz")
+    _is_vcf_gz = _is_compressed_vcf(variant_file)
     _ext = variant_file.suffix.lower()
     if not _is_vcf_gz and _ext not in _VALID_VARIANT_EXTENSIONS:
         logger.error(
-            "Unsupported variant file extension '%s'. Expected .vcf, .vcf.gz, or .maf. "
-            "Got: %s",
+            "Unsupported variant file extension '%s'. "
+            "Expected .vcf, .vcf.gz, .vcf.bgz, or .maf. Got: %s",
             _ext,
             variant_file,
         )
@@ -365,12 +381,12 @@ def normalize(
     setup_logging(verbose=verbose, trace=trace)
 
     # Apply the same file extension pre-check as the 'run' command.
-    _is_vcf_gz = variant_file.name.lower().endswith(".vcf.gz")
+    _is_vcf_gz = _is_compressed_vcf(variant_file)
     _ext = variant_file.suffix.lower()
     if not _is_vcf_gz and _ext not in _VALID_VARIANT_EXTENSIONS:
         logger.error(
-            "Unsupported variant file extension '%s'. Expected .vcf, .vcf.gz, or .maf. "
-            "Got: %s",
+            "Unsupported variant file extension '%s'. "
+            "Expected .vcf, .vcf.gz, .vcf.bgz, or .maf. Got: %s",
             _ext,
             variant_file,
         )

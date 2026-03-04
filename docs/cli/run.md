@@ -12,7 +12,7 @@ gbcms run [OPTIONS] --variants <FILE> --bam <NAME:PATH>... --fasta <FILE>
 
 | Option | Description |
 |:-------|:------------|
-| `--variants`, `-v` | [VCF or MAF](../reference/input-formats.md) file with variant positions (`.vcf`, `.vcf.gz`, or `.maf`). Unsupported extensions are rejected immediately. |
+| `--variants`, `-v` | [VCF or MAF](../reference/input-formats.md) file with variant positions (`.vcf`, `.vcf.gz`, `.vcf.bgz`, or `.maf`). Unsupported extensions are rejected immediately. |
 | `--bam`, `-b` | BAM file path (can repeat). Optionally prefix with `name:` for sample naming, e.g. `--bam tumor:tumor.bam`. If no name given, the filename stem is used. |
 | `--bam-list`, `-L` | File containing BAM paths (one per line, optionally `sample_name path`). Alternative to repeated `--bam`. |
 | `--fasta`, `-f` | Reference FASTA file (with .fai index) |

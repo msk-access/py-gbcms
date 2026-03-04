@@ -357,14 +357,20 @@ class Pipeline:
         # reaching this branch with an unsupported extension means Pipeline was called
         # programmatically rather than via the CLI.  We raise ValueError here as a
         # defensive backstop.
-        if path.suffix.lower() == ".vcf" or path.name.lower().endswith(".vcf.gz"):
+        #
+        # Accepted compressed formats:
+        #   .vcf.gz  — gzip/bgzip (standard tabix format)
+        #   .vcf.bgz — explicit bgzip extension used by some pipelines
+        # Both are block-gzip compatible and handled identically by pysam.
+        name_lower = path.name.lower()
+        if path.suffix.lower() == ".vcf" or name_lower.endswith(".vcf.gz") or name_lower.endswith(".vcf.bgz"):
             reader = VcfReader(path)
         elif path.suffix.lower() == ".maf":
             reader = MafReader(path)
         else:
             raise ValueError(
                 f"Unsupported variant file format: '{path.suffix}'. "
-                "Expected .vcf, .vcf.gz, or .maf."
+                "Expected .vcf, .vcf.gz, .vcf.bgz, or .maf."
             )
 
         variants = list(reader)
