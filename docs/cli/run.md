@@ -12,7 +12,7 @@ gbcms run [OPTIONS] --variants <FILE> --bam <NAME:PATH>... --fasta <FILE>
 
 | Option | Description |
 |:-------|:------------|
-| `--variants`, `-v` | [VCF or MAF](../reference/input-formats.md) file with variant positions |
+| `--variants`, `-v` | [VCF or MAF](../reference/input-formats.md) file with variant positions (`.vcf`, `.vcf.gz`, or `.maf`). Unsupported extensions are rejected immediately. |
 | `--bam`, `-b` | BAM file path (can repeat). Optionally prefix with `name:` for sample naming, e.g. `--bam tumor:tumor.bam`. If no name given, the filename stem is used. |
 | `--bam-list`, `-L` | File containing BAM paths (one per line, optionally `sample_name path`). Alternative to repeated `--bam`. |
 | `--fasta`, `-f` | Reference FASTA file (with .fai index) |
@@ -24,10 +24,10 @@ gbcms run [OPTIONS] --variants <FILE> --bam <NAME:PATH>... --fasta <FILE>
 | `--output-dir`, `-o` | *required* | Output directory |
 | `--format` | `vcf` | Output format (`vcf` or `maf`) |
 | `--suffix` | `''` | Suffix for output filenames |
-| `--column-prefix` | `''` | Prefix for gbcms count columns in MAF output |
-| `--preserve-barcode` | `false` | Keep original Tumor_Sample_Barcode from input MAF |
+| `--column-prefix` | `''` | Prefix for gbcms count columns in MAF output. Only letters, digits, and underscores (`[A-Za-z0-9_]`) are allowed; invalid characters exit immediately. |
+| `--preserve-barcode` | `false` | Keep original Tumor_Sample_Barcode from input MAF. No-op (with warning) when input is not MAF. |
 | `--show-normalization` | `false` | Append `norm_*` columns showing left-aligned coordinates |
-| `--context-padding` | `5` | Minimum flanking bases for haplotype construction (auto-increased in repeats) |
+| `--context-padding` | `5` | Minimum flanking bases for haplotype construction. Range **1–50**, enforced at parse time. Auto-increased in repeat regions when `--adaptive-context` is enabled. |
 | `--adaptive-context` | `true` | Dynamically increase context padding in [tandem repeat regions](../reference/variant-normalization.md#adaptive-context-padding) |
 | `--threads` | `1` | Number of threads |
 
@@ -44,6 +44,7 @@ gbcms run [OPTIONS] --variants <FILE> --bam <NAME:PATH>... --fasta <FILE>
 | `--filter-improper-pair` | `false` | Filter improperly paired reads |
 | `--filter-indel` | `false` | Filter reads with indels |
 | `--fragment-qual-threshold` | `10` | Quality difference threshold for fragment consensus (see [Fragment Counting](../reference/counting-metrics.md#fragment-counting)) |
+| `--lenient-bam` | `false` | Skip missing BAM files and continue with remaining samples. **Default (off)**: any missing BAM path causes an immediate exit. Use this flag for batch lists where some files may be absent. Note: `--lenient-bam` does not apply to a missing `--bam-list` file itself. |
 
 ## Debugging Options
 
@@ -58,7 +59,7 @@ By default, Phase 3 allele classification uses Smith-Waterman (SW). An alternati
 
 | Option | Default | Description |
 |:-------|:--------|:------------|
-| `--alignment-backend` | `sw` | Alignment backend for Phase 3: `sw` (Smith-Waterman) or `hmm` (PairHMM) |
+| `--alignment-backend` | `sw` | Alignment backend for Phase 3: `sw` (Smith-Waterman) or `hmm` (PairHMM). Invalid values are rejected at parse time. |
 | `--llr-threshold` | `2.3` | PairHMM log-likelihood ratio threshold for confident calls (≈ ln(10)) |
 | `--gap-open-prob` | `1e-4` | PairHMM gap-open probability for non-repeat regions |
 | `--gap-extend-prob` | `0.1` | PairHMM gap-extend probability for non-repeat regions |

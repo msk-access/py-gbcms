@@ -28,7 +28,7 @@ pytest tests/test_accuracy.py -v
 | Normalization | `test_normalization.py` | Left-alignment, REF validation, homopolymer detection, dynamic window expansion |
 | DP Neither | `test_dp_neither.py` | Gap 1D: DP includes third-allele/neither reads |
 | Multi-Allelic | `test_multi_allelic.py` | Gap 1A: Sibling ALT exclusion, overlapping indel DP |
-| CLI | `test_cli_sample_id.py` | Command-line parsing |
+| CLI | `test_cli_sample_id.py` | Argument parsing, input validation, error paths, `--lenient-bam`, subcommands |
 | Filters | `test_filters.py` | Read filtering logic |
 | MAF | `test_maf_*.py` | MAF column preservation, reader |
 | Pipeline | `test_pipeline_v2.py` | End-to-end workflow |
@@ -207,7 +207,7 @@ samtools mpileup -r 1:11168293-11168293 -q 20 -f ref.fa sample.bam | \
 
 | Module | Target | Current |
 |:-------|:------:|:-------:|
-| cli.py | 80% | 79% |
+| cli.py | 90% | ~90% |
 | pipeline.py | 70% | 29% |
 | io/input.py | 85% | 82% |
 | io/output.py | 90% | 96% |
