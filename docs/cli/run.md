@@ -16,6 +16,7 @@ gbcms run [OPTIONS] --variants <FILE> --bam <NAME:PATH>... --fasta <FILE>
 | `--bam`, `-b` | BAM file path (can repeat). Optionally prefix with `name:` for sample naming, e.g. `--bam tumor:tumor.bam`. If no name given, the filename stem is used. |
 | `--bam-list`, `-L` | File containing BAM paths (one per line, optionally `sample_name path`). Alternative to repeated `--bam`. |
 | `--fasta`, `-f` | Reference FASTA file (with .fai index) |
+| `--lenient-bam` | Skip missing `--bam` paths and continue with remaining samples (default: exit immediately on first missing BAM). Note: a missing `--bam-list` file always fails regardless. |
 
 ## Output Options
 
@@ -44,7 +45,6 @@ gbcms run [OPTIONS] --variants <FILE> --bam <NAME:PATH>... --fasta <FILE>
 | `--filter-improper-pair` | `false` | Filter improperly paired reads |
 | `--filter-indel` | `false` | Filter reads with indels |
 | `--fragment-qual-threshold` | `10` | Quality difference threshold for fragment consensus (see [Fragment Counting](../reference/counting-metrics.md#fragment-counting)) |
-| `--lenient-bam` | `false` | Skip missing BAM files and continue with remaining samples. **Default (off)**: any missing BAM path causes an immediate exit. Use this flag for batch lists where some files may be absent. Note: `--lenient-bam` does not apply to a missing `--bam-list` file itself. |
 
 ## Debugging Options
 

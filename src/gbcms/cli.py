@@ -13,7 +13,6 @@ Validation order (enforced for every option):
 import logging
 import os
 import re
-import sys
 from pathlib import Path
 
 import typer
@@ -26,6 +25,7 @@ from .models.core import (
     OutputFormat,
     QualityThresholds,
     ReadFilters,
+    StrEnum,  # canonical backport (Python ≮3.10 compatible), defined in models.core
 )
 from .pipeline import Pipeline
 from .utils import setup_logging
@@ -38,18 +38,8 @@ logger = logging.getLogger(__name__)
 # Constrained-choice enums (parse-time validation via Typer)
 # ---------------------------------------------------------------------------
 
-# Import StrEnum — backport for Python 3.10 is already defined in models/core.py,
-# but we define a local one here to keep cli.py self-contained.
-if sys.version_info >= (3, 11):
-    from enum import StrEnum as _StrEnum
-else:
-    from enum import Enum as _Enum
 
-    class _StrEnum(str, _Enum):  # type: ignore[no-redef]
-        """Minimal StrEnum backport."""
-
-
-class AlignmentBackend(_StrEnum):
+class AlignmentBackend(StrEnum):
     """CLI-exposed alignment backend options.
 
     'pairhmm' is accepted as a model-level alias but intentionally not
@@ -373,6 +363,19 @@ def normalize(
     from .normalize import normalize_variants
 
     setup_logging(verbose=verbose, trace=trace)
+
+    # Apply the same file extension pre-check as the 'run' command.
+    _is_vcf_gz = variant_file.name.lower().endswith(".vcf.gz")
+    _ext = variant_file.suffix.lower()
+    if not _is_vcf_gz and _ext not in _VALID_VARIANT_EXTENSIONS:
+        logger.error(
+            "Unsupported variant file extension '%s'. Expected .vcf, .vcf.gz, or .maf. "
+            "Got: %s",
+            _ext,
+            variant_file,
+        )
+        raise typer.Exit(code=1)
+
     normalize_variants(
         variant_file=variant_file,
         reference=reference,

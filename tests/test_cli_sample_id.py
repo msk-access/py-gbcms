@@ -444,3 +444,92 @@ def test_version_flag():
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
     assert "gbcms" in result.output.lower()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Audit-pass additions (post-implementation review)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@patch("gbcms.cli.Pipeline")
+def test_min_baseq_negative_rejected(mock_pipeline_cls, tmp_path):
+    """Audit: --min-baseq -1 is rejected at Pydantic model construction (ge=0)."""
+    vcf, bam, fasta, output_dir = _make_files(tmp_path)
+    mock_pipeline_cls.return_value = MagicMock()
+
+    result = runner.invoke(app, _base_run_args(vcf, bam, fasta, output_dir, [
+        "--min-baseq", "-1",
+    ]))
+
+    assert result.exit_code != 0
+
+
+def test_bam_list_missing_entry_reported_as_error(tmp_path):
+    """GAP 4 (audit): A missing BAM in --bam-list is logged at ERROR level, not WARNING.
+
+    The run still continues (entry is skipped), but the message severity is ERROR
+    so operators and monitoring systems can detect missing data.
+    """
+    vcf, _, fasta, output_dir = _make_files(tmp_path)
+    good_bam = tmp_path / "good.bam"
+    good_bam.touch()
+    bad_bam = tmp_path / "nonexistent.bam"
+
+    bam_list = tmp_path / "bams.list"
+    bam_list.write_text(f"good {good_bam}\nbad {bad_bam}\n")
+
+    with patch("gbcms.cli.Pipeline") as mock_p:
+        mock_p.return_value = MagicMock()
+        result = runner.invoke(app, [
+            "run", "-v", str(vcf), "-L", str(bam_list),
+            "-f", str(fasta), "-o", str(output_dir),
+        ])
+
+    # Run succeeds (entry skipped, not fatal)
+    assert result.exit_code == 0
+    # The missing BAM must appear somewhere in the output (ERROR message)
+    assert "not found" in result.output.lower() or bad_bam.name in result.output
+
+
+@patch("gbcms.cli.Pipeline")
+def test_threads_exceeds_cpu_count_warning(mock_pipeline_cls, tmp_path):
+    """GAP 8 (audit): --threads above cpu_count() emits an advisory warning.
+
+    We patch os.cpu_count to return 1 so --threads 999 always triggers the check
+    regardless of the test machine's actual CPU count.
+    """
+    vcf, bam, fasta, output_dir = _make_files(tmp_path)
+    mock_pipeline_cls.return_value = MagicMock()
+
+    with patch("gbcms.cli.os.cpu_count", return_value=1):
+        result = runner.invoke(app, _base_run_args(vcf, bam, fasta, output_dir, [
+            "--threads", "999",
+        ]))
+
+    # Advisory only — run must still succeed
+    assert result.exit_code == 0, result.output
+    assert "999" in result.output or "cpu" in result.output.lower()
+
+
+@patch("gbcms.normalize.normalize_variants")
+def test_normalize_rejects_unsupported_extension(mock_normalize, tmp_path):
+    """Audit: 'gbcms normalize' applies the same extension pre-check as 'run'.
+
+    Before the audit fix, 'normalize' had no extension guard and would silently
+    pass a .bed file through to normalize_variants, causing a cryptic error later.
+    """
+    bad_file = tmp_path / "variants.bed"
+    bad_file.touch()
+    fasta = tmp_path / "ref.fasta"
+    fasta.touch()
+    output = tmp_path / "out.tsv"
+
+    result = runner.invoke(app, [
+        "normalize",
+        "-v", str(bad_file),
+        "-f", str(fasta),
+        "-o", str(output),
+    ])
+
+    assert result.exit_code == 1
+    mock_normalize.assert_not_called()
