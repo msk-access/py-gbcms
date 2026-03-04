@@ -1,5 +1,5 @@
 [project]
-name = "py-gbcms"
+name = "gbcms"
 version = "2.8.0"
 description = "Python implementation of GetBaseCountsMultiSample (gbcms) for calculating base counts in BAM files"
 authors = [
@@ -45,10 +45,10 @@ dev = [
 gbcms = "gbcms.cli:app"
 
 [project.urls]
-Homepage = "https://github.com/msk-access/py-gbcms"
-Repository = "https://github.com/msk-access/py-gbcms"
-Documentation = "https://github.com/msk-access/py-gbcms#readme"
-"Bug Tracker" = "https://github.com/msk-access/py-gbcms/issues"
+Homepage = "https://github.com/msk-access/gbcms"
+Repository = "https://github.com/msk-access/gbcms"
+Documentation = "https://msk-access.github.io/gbcms"
+"Bug Tracker" = "https://github.com/msk-access/gbcms/issues"
 
 [build-system]
 requires = ["maturin>=1.0,<2.0"]

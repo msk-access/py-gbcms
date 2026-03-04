@@ -362,13 +362,13 @@ Version 2.0.0 is **not backward compatible** with 1.x. Key breaking changes:
 
 ```bash
 # From PyPI (includes pre-built wheels)
-pip install py-gbcms
+pip install gbcms
 
 # From source (requires Rust)
-pip install git+https://github.com/msk-access/py-gbcms.git
+pip install git+https://github.com/msk-access/gbcms.git
 
 # Docker
-docker pull ghcr.io/msk-access/py-gbcms:2.0.0
+docker pull ghcr.io/msk-access/gbcms:2.0.0
 ```
 
 ### 🙏 Acknowledgments

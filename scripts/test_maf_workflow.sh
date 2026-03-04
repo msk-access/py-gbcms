@@ -4,7 +4,7 @@
 set -e  # Exit on error
 
 echo "=========================================="
-echo "py-gbcms MAF Workflow Test"
+echo "gbcms MAF Workflow Test"
 echo "=========================================="
 echo
 
@@ -77,7 +77,7 @@ EOF
 
 # Run gbcms (MAF format)
 echo
-echo "Running py-gbcms (MAF format)..."
+echo "Running gbcms (MAF format)..."
 export PYTHONPATH=$PYTHONPATH:$(pwd)/../../src
 python3 -m gbcms.cli run \
     --fasta reference.fa \

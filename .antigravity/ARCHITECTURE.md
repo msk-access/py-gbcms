@@ -1,8 +1,8 @@
-# py-gbcms Architecture
+# gbcms Architecture
 
 ## Overview
 
-py-gbcms is a Python/Rust hybrid tool for counting bases at variant positions in BAM files.
+gbcms is a Python/Rust hybrid tool for counting bases at variant positions in BAM files.
 
 ## Layer Architecture
 

@@ -1,24 +1,24 @@
 # Citation
 
-If you use py-gbcms in your research, please cite:
+If you use gbcms in your research, please cite:
 
 ## Software Citation
 
 ```bibtex
-@software{py-gbcms,
+@software{gbcms,
   author = {Shah, Ronak H.},
-  title = {py-gbcms: High-performance variant counting from BAM files},
+  title = {gbcms: High-performance variant counting from BAM files},
   year = {2025},
-  url = {https://github.com/msk-access/py-gbcms},
+  url = {https://github.com/msk-access/gbcms},
   organization = {Memorial Sloan Kettering Cancer Center}
 }
 ```
 
 ## Links
 
-- **GitHub:** [msk-access/py-gbcms](https://github.com/msk-access/py-gbcms)
-- **PyPI:** [py-gbcms](https://pypi.org/project/py-gbcms/)
-- **Documentation:** [msk-access.github.io/py-gbcms](https://msk-access.github.io/py-gbcms/)
+- **GitHub:** [msk-access/gbcms](https://github.com/msk-access/gbcms)
+- **PyPI:** [gbcms](https://pypi.org/project/gbcms/)
+- **Documentation:** [msk-access.github.io/gbcms](https://msk-access.github.io/gbcms/)
 
 ## Related Projects
 
