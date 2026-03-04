@@ -492,9 +492,7 @@ def _parse_bam_inputs(
                         )
                         continue
 
-                    logger.debug(
-                        "Registered BAM sample from list '%s': %s", sample_name, bam_path
-                    )
+                    logger.debug("Registered BAM sample from list '%s': %s", sample_name, bam_path)
                     bams_dict[sample_name] = bam_path
 
         except OSError as e:

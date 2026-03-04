@@ -21,10 +21,8 @@ Test pattern:
   so no real BAM/VCF parsing occurs.  Each test is self-contained via tmp_path.
 """
 
-import logging
 from unittest.mock import MagicMock, patch
 
-import pytest
 from typer.testing import CliRunner
 
 from gbcms.cli import app
@@ -55,10 +53,14 @@ def _base_run_args(vcf, bam, fasta, output_dir, extra=None):
     """Build the minimal valid 'run' args, with optional extras appended."""
     args = [
         "run",
-        "-v", str(vcf),
-        "-b", str(bam),
-        "-f", str(fasta),
-        "-o", str(output_dir),
+        "-v",
+        str(vcf),
+        "-b",
+        str(bam),
+        "-f",
+        str(fasta),
+        "-o",
+        str(output_dir),
     ]
     if extra:
         args.extend(extra)
@@ -76,14 +78,22 @@ def test_cli_parsing_mocked(mock_pipeline_cls, tmp_path):
     vcf, bam, fasta, output_dir = _make_files(tmp_path)
     mock_pipeline_cls.return_value = MagicMock()
 
-    result = runner.invoke(app, [
-        "run",
-        "-v", str(vcf),
-        "-b", f"mysample:{bam}",
-        "-f", str(fasta),
-        "-o", str(output_dir),
-        "--suffix", ".genotyped",
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "-v",
+            str(vcf),
+            "-b",
+            f"mysample:{bam}",
+            "-f",
+            str(fasta),
+            "-o",
+            str(output_dir),
+            "--suffix",
+            ".genotyped",
+        ],
+    )
 
     assert result.exit_code == 0, result.output
 
@@ -106,9 +116,20 @@ def test_cli_bam_list_parsing(mock_pipeline_cls, tmp_path):
     bam_list.write_text(f"sample1 {bam1}\nsample2\t{bam2}\n")
     mock_pipeline_cls.return_value = MagicMock()
 
-    result = runner.invoke(app, [
-        "run", "-v", str(vcf), "-L", str(bam_list), "-f", str(fasta), "-o", str(output_dir),
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "-v",
+            str(vcf),
+            "-L",
+            str(bam_list),
+            "-f",
+            str(fasta),
+            "-o",
+            str(output_dir),
+        ],
+    )
 
     assert result.exit_code == 0, result.output
     config = mock_pipeline_cls.call_args[0][0]
@@ -127,9 +148,18 @@ def test_no_bam_args_exits_nonzero(tmp_path):
     """GAP 1: No --bam or --bam-list → exit=1 with actionable message."""
     vcf, _, fasta, output_dir = _make_files(tmp_path)
 
-    result = runner.invoke(app, [
-        "run", "-v", str(vcf), "-f", str(fasta), "-o", str(output_dir),
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "-v",
+            str(vcf),
+            "-f",
+            str(fasta),
+            "-o",
+            str(output_dir),
+        ],
+    )
 
     assert result.exit_code == 1
     # The error message should guide the user toward --bam / --bam-list
@@ -146,9 +176,20 @@ def test_bam_list_file_not_found(tmp_path):
     vcf, _, fasta, output_dir = _make_files(tmp_path)
     missing_list = tmp_path / "nonexistent.list"  # deliberately not created
 
-    result = runner.invoke(app, [
-        "run", "-v", str(vcf), "-L", str(missing_list), "-f", str(fasta), "-o", str(output_dir),
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "-v",
+            str(vcf),
+            "-L",
+            str(missing_list),
+            "-f",
+            str(fasta),
+            "-o",
+            str(output_dir),
+        ],
+    )
 
     assert result.exit_code == 1
     assert str(missing_list) in result.output or "not found" in result.output.lower()
@@ -159,10 +200,21 @@ def test_bam_list_file_not_found_ignores_lenient(tmp_path):
     vcf, _, fasta, output_dir = _make_files(tmp_path)
     missing_list = tmp_path / "nonexistent.list"
 
-    result = runner.invoke(app, [
-        "run", "-v", str(vcf), "-L", str(missing_list),
-        "-f", str(fasta), "-o", str(output_dir), "--lenient-bam",
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "-v",
+            str(vcf),
+            "-L",
+            str(missing_list),
+            "-f",
+            str(fasta),
+            "-o",
+            str(output_dir),
+            "--lenient-bam",
+        ],
+    )
 
     # Even with lenient-bam, the list file itself must exist
     assert result.exit_code == 1
@@ -178,9 +230,20 @@ def test_missing_bam_fails_fast(tmp_path):
     vcf, _, fasta, output_dir = _make_files(tmp_path)
     missing_bam = tmp_path / "nonexistent.bam"  # deliberately not created
 
-    result = runner.invoke(app, [
-        "run", "-v", str(vcf), "-b", str(missing_bam), "-f", str(fasta), "-o", str(output_dir),
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "-v",
+            str(vcf),
+            "-b",
+            str(missing_bam),
+            "-f",
+            str(fasta),
+            "-o",
+            str(output_dir),
+        ],
+    )
 
     assert result.exit_code == 1
     assert "not found" in result.output.lower() or "--lenient-bam" in result.output
@@ -193,14 +256,23 @@ def test_lenient_bam_skips_missing(mock_pipeline_cls, tmp_path):
     missing_bam = tmp_path / "nonexistent.bam"  # deliberately not created
     mock_pipeline_cls.return_value = MagicMock()
 
-    result = runner.invoke(app, [
-        "run", "-v", str(vcf),
-        "-b", f"good:{existing_bam}",
-        "-b", f"bad:{missing_bam}",
-        "-f", str(fasta),
-        "-o", str(output_dir),
-        "--lenient-bam",
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "-v",
+            str(vcf),
+            "-b",
+            f"good:{existing_bam}",
+            "-b",
+            f"bad:{missing_bam}",
+            "-f",
+            str(fasta),
+            "-o",
+            str(output_dir),
+            "--lenient-bam",
+        ],
+    )
 
     assert result.exit_code == 0, result.output
     config = mock_pipeline_cls.call_args[0][0]
@@ -218,9 +290,19 @@ def test_invalid_alignment_backend_rejected(tmp_path):
     """GAP 5: An unrecognised --alignment-backend value is rejected at parse time."""
     vcf, bam, fasta, output_dir = _make_files(tmp_path)
 
-    result = runner.invoke(app, _base_run_args(vcf, bam, fasta, output_dir, [
-        "--alignment-backend", "foo_backend",
-    ]))
+    result = runner.invoke(
+        app,
+        _base_run_args(
+            vcf,
+            bam,
+            fasta,
+            output_dir,
+            [
+                "--alignment-backend",
+                "foo_backend",
+            ],
+        ),
+    )
 
     # Typer Enum rejection exits with code 2
     assert result.exit_code != 0
@@ -232,9 +314,19 @@ def test_hmm_backend_accepted(mock_pipeline_cls, tmp_path):
     vcf, bam, fasta, output_dir = _make_files(tmp_path)
     mock_pipeline_cls.return_value = MagicMock()
 
-    result = runner.invoke(app, _base_run_args(vcf, bam, fasta, output_dir, [
-        "--alignment-backend", "hmm",
-    ]))
+    result = runner.invoke(
+        app,
+        _base_run_args(
+            vcf,
+            bam,
+            fasta,
+            output_dir,
+            [
+                "--alignment-backend",
+                "hmm",
+            ],
+        ),
+    )
 
     assert result.exit_code == 0, result.output
     config = mock_pipeline_cls.call_args[0][0]
@@ -264,9 +356,19 @@ def test_context_padding_zero_rejected(tmp_path):
     """GAP 7: --context-padding 0 is rejected at parse time (Typer min=1)."""
     vcf, bam, fasta, output_dir = _make_files(tmp_path)
 
-    result = runner.invoke(app, _base_run_args(vcf, bam, fasta, output_dir, [
-        "--context-padding", "0",
-    ]))
+    result = runner.invoke(
+        app,
+        _base_run_args(
+            vcf,
+            bam,
+            fasta,
+            output_dir,
+            [
+                "--context-padding",
+                "0",
+            ],
+        ),
+    )
 
     assert result.exit_code != 0
 
@@ -275,9 +377,19 @@ def test_context_padding_51_rejected(tmp_path):
     """GAP 7: --context-padding 51 is rejected at parse time (Typer max=50)."""
     vcf, bam, fasta, output_dir = _make_files(tmp_path)
 
-    result = runner.invoke(app, _base_run_args(vcf, bam, fasta, output_dir, [
-        "--context-padding", "51",
-    ]))
+    result = runner.invoke(
+        app,
+        _base_run_args(
+            vcf,
+            bam,
+            fasta,
+            output_dir,
+            [
+                "--context-padding",
+                "51",
+            ],
+        ),
+    )
 
     assert result.exit_code != 0
 
@@ -289,9 +401,19 @@ def test_context_padding_boundary_accepted(mock_pipeline_cls, tmp_path):
     mock_pipeline_cls.return_value = MagicMock()
 
     for pad in ("1", "50"):
-        result = runner.invoke(app, _base_run_args(vcf, bam, fasta, output_dir, [
-            "--context-padding", pad,
-        ]))
+        result = runner.invoke(
+            app,
+            _base_run_args(
+                vcf,
+                bam,
+                fasta,
+                output_dir,
+                [
+                    "--context-padding",
+                    pad,
+                ],
+            ),
+        )
         assert result.exit_code == 0, f"--context-padding {pad} should be accepted"
 
 
@@ -304,9 +426,19 @@ def test_threads_zero_rejected(tmp_path):
     """GAP 8: --threads 0 is rejected by the Pydantic GbcmsConfig.threads field."""
     vcf, bam, fasta, output_dir = _make_files(tmp_path)
 
-    result = runner.invoke(app, _base_run_args(vcf, bam, fasta, output_dir, [
-        "--threads", "0",
-    ]))
+    result = runner.invoke(
+        app,
+        _base_run_args(
+            vcf,
+            bam,
+            fasta,
+            output_dir,
+            [
+                "--threads",
+                "0",
+            ],
+        ),
+    )
 
     assert result.exit_code != 0
 
@@ -327,15 +459,25 @@ def test_preserve_barcode_vcf_emits_warning(mock_pipeline_cls, tmp_path):
     vcf, bam, fasta, output_dir = _make_files(tmp_path)
     mock_pipeline_cls.return_value = MagicMock()
 
-    result = runner.invoke(app, _base_run_args(vcf, bam, fasta, output_dir, [
-        "--preserve-barcode",
-    ]))
+    result = runner.invoke(
+        app,
+        _base_run_args(
+            vcf,
+            bam,
+            fasta,
+            output_dir,
+            [
+                "--preserve-barcode",
+            ],
+        ),
+    )
 
     assert result.exit_code == 0, result.output
     # The warning is emitted to the logging stream which CliRunner captures in output
     combined = (result.output or "") + (str(result.exception) if result.exception else "")
     assert (
-        "preserve-barcode" in combined.lower() or "no effect" in combined.lower()
+        "preserve-barcode" in combined.lower()
+        or "no effect" in combined.lower()
         # Fallback: if logging is suppressed in test mode, at least the run succeeds
         # and we trust the code path was covered by the source change.
         or result.exit_code == 0
@@ -352,12 +494,22 @@ def test_invalid_column_prefix_rejected(tmp_path):
     vcf, bam, fasta, output_dir = _make_files(tmp_path)
 
     for bad_prefix in ("t ref", "t-ref", "t.ref", "t ref!"):
-        result = runner.invoke(app, _base_run_args(vcf, bam, fasta, output_dir, [
-            "--column-prefix", bad_prefix,
-        ]))
-        assert result.exit_code == 1, (
-            f"--column-prefix '{bad_prefix}' should be rejected (exit=1), got {result.exit_code}"
+        result = runner.invoke(
+            app,
+            _base_run_args(
+                vcf,
+                bam,
+                fasta,
+                output_dir,
+                [
+                    "--column-prefix",
+                    bad_prefix,
+                ],
+            ),
         )
+        assert (
+            result.exit_code == 1
+        ), f"--column-prefix '{bad_prefix}' should be rejected (exit=1), got {result.exit_code}"
 
 
 @patch("gbcms.cli.Pipeline")
@@ -367,13 +519,24 @@ def test_valid_column_prefix_accepted(mock_pipeline_cls, tmp_path):
     mock_pipeline_cls.return_value = MagicMock()
 
     for good_prefix in ("t_", "gbcms_", "T2_", ""):
-        result = runner.invoke(app, _base_run_args(vcf, bam, fasta, output_dir, [
-            "--format", "maf",
-            "--column-prefix", good_prefix,
-        ]))
-        assert result.exit_code == 0, (
-            f"--column-prefix '{good_prefix}' should be accepted, got {result.exit_code}"
+        result = runner.invoke(
+            app,
+            _base_run_args(
+                vcf,
+                bam,
+                fasta,
+                output_dir,
+                [
+                    "--format",
+                    "maf",
+                    "--column-prefix",
+                    good_prefix,
+                ],
+            ),
         )
+        assert (
+            result.exit_code == 0
+        ), f"--column-prefix '{good_prefix}' should be accepted, got {result.exit_code}"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -388,16 +551,23 @@ def test_unsupported_variant_extension_rejected(tmp_path):
     for bad_ext in (".bed", ".txt", ".tsv", ".txt.gz", ".maf.gz"):
         bad_file = tmp_path / f"variants{bad_ext}"
         bad_file.touch()
-        result = runner.invoke(app, [
-            "run",
-            "-v", str(bad_file),
-            "-b", str(bam),
-            "-f", str(fasta),
-            "-o", str(output_dir),
-        ])
-        assert result.exit_code == 1, (
-            f"Extension '{bad_ext}' should be rejected (exit=1), got {result.exit_code}"
+        result = runner.invoke(
+            app,
+            [
+                "run",
+                "-v",
+                str(bad_file),
+                "-b",
+                str(bam),
+                "-f",
+                str(fasta),
+                "-o",
+                str(output_dir),
+            ],
         )
+        assert (
+            result.exit_code == 1
+        ), f"Extension '{bad_ext}' should be rejected (exit=1), got {result.exit_code}"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -419,12 +589,18 @@ def test_normalize_subcommand(mock_normalize, tmp_path):
     fasta.touch()
     output = tmp_path / "normalized.tsv"
 
-    result = runner.invoke(app, [
-        "normalize",
-        "-v", str(vcf),
-        "-f", str(fasta),
-        "-o", str(output),
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "normalize",
+            "-v",
+            str(vcf),
+            "-f",
+            str(fasta),
+            "-o",
+            str(output),
+        ],
+    )
 
     assert result.exit_code == 0, result.output
     mock_normalize.assert_called_once()
@@ -457,9 +633,19 @@ def test_min_baseq_negative_rejected(mock_pipeline_cls, tmp_path):
     vcf, bam, fasta, output_dir = _make_files(tmp_path)
     mock_pipeline_cls.return_value = MagicMock()
 
-    result = runner.invoke(app, _base_run_args(vcf, bam, fasta, output_dir, [
-        "--min-baseq", "-1",
-    ]))
+    result = runner.invoke(
+        app,
+        _base_run_args(
+            vcf,
+            bam,
+            fasta,
+            output_dir,
+            [
+                "--min-baseq",
+                "-1",
+            ],
+        ),
+    )
 
     assert result.exit_code != 0
 
@@ -480,10 +666,20 @@ def test_bam_list_missing_entry_reported_as_error(tmp_path):
 
     with patch("gbcms.cli.Pipeline") as mock_p:
         mock_p.return_value = MagicMock()
-        result = runner.invoke(app, [
-            "run", "-v", str(vcf), "-L", str(bam_list),
-            "-f", str(fasta), "-o", str(output_dir),
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "run",
+                "-v",
+                str(vcf),
+                "-L",
+                str(bam_list),
+                "-f",
+                str(fasta),
+                "-o",
+                str(output_dir),
+            ],
+        )
 
     # Run succeeds (entry skipped, not fatal)
     assert result.exit_code == 0
@@ -502,9 +698,19 @@ def test_threads_exceeds_cpu_count_warning(mock_pipeline_cls, tmp_path):
     mock_pipeline_cls.return_value = MagicMock()
 
     with patch("gbcms.cli.os.cpu_count", return_value=1):
-        result = runner.invoke(app, _base_run_args(vcf, bam, fasta, output_dir, [
-            "--threads", "999",
-        ]))
+        result = runner.invoke(
+            app,
+            _base_run_args(
+                vcf,
+                bam,
+                fasta,
+                output_dir,
+                [
+                    "--threads",
+                    "999",
+                ],
+            ),
+        )
 
     # Advisory only — run must still succeed
     assert result.exit_code == 0, result.output
@@ -524,12 +730,18 @@ def test_normalize_rejects_unsupported_extension(mock_normalize, tmp_path):
     fasta.touch()
     output = tmp_path / "out.tsv"
 
-    result = runner.invoke(app, [
-        "normalize",
-        "-v", str(bad_file),
-        "-f", str(fasta),
-        "-o", str(output),
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "normalize",
+            "-v",
+            str(bad_file),
+            "-f",
+            str(fasta),
+            "-o",
+            str(output),
+        ],
+    )
 
     assert result.exit_code == 1
     mock_normalize.assert_not_called()
@@ -553,9 +765,20 @@ def test_vcf_bgz_accepted_by_run(mock_pipeline_cls, tmp_path):
     output_dir.mkdir()
     mock_pipeline_cls.return_value = MagicMock()
 
-    result = runner.invoke(app, [
-        "run", "-v", str(bgz), "-b", str(bam), "-f", str(fasta), "-o", str(output_dir),
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "-v",
+            str(bgz),
+            "-b",
+            str(bam),
+            "-f",
+            str(fasta),
+            "-o",
+            str(output_dir),
+        ],
+    )
 
     assert result.exit_code == 0, result.output
 
@@ -569,9 +792,18 @@ def test_vcf_bgz_accepted_by_normalize(mock_normalize, tmp_path):
     fasta.touch()
     output = tmp_path / "out.tsv"
 
-    result = runner.invoke(app, [
-        "normalize", "-v", str(bgz), "-f", str(fasta), "-o", str(output),
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "normalize",
+            "-v",
+            str(bgz),
+            "-f",
+            str(fasta),
+            "-o",
+            str(output),
+        ],
+    )
 
     assert result.exit_code == 0, result.output
     mock_normalize.assert_called_once()

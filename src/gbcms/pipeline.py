@@ -363,7 +363,11 @@ class Pipeline:
         #   .vcf.bgz — explicit bgzip extension used by some pipelines
         # Both are block-gzip compatible and handled identically by pysam.
         name_lower = path.name.lower()
-        if path.suffix.lower() == ".vcf" or name_lower.endswith(".vcf.gz") or name_lower.endswith(".vcf.bgz"):
+        if (
+            path.suffix.lower() == ".vcf"
+            or name_lower.endswith(".vcf.gz")
+            or name_lower.endswith(".vcf.bgz")
+        ):
             reader = VcfReader(path)
         elif path.suffix.lower() == ".maf":
             reader = MafReader(path)
