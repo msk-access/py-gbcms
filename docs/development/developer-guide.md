@@ -154,6 +154,17 @@ When debugging specific variant types, create targeted BAM slices:
 | Logging | Use `logging`, not `print()` |
 | Config | Pydantic models |
 
+#### CLI Validation Standards
+
+New CLI options must follow this four-layer validation order:
+
+1. **Parse-time** (Typer): Use `Enum` for constrained choices, `min=`/`max=` for numeric ranges. Typer rejects invalid values before any Python code runs.
+2. **Pre-model** (cli.py command body): File extension checks, cross-option semantics (e.g. `--preserve-barcode` + non-MAF input), charset validation. Log at `ERROR` and raise `typer.Exit(code=1)`.
+3. **Model-time** (Pydantic): Business-logic constraints in `models/core.py` via `Field(ge=..., le=...)` and `@field_validator`.
+4. **No silent skips**: Missing inputs must fail-fast or require an explicit opt-out (e.g. `--lenient-bam`). `WARNING`-level silent skips are unacceptable for missing required inputs.
+
+The module-level docstring in `cli.py` documents this order and must be kept in sync when adding new options.
+
 ### Rust
 
 | Standard | Requirement |

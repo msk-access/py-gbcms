@@ -353,13 +353,25 @@ class Pipeline:
         path = self.config.variant_file
         reader: VariantReader
 
-        suffix = path.suffix.lower()
-        if suffix in [".vcf", ".gz"]:
+        # Note: The CLI pre-checks the extension at parse time (before Pydantic), so
+        # reaching this branch with an unsupported extension means Pipeline was called
+        # programmatically rather than via the CLI.  We raise ValueError here as a
+        # defensive backstop.
+        #
+        # Accepted compressed formats:
+        #   .vcf.gz  — gzip/bgzip (standard tabix format)
+        #   .vcf.bgz — explicit bgzip extension used by some pipelines
+        # Both are block-gzip compatible and handled identically by pysam.
+        name_lower = path.name.lower()
+        if path.suffix.lower() == ".vcf" or name_lower.endswith(".vcf.gz") or name_lower.endswith(".vcf.bgz"):
             reader = VcfReader(path)
-        elif suffix == ".maf":
+        elif path.suffix.lower() == ".maf":
             reader = MafReader(path)
         else:
-            raise ValueError(f"Unsupported variant file format: {suffix}")
+            raise ValueError(
+                f"Unsupported variant file format: '{path.suffix}'. "
+                "Expected .vcf, .vcf.gz, .vcf.bgz, or .maf."
+            )
 
         variants = list(reader)
         if hasattr(reader, "close"):

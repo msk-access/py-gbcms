@@ -1,8 +1,18 @@
 """
 CLI Entry Point: Exposes the gbcms functionality via command line.
+
+Validation order (enforced for every option):
+  1. Parse-time  — Typer Enum / min=/max= for constrained choices and numeric ranges.
+  2. Pre-model   — Explicit checks in the command body before Pydantic construction
+                   (file extensions, cross-option semantics, charset validation).
+  3. Model-time  — Pydantic field constraints and validators in models/core.py.
+  4. No silent skips — Missing inputs fail-fast unless the caller opts-out explicitly
+                       (e.g. --lenient-bam).
 """
 
 import logging
+import os
+import re
 from pathlib import Path
 
 import typer
@@ -15,6 +25,7 @@ from .models.core import (
     OutputFormat,
     QualityThresholds,
     ReadFilters,
+    StrEnum,  # canonical backport (Python ≮3.10 compatible), defined in models.core
 )
 from .pipeline import Pipeline
 from .utils import setup_logging
@@ -23,7 +34,45 @@ __all__ = ["app", "run", "normalize"]
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Constrained-choice enums (parse-time validation via Typer)
+# ---------------------------------------------------------------------------
+
+
+class AlignmentBackend(StrEnum):
+    """CLI-exposed alignment backend options.
+
+    'pairhmm' is accepted as a model-level alias but intentionally not
+    surfaced here so users always type the canonical short form.
+    """
+
+    SW = "sw"
+    HMM = "hmm"
+
+
+# Valid variant file extensions (checked before Pydantic config construction).
+# .vcf.gz  — bgzip/gzip-compressed VCF (tabix-indexable, most common HPC format)
+# .vcf.bgz — BGZip-compressed VCF, alternative extension used by some pipelines
+# .vcf     — uncompressed VCF
+# .maf     — Mutation Annotation Format
+_VALID_VARIANT_EXTENSIONS: frozenset[str] = frozenset({".vcf", ".maf"})
+_COMPRESSED_VCF_SUFFIXES: tuple[str, ...] = (".vcf.gz", ".vcf.bgz")
+
+# Column-prefix charset: only letters, digits, underscores
+_COLUMN_PREFIX_RE = re.compile(r"^[A-Za-z0-9_]*$")
+
 app = typer.Typer(help="gbcms: Get Base Counts Multi-Sample")
+
+
+def _is_compressed_vcf(path: Path) -> bool:
+    """Return True if *path* has a compressed-VCF suffix (.vcf.gz or .vcf.bgz).
+
+    BGZip (.vcf.bgz) and gzip (.vcf.gz) are both block-gzip compatible and
+    are handled identically by pysam.  We accept both so users can pass
+    tabix-indexed .bgz files without renaming.
+    """
+    name_lower = path.name.lower()
+    return any(name_lower.endswith(suffix) for suffix in _COMPRESSED_VCF_SUFFIXES)
 
 
 def version_callback(value: bool) -> None:
@@ -101,10 +150,12 @@ def run(
     context_padding: int = typer.Option(
         5,
         "--context-padding",
+        min=1,
+        max=50,
         help=(
             "Minimum flanking reference bases around indel/complex variants for "
-            "haplotype construction and SW alignment (1-50). "
-            "Auto-increased in repeat regions when --adaptive-context is enabled."
+            "haplotype construction and SW alignment. Range 1–50 enforced at "
+            "parse time. Auto-increased in repeat regions when --adaptive-context is enabled."
         ),
     ),
     adaptive_context: bool = typer.Option(
@@ -137,11 +188,25 @@ def run(
         help="Enable per-read Rust trace logging (slow). Implies --verbose. "
         "Shows detailed per-read classification diagnostics from the counting engine.",
     ),
+    # BAM robustness
+    lenient_bam: bool = typer.Option(
+        False,
+        "--lenient-bam",
+        help=(
+            "Skip missing BAM files and continue with the remaining samples. "
+            "Default (off): any missing BAM causes an immediate exit. "
+            "Use this flag when running on batch lists where some files may be absent."
+        ),
+    ),
     # Alignment backend (advanced)
-    alignment_backend: str = typer.Option(
-        "sw",
+    alignment_backend: AlignmentBackend = typer.Option(
+        AlignmentBackend.SW,
         "--alignment-backend",
-        help="Alignment backend for Phase 3 classification: 'sw' (Smith-Waterman, default) or 'hmm' (PairHMM).",
+        help=(
+            "Alignment backend for Phase 3 classification: "
+            "'sw' (Smith-Waterman, default) or 'hmm' (PairHMM). "
+            "Invalid values are rejected at parse time."
+        ),
     ),
     hmm_llr_threshold: float = typer.Option(
         2.3,
@@ -172,14 +237,58 @@ def run(
     """
     Run gbcms on one or more BAM files.
     """
-    # Configure logging
+    # ── 1. Logging (must be first so all subsequent checks log correctly) ──────
     setup_logging(verbose=verbose, trace=trace)
 
-    # Parse BAM inputs
-    bams_dict = _parse_bam_inputs(bam_files, bam_list)
+    # ── 2. Pre-model validation (semantic + cross-option checks) ──────────────
+
+    # GAP 12: Reject unsupported variant file extensions before any I/O.
+    _is_vcf_gz = _is_compressed_vcf(variant_file)
+    _ext = variant_file.suffix.lower()
+    if not _is_vcf_gz and _ext not in _VALID_VARIANT_EXTENSIONS:
+        logger.error(
+            "Unsupported variant file extension '%s'. "
+            "Expected .vcf, .vcf.gz, .vcf.bgz, or .maf. Got: %s",
+            _ext,
+            variant_file,
+        )
+        raise typer.Exit(code=1)
+
+    # GAP 10: Validate --column-prefix charset (letters, digits, underscores only).
+    if column_prefix and not _COLUMN_PREFIX_RE.match(column_prefix):
+        logger.error(
+            "Invalid --column-prefix '%s': only letters, digits, and underscores are allowed. "
+            "Whitespace and special characters would produce malformed column names.",
+            column_prefix,
+        )
+        raise typer.Exit(code=1)
+
+    # GAP 9: Warn when --preserve-barcode is used with non-MAF input (it is a no-op).
+    if preserve_barcode and not _is_vcf_gz and _ext != ".maf":
+        logger.warning(
+            "--preserve-barcode has no effect when the variant file is not a MAF "
+            "(got '%s'). The BAM sample name will be used in all output rows.",
+            variant_file.suffix,
+        )
+
+    # GAP 8: Advisory warning when threads exceeds available CPUs.
+    cpu_count = os.cpu_count() or 1
+    if threads > cpu_count:
+        logger.warning(
+            "--threads %d exceeds os.cpu_count() (%d). "
+            "Performance may degrade due to CPU oversubscription.",
+            threads,
+            cpu_count,
+        )
+
+    # ── 3. Parse BAM inputs (fail-fast by default; --lenient-bam opts out) ─────
+    bams_dict = _parse_bam_inputs(bam_files, bam_list, lenient=lenient_bam)
 
     if not bams_dict:
-        logger.error("No valid BAM files provided via --bam or --bam-list")
+        logger.error(
+            "No BAM files to process. Provide at least one via --bam <path> "
+            "or --bam-list <file>. Use --lenient-bam to allow partial BAM lists."
+        )
         raise typer.Exit(code=1)
 
     logger.info("Found %d BAM file(s) to process", len(bams_dict))
@@ -211,8 +320,10 @@ def run(
             indel=filter_indel,
         )
 
+        # Pass .value so AlignmentConfig receives a plain str, not the enum wrapper.
+        # This is required because AlignmentConfig.validate_backend operates on str.
         alignment_config = AlignmentConfig(
-            backend=alignment_backend,
+            backend=alignment_backend.value,
             hmm_llr_threshold=hmm_llr_threshold,
             hmm_gap_open=hmm_gap_open,
             hmm_gap_extend=hmm_gap_extend,
@@ -268,6 +379,19 @@ def normalize(
     from .normalize import normalize_variants
 
     setup_logging(verbose=verbose, trace=trace)
+
+    # Apply the same file extension pre-check as the 'run' command.
+    _is_vcf_gz = _is_compressed_vcf(variant_file)
+    _ext = variant_file.suffix.lower()
+    if not _is_vcf_gz and _ext not in _VALID_VARIANT_EXTENSIONS:
+        logger.error(
+            "Unsupported variant file extension '%s'. "
+            "Expected .vcf, .vcf.gz, .vcf.bgz, or .maf. Got: %s",
+            _ext,
+            variant_file,
+        )
+        raise typer.Exit(code=1)
+
     normalize_variants(
         variant_file=variant_file,
         reference=reference,
@@ -276,42 +400,79 @@ def normalize(
     )
 
 
-def _parse_bam_inputs(bam_files: list[Path] | None, bam_list: Path | None) -> dict[str, Path]:
+def _parse_bam_inputs(
+    bam_files: list[Path] | None,
+    bam_list: Path | None,
+    *,
+    lenient: bool = False,
+) -> dict[str, Path]:
     """
-    Parse BAM inputs from direct arguments and/or BAM list file.
+    Parse BAM inputs from direct arguments and/or a BAM list file.
+
+    Validation behaviour:
+    - **Fail-fast (default)**: If any BAM path does not exist, all missing paths
+      are logged at ERROR level and ``typer.Exit(code=1)`` is raised.
+    - **Lenient mode** (``lenient=True``, enabled via ``--lenient-bam``): Missing
+      paths are logged as errors but skipped; the run continues with the
+      remaining samples.
+    - **BAM list file not found**: Always fails immediately regardless of lenient
+      mode.  The list file itself is a required input, not an optional sample.
 
     Args:
-        bam_files: List of BAM paths (optionally with sample_id:path format).
-        bam_list: Path to file containing BAM paths (one per line).
+        bam_files: List of BAM paths (optionally with ``sample_id:path`` format).
+        bam_list: Path to a file containing BAM paths (one per line,
+            optionally ``sample_name<whitespace>path``).
+        lenient: When True, skip missing BAM files instead of exiting.
 
     Returns:
-        Dictionary mapping sample names to BAM paths.
+        Dictionary mapping sample names to resolved BAM ``Path`` objects.
+
+    Raises:
+        typer.Exit: If any BAM file or the list file itself is missing and
+            ``lenient`` is False.
     """
     bams_dict: dict[str, Path] = {}
 
-    # 1. Process direct BAM arguments
+    # ── 1. Process direct --bam arguments ────────────────────────────────────
     if bam_files:
+        missing: list[str] = []
         for bam_arg in bam_files:
             sample_name, bam_path = _parse_bam_arg(bam_arg)
 
             if not bam_path.exists():
                 logger.error("BAM file not found: %s", bam_path)
+                missing.append(str(bam_path))
                 continue
 
+            logger.debug("Registered BAM sample '%s': %s", sample_name, bam_path)
             bams_dict[sample_name] = bam_path
 
-    # 2. Process BAM list file
-    if bam_list:
-        if not bam_list.exists():
-            logger.error("BAM list file not found: %s", bam_list)
-            return bams_dict
+        if missing and not lenient:
+            logger.error(
+                "%d BAM file(s) not found. "
+                "Add --lenient-bam to skip missing files and continue with the rest.",
+                len(missing),
+            )
+            raise typer.Exit(code=1)
 
+    # ── 2. Process --bam-list file ────────────────────────────────────────────
+    if bam_list:
+        # The list file itself is always required — lenient mode does not apply here.
+        if not bam_list.exists():
+            logger.error(
+                "BAM list file not found: %s. "
+                "Note: --lenient-bam does not apply to the list file itself.",
+                bam_list,
+            )
+            raise typer.Exit(code=1)
+
+        logger.debug("Reading BAM list from: %s", bam_list)
         try:
             with open(bam_list) as f:
                 for line in f:
                     line = line.strip()
                     if not line or line.startswith("#"):
-                        continue
+                        continue  # skip blanks and comment lines
 
                     parts = line.split()
                     if len(parts) >= 2:
@@ -322,12 +483,21 @@ def _parse_bam_inputs(bam_files: list[Path] | None, bam_list: Path | None) -> di
                         sample_name = bam_path.stem
 
                     if not bam_path.exists():
-                        logger.warning("BAM file from list not found: %s", bam_path)
+                        # Upgraded from WARNING to ERROR — a missing BAM in the
+                        # list is always unexpected, whether in lenient mode or not.
+                        logger.error(
+                            "BAM file from list not found: %s (sample '%s')",
+                            bam_path,
+                            sample_name,
+                        )
                         continue
 
+                    logger.debug(
+                        "Registered BAM sample from list '%s': %s", sample_name, bam_path
+                    )
                     bams_dict[sample_name] = bam_path
 
-        except Exception as e:
+        except OSError as e:
             logger.error("Error reading BAM list file %s: %s", bam_list, e)
 
     return bams_dict

@@ -87,10 +87,23 @@ class ReadFilters(BaseModel):
 
 
 class QualityThresholds(BaseModel):
-    """Quality score thresholds for filtering reads and bases."""
+    """Quality score thresholds for filtering reads and bases.
 
-    min_mapping_quality: int = Field(default=20, ge=0, description="Minimum mapping quality (MAPQ)")
-    min_base_quality: int = Field(default=0, ge=0, description="Minimum base quality (BQ)")
+    Defaults are chosen to match the CLI defaults so that programmatic callers
+    and CLI users observe identical behaviour without explicit overrides.
+    """
+
+    min_mapping_quality: int = Field(
+        default=20, ge=0, description="Minimum mapping quality (MAPQ). Default 20 matches CLI."
+    )
+    min_base_quality: int = Field(
+        default=20,
+        ge=0,
+        description=(
+            "Minimum base quality (BQ). Default 20 matches CLI `--min-baseq` default. "
+            "Previously this was 0 (maximally permissive), which diverged from the CLI."
+        ),
+    )
     fragment_qual_threshold: int = Field(
         default=10,
         ge=0,
