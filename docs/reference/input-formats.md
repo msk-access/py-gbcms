@@ -1,6 +1,6 @@
 # Input Formats
 
-py-gbcms accepts VCF and MAF files as variant input.
+gbcms accepts VCF and MAF files as variant input.
 
 ## VCF (Variant Call Format)
 
@@ -39,7 +39,7 @@ KRAS         chr12       25398284        25398284      G                 A
 
 ### MAF Indel Normalization
 
-MAF represents indels using `-` dashes, while py-gbcms internally uses VCF-style **anchor-based** coordinates. When a MAF file contains insertions (`Reference_Allele = -`) or deletions (`Tumor_Seq_Allele2 = -`), py-gbcms automatically converts them at input time.
+MAF represents indels using `-` dashes, while gbcms internally uses VCF-style **anchor-based** coordinates. When a MAF file contains insertions (`Reference_Allele = -`) or deletions (`Tumor_Seq_Allele2 = -`), gbcms automatically converts them at input time.
 
 !!! warning "Reference FASTA Required"
     MAF indel conversion requires `--fasta` to fetch the anchor base from the reference genome. Without it, indel variants cannot be normalized and will be skipped.
@@ -94,11 +94,11 @@ Delete `CG` at chr1:101–102 (where the reference base at position 100 is `A`):
 | ALT | `-` | `A` (anchor only) |
 
 !!! note "Position Shift for Deletions"
-    For insertions, `Start_Position` already points to the anchor base. For deletions, `Start_Position` points to the *first deleted base*, so py-gbcms shifts back by one position to find the anchor.
+    For insertions, `Start_Position` already points to the anchor base. For deletions, `Start_Position` points to the *first deleted base*, so gbcms shifts back by one position to find the anchor.
 
 ## Variant Left-Normalization
 
-py-gbcms automatically **left-aligns** indels and complex variants during the preparation step. For full details on the normalization algorithm, homopolymer decomposition detection, and REF validation, see [Variant Normalization](variant-normalization.md).
+gbcms automatically **left-aligns** indels and complex variants during the preparation step. For full details on the normalization algorithm, homopolymer decomposition detection, and REF validation, see [Variant Normalization](variant-normalization.md).
 
 !!! important "Left-Align Your Variants"
     Inconsistently normalized variants reduce the effectiveness of windowed indel detection. While the ±5bp window will catch most aligner-shifted indels, left-alignment ensures the anchor position is consistent with standard conventions.

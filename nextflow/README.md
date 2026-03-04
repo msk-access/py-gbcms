@@ -1,6 +1,6 @@
-# py-gbcms Nextflow Workflow
+# gbcms Nextflow Workflow
 
-This directory contains a Nextflow workflow for running `py-gbcms` on multiple samples in parallel.
+This directory contains a Nextflow workflow for running `gbcms` on multiple samples in parallel.
 
 ## Prerequisites
 

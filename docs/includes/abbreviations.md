@@ -1,4 +1,4 @@
-<!-- Abbreviation definitions for py-gbcms documentation -->
+<!-- Abbreviation definitions for gbcms documentation -->
 <!-- These provide hover tooltips for technical acronyms -->
 <span hidden>abbreviations</span>
 

@@ -4,7 +4,7 @@
 set -e  # Exit on error
 
 echo "=========================================="
-echo "py-gbcms VCF Workflow Test"
+echo "gbcms VCF Workflow Test"
 echo "=========================================="
 echo
 
@@ -59,7 +59,7 @@ samtools index sample1.bam
 
 # Run gbcms
 echo
-echo "Running py-gbcms..."
+echo "Running gbcms..."
 export PYTHONPATH=$PYTHONPATH:$(pwd)/../../src
 python3 -m gbcms.cli run \
     --fasta reference.fa \

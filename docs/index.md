@@ -1,10 +1,10 @@
-# py-gbcms
+# gbcms
 
 > **Get Base Counts Multi-Sample** — High-performance variant counting from BAM files
 
-[![Version](https://img.shields.io/pypi/v/py-gbcms)](https://pypi.org/project/py-gbcms/)
-[![Python](https://img.shields.io/pypi/pyversions/py-gbcms)](https://pypi.org/project/py-gbcms/)
-[![License](https://img.shields.io/github/license/msk-access/py-gbcms)](https://github.com/msk-access/py-gbcms/blob/main/LICENSE)
+[![Version](https://img.shields.io/pypi/v/gbcms)](https://pypi.org/project/gbcms/)
+[![Python](https://img.shields.io/pypi/pyversions/gbcms)](https://pypi.org/project/gbcms/)
+[![License](https://img.shields.io/github/license/msk-access/gbcms)](https://github.com/msk-access/gbcms/blob/main/LICENSE)
 
 ## What It Does
 
@@ -31,13 +31,13 @@ flowchart LR
 ## Visual Overview
 
 <figure markdown="span">
-  ![py-gbcms overview poster](assets/posters/py-gbcms-overview-poster.jpg){ loading=lazy width="100%" }
-  <figcaption>py-gbcms end-to-end pipeline — click to enlarge</figcaption>
+  ![gbcms overview poster](assets/posters/gbcms-overview-poster.jpg){ loading=lazy width="100%" }
+  <figcaption>gbcms end-to-end pipeline — click to enlarge</figcaption>
 </figure>
 
 ### Detailed Overview (PDF)
 
-![Detailed overview of py-gbcms](assets/posters/High_Performance_cfDNA_Variant_Counting_cmp.pdf){ type=application/pdf style="min-height:75vh;width:100%" }
+![Detailed overview of gbcms](assets/posters/High_Performance_cfDNA_Variant_Counting_cmp.pdf){ type=application/pdf style="min-height:75vh;width:100%" }
 
 ### Key Metrics
 
@@ -53,7 +53,7 @@ flowchart LR
 
 ```bash
 # Install
-pip install py-gbcms
+pip install gbcms
 
 # Run
 gbcms run --variants variants.vcf --bam sample.bam --fasta ref.fa --output-dir results/

@@ -1,6 +1,6 @@
 # Architecture
 
-py-gbcms uses a hybrid Python/Rust architecture for maximum performance.
+gbcms uses a hybrid Python/Rust architecture for maximum performance.
 
 ## System Overview
 
@@ -208,7 +208,7 @@ sequenceDiagram
 
 ## Comparison with Original GBCMS
 
-| Feature | Original GBCMS | py-gbcms |
+| Feature | Original GBCMS | gbcms |
 |:--------|:---------------|:---------|
 | Counting algorithm | Region-based chunking, position matching | Per-variant CIGAR traversal |
 | Indel detection | Exact position match only | **Windowed scan** (±5bp) with 3-layer safeguards: sequence identity, closest match, reference context validation |

@@ -1,6 +1,6 @@
 # Nextflow Pipeline
 
-Run py-gbcms at scale on HPC clusters with automatic parallelization.
+Run gbcms at scale on HPC clusters with automatic parallelization.
 
 ## Overview
 

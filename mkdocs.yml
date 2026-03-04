@@ -1,10 +1,10 @@
-site_name: py-gbcms
+site_name: gbcms
 site_description: High-performance variant counting from BAM files
 site_author: MSK-ACCESS
-site_url: https://msk-access.github.io/py-gbcms/
+site_url: https://msk-access.github.io/gbcms/
 
-repo_name: msk-access/py-gbcms
-repo_url: https://github.com/msk-access/py-gbcms
+repo_name: msk-access/gbcms
+repo_url: https://github.com/msk-access/gbcms
 edit_uri: edit/main/docs/
 
 theme:
@@ -147,10 +147,10 @@ extra:
     default: stable
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/msk-access/py-gbcms
+      link: https://github.com/msk-access/gbcms
 
 copyright: |
   Developed by <a href="https://github.com/rhshah">Ronak H Shah</a> @ 
   <a href="https://www.mskcc.org">MSKCC</a> | 
   Built with <a href="https://antigravity.google/">Antigravity</a> | 
-  <a href="https://github.com/msk-access/py-gbcms/blob/main/LICENSE">AGPL-3.0</a>
+  <a href="https://github.com/msk-access/gbcms/blob/main/LICENSE">AGPL-3.0</a>

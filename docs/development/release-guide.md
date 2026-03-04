@@ -1,6 +1,6 @@
 # Release Guide
 
-This guide documents the complete release process for py-gbcms using git-flow workflow.
+This guide documents the complete release process for gbcms using git-flow workflow.
 
 ## Pre-Release Checklist
 
@@ -21,7 +21,7 @@ All these files must be updated with the new version (5 references total):
 | `pyproject.toml` | 3 | 1 | `version = "X.Y.Z"` |
 | `src/gbcms/__init__.py` | 11 | 1 | `__version__ = "X.Y.Z"` |
 | `rust/Cargo.toml` | 3 | 1 | `version = "X.Y.Z"` |
-| `nextflow/modules/local/gbcms/run/main.nf` | 7 | 1 | `container "ghcr.io/msk-access/py-gbcms:X.Y.Z"` |
+| `nextflow/modules/local/gbcms/run/main.nf` | 7 | 1 | `container "ghcr.io/msk-access/gbcms:X.Y.Z"` |
 | `CHANGELOG.md` | Top section | — | `## [X.Y.Z] - YYYY-MM-DD` (new entry) |
 
 !!! tip "Doc versions are now templated"
@@ -134,7 +134,7 @@ The tag triggers `.github/workflows/release.yml`:
 
 1. **Build wheels** (Linux x86_64, aarch64; macOS x86_64, arm64; Windows)
 2. **Publish to PyPI** (via maturin)
-3. **Build Docker image** → push to `ghcr.io/msk-access/py-gbcms:X.Y.Z`
+3. **Build Docker image** → push to `ghcr.io/msk-access/gbcms:X.Y.Z`
 4. **Deploy docs** → GitHub Pages (versioned via `mike` as `X.Y.Z` / `stable`)
 
 ### 9. Merge main back to develop

@@ -1,10 +1,10 @@
-# py-gbcms
+# gbcms
 
 **Complete orientation-aware counting system for genomic variants**
 
-[![Tests](https://github.com/msk-access/py-gbcms/workflows/Tests/badge.svg)](https://github.com/msk-access/py-gbcms/actions)
+[![Tests](https://github.com/msk-access/gbcms/workflows/Tests/badge.svg)](https://github.com/msk-access/gbcms/actions)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/msk-access/py-gbcms)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/msk-access/gbcms)
 
 ## Features
 
@@ -19,30 +19,30 @@
 
 **Quick install:**
 ```bash
-pip install py-gbcms
+pip install gbcms
 ```
 
 **From source (requires Rust):**
 ```bash
-git clone https://github.com/msk-access/py-gbcms.git
-cd py-gbcms
+git clone https://github.com/msk-access/gbcms.git
+cd gbcms
 pip install .
 ```
 
 **Docker:**
 ```bash
-docker pull ghcr.io/msk-access/py-gbcms:X.Y.Z  # Replace X.Y.Z with latest from PyPI
+docker pull ghcr.io/msk-access/gbcms:X.Y.Z  # Replace X.Y.Z with latest from PyPI
 ```
 
-> 💡 Find the latest version on [PyPI](https://pypi.org/project/py-gbcms/) or [GHCR](https://github.com/msk-access/py-gbcms/pkgs/container/py-gbcms).
+> 💡 Find the latest version on [PyPI](https://pypi.org/project/gbcms/) or [GHCR](https://github.com/msk-access/gbcms/pkgs/container/gbcms).
 
-📖 **Full documentation:** https://msk-access.github.io/py-gbcms/
+📖 **Full documentation:** https://msk-access.github.io/gbcms/
 
 ---
 
 ## Usage
 
-`py-gbcms` can be used in two ways:
+`gbcms` can be used in two ways:
 
 ### 🔧 Option 1: Standalone CLI (1-10 samples)
 
@@ -59,8 +59,8 @@ gbcms run \
 **Output:** `results/sample1.vcf`
 
 **Learn more:**
-- 📘 [CLI Quick Start](https://msk-access.github.io/py-gbcms/getting-started/quickstart/)
-- 📖 [CLI Reference](https://msk-access.github.io/py-gbcms/cli/run/)
+- 📘 [CLI Quick Start](https://msk-access.github.io/gbcms/getting-started/quickstart/)
+- 📖 [CLI Reference](https://msk-access.github.io/gbcms/cli/run/)
 
 ---
 
@@ -83,8 +83,8 @@ nextflow run nextflow/main.nf \
 - ✅ Resume failed runs
 
 **Learn more:**
-- 🔄 [Nextflow Workflow Guide](https://msk-access.github.io/py-gbcms/nextflow/)
-- 📋 [Usage Patterns Comparison](https://msk-access.github.io/py-gbcms/getting-started/)
+- 🔄 [Nextflow Workflow Guide](https://msk-access.github.io/gbcms/nextflow/)
+- 📋 [Usage Patterns Comparison](https://msk-access.github.io/gbcms/getting-started/)
 
 ---
 
@@ -141,15 +141,15 @@ nextflow run nextflow/main.nf \
 
 ## Documentation
 
-📚 **Full Documentation:** https://msk-access.github.io/py-gbcms/
+📚 **Full Documentation:** https://msk-access.github.io/gbcms/
 
 **Quick Links:**
-- [Installation](https://msk-access.github.io/py-gbcms/getting-started/installation/)
-- [CLI Quick Start](https://msk-access.github.io/py-gbcms/getting-started/quickstart/)
-- [Nextflow Workflow](https://msk-access.github.io/py-gbcms/nextflow/)
-- [CLI Reference](https://msk-access.github.io/py-gbcms/cli/run/)
-- [Input & Output Formats](https://msk-access.github.io/py-gbcms/reference/input-formats/)
-- [Architecture](https://msk-access.github.io/py-gbcms/reference/architecture/)
+- [Installation](https://msk-access.github.io/gbcms/getting-started/installation/)
+- [CLI Quick Start](https://msk-access.github.io/gbcms/getting-started/quickstart/)
+- [Nextflow Workflow](https://msk-access.github.io/gbcms/nextflow/)
+- [CLI Reference](https://msk-access.github.io/gbcms/cli/run/)
+- [Input & Output Formats](https://msk-access.github.io/gbcms/reference/input-formats/)
+- [Architecture](https://msk-access.github.io/gbcms/reference/architecture/)
 
 ---
 
@@ -157,23 +157,23 @@ nextflow run nextflow/main.nf \
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 
-To contribute to documentation, see the [`gh-pages` branch](https://github.com/msk-access/py-gbcms/tree/gh-pages).
+To contribute to documentation, see the [`gh-pages` branch](https://github.com/msk-access/gbcms/tree/gh-pages).
 
 ---
 
 ## Citation
 
-If you use `py-gbcms` in your research, please cite:
+If you use `gbcms` in your research, please cite:
 
-> Shah, R. et al. (2025). *py-gbcms: A high-performance orientation-aware genotype counting system for genomic variants.* Available at: https://github.com/msk-access/py-gbcms
+> Shah, R. et al. (2025). *gbcms: A high-performance orientation-aware genotype counting system for genomic variants.* Available at: https://github.com/msk-access/gbcms
 
 **BibTeX:**
 ```bibtex
 @software{pygbcms,
   author       = {Shah, Ronak and contributors},
-  title        = {py-gbcms: A high-performance orientation-aware genotype counting system for genomic variants},
+  title        = {gbcms: A high-performance orientation-aware genotype counting system for genomic variants},
   year         = {2025},
-  url          = {https://github.com/msk-access/py-gbcms},
+  url          = {https://github.com/msk-access/gbcms},
   note         = {GitHub repository}
 }
 ```
@@ -188,5 +188,5 @@ AGPL-3.0 - see [LICENSE](LICENSE) for details.
 
 ## Support
 
-- 🐛 **Issues:** https://github.com/msk-access/py-gbcms/issues
-- 💬 **Discussions:** https://github.com/msk-access/py-gbcms/discussions
+- 🐛 **Issues:** https://github.com/msk-access/gbcms/issues
+- 💬 **Discussions:** https://github.com/msk-access/gbcms/discussions

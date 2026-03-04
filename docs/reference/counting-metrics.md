@@ -10,7 +10,7 @@ How allele classifications become counts — read-level metrics, fragment counti
 
 ## Overview
 
-After each read is [classified](allele-classification.md) as REF, ALT, or neither, py-gbcms accumulates counts at **two levels**: individual reads and collapsed fragments. It then computes strand bias statistics using Fisher's exact test.
+After each read is [classified](allele-classification.md) as REF, ALT, or neither, gbcms accumulates counts at **two levels**: individual reads and collapsed fragments. It then computes strand bias statistics using Fisher's exact test.
 
 ```mermaid
 flowchart LR
@@ -212,7 +212,7 @@ All fields in the `BaseCounts` struct returned by `count_bam()`:
 
 ## Comparison with Original GBCMS
 
-| Feature | Original GBCMS | py-gbcms |
+| Feature | Original GBCMS | gbcms |
 |:--------|:---------------|:---------|
 | Counting algorithm | Region-based chunking, position matching | Per-variant CIGAR traversal |
 | Indel detection | Exact position match only | **Windowed scan** (±5bp) with 3-layer safeguards |

@@ -1,6 +1,6 @@
 # Testing Guide
 
-This guide covers running tests, adding new tests, and accuracy validation for py-gbcms.
+This guide covers running tests, adding new tests, and accuracy validation for gbcms.
 
 ## Running Tests
 

@@ -1,6 +1,6 @@
 # Developer Guide
 
-Guide for contributing to py-gbcms.
+Guide for contributing to gbcms.
 
 ---
 
@@ -9,8 +9,8 @@ Guide for contributing to py-gbcms.
 === "Modern Linux (Ubuntu 22.04+, RHEL 9+)"
     ```bash
     # Clone
-    git clone https://github.com/msk-access/py-gbcms.git
-    cd py-gbcms
+    git clone https://github.com/msk-access/gbcms.git
+    cd gbcms
     
     # Virtual environment
     python -m venv .venv
@@ -29,8 +29,8 @@ Guide for contributing to py-gbcms.
 === "Legacy Linux (RHEL 8 / HPC)"
     ```bash
     # Clone
-    git clone https://github.com/msk-access/py-gbcms.git
-    cd py-gbcms
+    git clone https://github.com/msk-access/gbcms.git
+    cd gbcms
     
     # Create conda environment with build dependencies
     # Note: clangdev (not clang) provides headers needed by bindgen
@@ -51,8 +51,8 @@ Guide for contributing to py-gbcms.
 === "macOS"
     ```bash
     # Clone
-    git clone https://github.com/msk-access/py-gbcms.git
-    cd py-gbcms
+    git clone https://github.com/msk-access/gbcms.git
+    cd gbcms
     
     # Install Rust (if not installed)
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
@@ -127,8 +127,8 @@ to verify no unintended count shifts:
 
 3. Review the comparison output. Key metrics:
    - **ALT count diff distribution**: most variants should be within ±2
-   - **C++ higher**: investigate any new variants where C++ ALT > py-gbcms
-   - **py-gbcms higher**: expected for windowed indel detection improvements
+   - **C++ higher**: investigate any new variants where C++ ALT > gbcms
+   - **gbcms higher**: expected for windowed indel detection improvements
 
 ### Variant-Type-Specific BAM Slices
 

@@ -1,6 +1,6 @@
 # Nextflow Examples
 
-Common usage patterns for the py-gbcms Nextflow pipeline.
+Common usage patterns for the gbcms Nextflow pipeline.
 
 ## Basic Usage
 

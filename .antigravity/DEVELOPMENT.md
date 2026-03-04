@@ -1,4 +1,4 @@
-# py-gbcms Development Guide
+# gbcms Development Guide
 
 ## Quick Start
 
@@ -16,7 +16,7 @@ gbcms run -v variants.vcf -b sample.bam -f reference.fa -o output/
 ## Project Structure
 
 ```
-py-gbcms/
+gbcms/
 ├── src/gbcms/          # Python package (~2100 LOC)
 │   ├── cli.py          # Entry point (~350 LOC)
 │   ├── pipeline.py     # Orchestration (~450 LOC)
