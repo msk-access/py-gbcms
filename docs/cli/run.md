@@ -32,6 +32,27 @@ gbcms run [OPTIONS] --variants <FILE> --bam <NAME:PATH>... --fasta <FILE>
 | `--adaptive-context` | `true` | Dynamically increase context padding in [tandem repeat regions](../reference/variant-normalization.md#adaptive-context-padding) |
 | `--threads` | `1` | Number of threads |
 
+## mFSD Options
+
+Mutant Fragment Size Distribution (mFSD) analysis compares insert-size distributions
+for REF- vs ALT-classified fragments at each variant position, enabling detection of
+short-fragment enrichment associated with tumor-derived cfDNA
+(see [mFSD Metrics](../reference/counting-metrics.md#mfsd)).
+
+| Option | Default | Description |
+|:-------|:--------|:------------|
+| `--mfsd` | `false` | Enable mFSD analysis. Adds 34 mFSD columns (KS test, LLR, mean sizes, pairwise comparisons, derived metrics) to MAF output and 7 `MFSD_*` INFO fields to VCF. |
+| `--mfsd-parquet` | `false` | Write a companion `<sample>.fsd.parquet` with per-variant raw fragment size arrays (`ref_sizes`, `alt_sizes`). Enables downstream visualizations. **Requires `--mfsd`**. |
+
+!!! tip
+    To generate both summary statistics and raw Parquet data in one run:
+    ```bash
+    gbcms run --mfsd --mfsd-parquet --format maf \\
+        --variants variants.maf --bam tumor:tumor.bam --fasta hg19.fa -o ./results
+    ```
+    This produces `<sample>.maf` (with 34 mFSD columns) and `<sample>.fsd.parquet`
+    (raw fragment sizes for visualization).
+
 ## Filtering Options
 
 | Option | Default | Description |

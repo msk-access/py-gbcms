@@ -20,6 +20,13 @@ Complete reference for all pipeline parameters.
 | `--column_prefix` | `''` | Prefix for gbcms count columns in MAF output |
 | `--preserve_barcode` | `false` | Keep original Tumor_Sample_Barcode from input MAF |
 
+## mFSD Options
+
+| Parameter | Default | Description |
+|:----------|:--------|:------------|
+| `--mfsd` | `false` | Enable mFSD analysis — adds 34 mFSD columns to MAF and 7 `MFSD_*` INFO fields to VCF. See [mFSD metrics](../reference/counting-metrics.md#mfsd). |
+| `--mfsd_parquet` | `false` | Write a companion `<sample>.fsd.parquet` with raw per-variant fragment size arrays. Requires `--mfsd`. |
+
 ## Quality & Filtering Options
 
 | Parameter | Default | Description |

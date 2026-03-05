@@ -44,8 +44,10 @@ def neither_bam(tmp_path):
             a.reference_id = 0
             a.reference_start = 95
             a.mapping_quality = 60
-            a.cigar = ((0, 10),)  # 10M
-            a.query_qualities = [30] * 10
+            a.cigartuples = [
+                (0, 10),
+            ]  # 10M
+            a.query_qualities = [30] * 10  # type: ignore[assignment]
             outf.write(a)
 
         # REF reads (A)
