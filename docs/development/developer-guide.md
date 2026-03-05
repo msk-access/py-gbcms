@@ -226,3 +226,33 @@ Before committing:
 ```bash
 GBCMS_LOG_LEVEL=DEBUG RUST_LOG=debug gbcms run ...
 ```
+
+---
+
+## Generating a PDF
+
+The docs include a combined print page (via `mkdocs-print-site-plugin`) that can be printed to PDF directly from Chrome — no extra tools required.
+
+**Steps:**
+
+1. Start the docs server:
+   ```bash
+   mkdocs serve
+   ```
+
+2. Open **`http://127.0.0.1:8000/gbcms/print_page/`** in Google Chrome and wait ~10s for Mermaid diagrams to render.
+
+3. Open the DevTools console (`F12` → Console tab) and paste:
+   ```js
+   document.querySelectorAll(
+     '.md-sidebar,.md-header,.md-footer,.md-tabs,.md-source-file'
+   ).forEach(e => e.remove());
+   document.querySelectorAll('.md-content').forEach(e => {
+     e.style.maxWidth = '100%'; e.style.padding = '0 1cm';
+   });
+   ```
+
+4. Press `Cmd+P` → **Save as PDF** (A4, default margins, ✅ background graphics).
+
+!!! tip "Automated PDF"
+    For a headless/automated version, see `~/Downloads/gbcms-pdf-generator/` (local archive, not in repo) — generates `site/documentation.pdf` via `node generate_pdf.mjs`.

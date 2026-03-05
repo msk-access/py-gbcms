@@ -58,6 +58,16 @@ plugins:
       full_screen: True
       always_show_hint: false
       key: "none"
+  # print-site provides /print_page/ — all docs combined for browser-based PDF.
+  # Must be last.
+  - print-site:
+      add_to_navigation: false
+      print_page_title: "gbcms Documentation"
+      add_table_of_contents: false
+      enumerate_headings: false
+      add_cover_page: true
+      add_full_urls: false
+      include_css: true
 
 nav:
   - Home: index.md
