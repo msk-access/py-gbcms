@@ -15,10 +15,12 @@ flowchart TB
     subgraph Rust [🦀 Rust Layer]
         Counter[count_bam - counting/engine.rs] --> CIGAR[CIGAR Parser]
         Counter --> Stats[Strand Bias - stats.rs]
+        ParquetWriter[write_fsd_parquet - parquet_writer.rs]
     end
     
     Pipeline -->|PyO3| Counter
     Counter -->|BaseCounts| Pipeline
+    Pipeline -->|mfsd-parquet| ParquetWriter
     
     classDef pythonStyle fill:#3776ab,color:#fff,stroke:#2c5f8a,stroke-width:2px;
     classDef rustStyle fill:#dea584,color:#000,stroke:#c48a6a,stroke-width:2px;
@@ -46,6 +48,7 @@ flowchart LR
     
     subgraph Output
         Result[VCF/MAF + Counts]
+        Parquet["<sample>.fsd.parquet (optional, --mfsd-parquet)"]
     end
     
     VCF --> Load --> Prepare
@@ -53,6 +56,7 @@ flowchart LR
     Prepare --> Count
     BAM --> Count
     Count --> Result
+    Count -.->|"--mfsd-parquet"| Parquet
 ```
 
 ---
@@ -124,17 +128,19 @@ src/gbcms/
 
 rust/src/
 ├── lib.rs                    # PyO3 module exports
+├── parquet_writer.rs         # write_fsd_parquet() — native Parquet via ZSTD (--mfsd-parquet)
 ├── counting/
 │   ├── mod.rs                # Submodule re-exports
-│   ├── engine.rs             # Main loop, DP gating, read iteration (~950 LOC)
-│   ├── variant_checks.rs     # check_snp/mnp/ins/del/complex (~1200 LOC)
-│   ├── alignment.rs          # Smith-Waterman implementation (~350 LOC)
-│   ├── pairhmm.rs            # PairHMM alignment backend (~520 LOC)
+│   ├── engine.rs             # Main loop, DP gating, read iteration
+│   ├── variant_checks.rs     # check_snp/mnp/ins/del/complex
+│   ├── alignment.rs          # Smith-Waterman implementation
+│   ├── pairhmm.rs            # PairHMM alignment backend
 │   ├── fragment.rs           # FragmentEvidence, quality consensus
+│   ├── mfsd.rs               # Mutant Fragment Size Distribution analysis
 │   └── utils.rs              # Helpers, reconstruction, soft-clip
 ├── normalize/
 │   ├── mod.rs                # Submodule re-exports
-│   ├── engine.rs             # Normalization pipeline (~810 LOC)
+│   ├── engine.rs             # Normalization pipeline
 │   ├── left_align.rs         # bcftools-style left-alignment
 │   ├── decomp.rs             # Homopolymer decomposition
 │   ├── fasta.rs              # Reference sequence fetcher
@@ -157,7 +163,7 @@ flowchart TB
     GbcmsConfig --> QualityThresholds[Quality Thresholds]
     GbcmsConfig --> AlignmentConfig[Alignment Backend]
     
-    OutputConfig --> D1[output_dir, format, suffix, column_prefix]
+    OutputConfig --> D1["output_dir, format, suffix, column_prefix, mfsd, mfsd_parquet"]
     ReadFilters --> D2[exclude_secondary, exclude_duplicates]
     QualityThresholds --> D3["min_mapq, min_baseq, fragment_qual_threshold"]
     AlignmentConfig --> D4["backend: sw|hmm, llr_threshold, gap_*_prob"]
