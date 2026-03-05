@@ -9,10 +9,7 @@ Covers:
 6. VcfWriter header INFO line count with/without mfsd
 7. _zero_counts() does not contain ref_sizes or alt_sizes
 """
-import math
 from pathlib import Path
-from typing import Any
-from types import SimpleNamespace
 
 import pytest
 from pydantic import ValidationError
@@ -20,9 +17,8 @@ from typer.testing import CliRunner
 
 from gbcms.cli import app
 from gbcms.io.output import MafWriter, VcfWriter
-from gbcms.models.core import OutputConfig
+from gbcms.models.core import OutputConfig, OutputFormat
 from gbcms.pipeline import _zero_counts
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -166,7 +162,7 @@ def test_vcf_writer_mfsd_info_when_enabled(tmp_path: Path):
     writer._write_header()
     writer.close()
     content = path.read_text()
-    mfsd_lines = [l for l in content.splitlines() if "##INFO=<ID=MFSD_" in l]
+    mfsd_lines = [line_ for line_ in content.splitlines() if "##INFO=<ID=MFSD_" in line_]
     assert len(mfsd_lines) == 7, (
         f"Expected 7 MFSD INFO header lines, got {len(mfsd_lines)}"
     )
@@ -181,7 +177,7 @@ def test_output_config_mfsd_parquet_requires_mfsd():
     with pytest.raises(ValidationError, match="mfsd_parquet"):
         OutputConfig(
             directory=Path("/tmp"),
-            format="maf",
+            format=OutputFormat.MAF,
             mfsd=False,
             mfsd_parquet=True,
         )
@@ -191,7 +187,7 @@ def test_output_config_mfsd_parquet_valid_when_mfsd_true(tmp_path: Path):
     """OutputConfig should accept mfsd_parquet=True when mfsd=True."""
     config = OutputConfig(
         directory=tmp_path,
-        format="maf",
+        format=OutputFormat.MAF,
         mfsd=True,
         mfsd_parquet=True,
     )

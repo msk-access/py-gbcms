@@ -218,7 +218,7 @@ class OutputConfig(BaseModel):
         default=False,
         description=(
             "Enable Mutant Fragment Size Distribution (mFSD) analysis. "
-            "Adds 31 mFSD columns (KS test, LLR, mean sizes, pairwise comparisons, "
+            "Adds 34 mFSD columns (KS test, LLR, mean sizes, pairwise comparisons, "
             "derived metrics) to MAF output and 7 MFSD INFO fields to VCF. "
             "Required when mfsd_parquet=True."
         ),
