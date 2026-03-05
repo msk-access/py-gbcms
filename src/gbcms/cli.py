@@ -135,6 +135,26 @@ def run(
             "Only applies to MAF→MAF output."
         ),
     ),
+    # mFSD options
+    mfsd: bool = typer.Option(
+        False,
+        "--mfsd",
+        help=(
+            "Enable Mutant Fragment Size Distribution (mFSD) analysis. "
+            "Adds 31 mFSD columns (KS test, LLR, mean sizes, pairwise "
+            "comparisons, derived metrics) to MAF output and 7 MFSD INFO "
+            "fields to VCF. See docs/reference/counting-metrics.md#mfsd."
+        ),
+    ),
+    mfsd_parquet: bool = typer.Option(
+        False,
+        "--mfsd-parquet",
+        help=(
+            "Write a companion <sample>.fsd.parquet with per-variant raw "
+            "fragment size arrays (ref_sizes, alt_sizes). Enables downstream "
+            "mFSD visualizations. Requires --mfsd."
+        ),
+    ),
     # Quality thresholds
     min_mapq: int = typer.Option(20, "--min-mapq", help="Minimum mapping quality"),
     min_baseq: int = typer.Option(20, "--min-baseq", help="Minimum base quality"),
@@ -271,6 +291,14 @@ def run(
             variant_file.suffix,
         )
 
+    # Validate --mfsd-parquet requires --mfsd (CLI-level check matches model-level validator).
+    if mfsd_parquet and not mfsd:
+        logger.error(
+            "--mfsd-parquet requires --mfsd to be enabled. "
+            "Re-run with both --mfsd and --mfsd-parquet."
+        )
+        raise typer.Exit(code=1)
+
     # GAP 8: Advisory warning when threads exceeds available CPUs.
     cpu_count = os.cpu_count() or 1
     if threads > cpu_count:
@@ -301,6 +329,8 @@ def run(
             suffix=output_suffix,
             column_prefix=column_prefix,
             preserve_barcode=preserve_barcode,
+            mfsd=mfsd,
+            mfsd_parquet=mfsd_parquet,
         )
 
         quality_config = QualityThresholds(

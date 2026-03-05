@@ -221,12 +221,12 @@ pub struct BaseCounts {
     pub mfsd_pval_nonref_n: f64,
 
     // ── mFSD: Raw size arrays (for --mfsd-parquet export) ────────────────────
-    // Populated in all runs but only written to disk when --mfsd-parquet is set.
-    /// Raw REF fragment sizes (bp) for Parquet export.
-    #[pyo3(get)]
+    // Populated in all runs but only copied to disk when --mfsd-parquet is set.
+    // NOT exported via PyO3 — written directly to Parquet by write_fsd_parquet()
+    // in lib.rs, avoiding an FFI round-trip and the pyarrow dependency.
+    /// Raw REF fragment sizes (bp). Internal only; use write_fsd_parquet() to persist.
     pub ref_sizes: Vec<u32>,
-    /// Raw ALT fragment sizes (bp) for Parquet export.
-    #[pyo3(get)]
+    /// Raw ALT fragment sizes (bp). Internal only; use write_fsd_parquet() to persist.
     pub alt_sizes: Vec<u32>,
 }
 

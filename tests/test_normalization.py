@@ -233,8 +233,6 @@ class TestNormalization(unittest.TestCase):
             mfsd_delta_nonref_n=_nan,
             mfsd_ks_nonref_n=_nan,
             mfsd_pval_nonref_n=_nan,
-            ref_sizes=[],
-            alt_sizes=[],
         )
 
     def test_show_normalization_columns(self):

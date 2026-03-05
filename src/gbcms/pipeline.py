@@ -54,6 +54,9 @@ def _zero_counts():
     All standard count fields default to 0; mFSD KS/LLR/delta/mean fields default to
     float('nan') since 0.0 would be scientifically misleading when the class is empty.
     Formatted as 'NA' in MAF output and '.' in VCF INFO via the _fmt/_fmt_vcf helpers.
+
+    Note: ref_sizes/alt_sizes are NOT included — those are internal Rust fields written
+    directly to Parquet by write_fsd_parquet() and never exposed to Python via PyO3.
     """
     _nan = float("nan")
     return types.SimpleNamespace(
@@ -92,7 +95,7 @@ def _zero_counts():
         # mFSD — LLR (NaN when class is empty)
         mfsd_alt_llr=_nan,
         mfsd_ref_llr=_nan,
-        # mFSD — pairwise KS (NaN when either class < MIN_FOR_KS=5)
+        # mFSD — pairwise KS triads (NaN when either class < MIN_FOR_KS=5)
         mfsd_delta_alt_ref=_nan,
         mfsd_ks_alt_ref=_nan,
         mfsd_pval_alt_ref=_nan,
@@ -111,9 +114,6 @@ def _zero_counts():
         mfsd_delta_nonref_n=_nan,
         mfsd_ks_nonref_n=_nan,
         mfsd_pval_nonref_n=_nan,
-        # mFSD — raw size arrays (Parquet export)
-        ref_sizes=[],
-        alt_sizes=[],
     )
 
 
@@ -471,6 +471,7 @@ class Pipeline:
                 output_path,
                 sample_name=sample_name,
                 show_normalization=self.config.show_normalization,
+                mfsd=self.config.output.mfsd,
             )
         else:
             writer = MafWriter(
@@ -478,6 +479,7 @@ class Pipeline:
                 column_prefix=self.config.output.column_prefix,
                 preserve_barcode=self.config.output.preserve_barcode,
                 show_normalization=self.config.show_normalization,
+                mfsd=self.config.output.mfsd,
             )
 
         for i, (v, counts) in enumerate(zip(variants, counts_list, strict=True)):
@@ -504,3 +506,26 @@ class Pipeline:
 
         writer.close()
         logger.debug("Results written to %s", output_path)
+
+        # Write companion mFSD Parquet when --mfsd-parquet is enabled.
+        # Delegates to the native Rust writer (no pyarrow dep).
+        if self.config.output.mfsd_parquet:
+            fsd_path = output_path.with_suffix("").with_suffix(".fsd.parquet")
+            _get_rs().write_fsd_parquet(
+                str(fsd_path),
+                [v.chrom for v in variants],
+                [v.pos + 1 for v in variants],  # 1-based MAF/VCF convention
+                [v.ref for v in variants],
+                [v.alt for v in variants],
+                counts_list,
+            )
+            logger.info(
+                "mFSD Parquet written: %s (%d variants)",
+                fsd_path,
+                len(variants),
+            )
+        elif self.config.output.mfsd:
+            logger.debug(
+                "mFSD analysis enabled but --mfsd-parquet not set; "
+                "raw fragment size arrays not written to disk."
+            )

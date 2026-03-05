@@ -73,8 +73,6 @@ class MockCounts:
         self.mfsd_delta_nonref_n = _nan
         self.mfsd_ks_nonref_n = _nan
         self.mfsd_pval_nonref_n = _nan
-        self.ref_sizes = []
-        self.alt_sizes = []
 
 
 @pytest.fixture
