@@ -12,6 +12,7 @@
 //! - [`pairhmm`] — PairHMM alignment backend (probabilistic Phase 3 alternative)
 //! - [`variant_checks`] — Per-variant-type classification (SNP, MNP, Ins, Del, Complex)
 //! - [`utils`] — Shared utility functions (position lookup, quality, masked comparison)
+//! - [`mfsd`] — Mutant Fragment Size Distribution statistics (KS test, LLR, mean)
 
 mod engine;
 mod fragment;
@@ -19,6 +20,7 @@ mod alignment;
 pub mod pairhmm;
 mod variant_checks;
 mod utils;
+pub(crate) mod mfsd;
 
 // Re-export the PyO3 entry point so lib.rs can call counting::count_bam
 pub use engine::count_bam;

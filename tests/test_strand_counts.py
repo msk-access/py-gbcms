@@ -43,6 +43,39 @@ class MockCounts:
         self.fsb_pval = 0.1
         self.fsb_or = 1.2
 
+        # mFSD fields (default to zero counts, NaN stats)
+        _nan = float("nan")
+        self.mfsd_ref_count = 0
+        self.mfsd_alt_count = 0
+        self.mfsd_nonref_count = 0
+        self.mfsd_n_count = 0
+        self.mfsd_ref_mean = _nan
+        self.mfsd_alt_mean = _nan
+        self.mfsd_nonref_mean = _nan
+        self.mfsd_n_mean = _nan
+        self.mfsd_alt_llr = _nan
+        self.mfsd_ref_llr = _nan
+        self.mfsd_delta_alt_ref = _nan
+        self.mfsd_ks_alt_ref = _nan
+        self.mfsd_pval_alt_ref = _nan
+        self.mfsd_delta_alt_nonref = _nan
+        self.mfsd_ks_alt_nonref = _nan
+        self.mfsd_pval_alt_nonref = _nan
+        self.mfsd_delta_ref_nonref = _nan
+        self.mfsd_ks_ref_nonref = _nan
+        self.mfsd_pval_ref_nonref = _nan
+        self.mfsd_delta_alt_n = _nan
+        self.mfsd_ks_alt_n = _nan
+        self.mfsd_pval_alt_n = _nan
+        self.mfsd_delta_ref_n = _nan
+        self.mfsd_ks_ref_n = _nan
+        self.mfsd_pval_ref_n = _nan
+        self.mfsd_delta_nonref_n = _nan
+        self.mfsd_ks_nonref_n = _nan
+        self.mfsd_pval_nonref_n = _nan
+        self.ref_sizes = []
+        self.alt_sizes = []
+
 
 @pytest.fixture
 def mock_variant():

@@ -182,6 +182,7 @@ class TestNormalization(unittest.TestCase):
     @staticmethod
     def _zero_counts():
         """Create a zero-count stub for testing output."""
+        _nan = float("nan")
         return SimpleNamespace(
             dp=0,
             rd=0,
@@ -203,6 +204,37 @@ class TestNormalization(unittest.TestCase):
             sb_or=0.0,
             fsb_pval=1.0,
             fsb_or=0.0,
+            # mFSD fields (zero counts, NaN float stats)
+            mfsd_ref_count=0,
+            mfsd_alt_count=0,
+            mfsd_nonref_count=0,
+            mfsd_n_count=0,
+            mfsd_ref_mean=_nan,
+            mfsd_alt_mean=_nan,
+            mfsd_nonref_mean=_nan,
+            mfsd_n_mean=_nan,
+            mfsd_alt_llr=_nan,
+            mfsd_ref_llr=_nan,
+            mfsd_delta_alt_ref=_nan,
+            mfsd_ks_alt_ref=_nan,
+            mfsd_pval_alt_ref=_nan,
+            mfsd_delta_alt_nonref=_nan,
+            mfsd_ks_alt_nonref=_nan,
+            mfsd_pval_alt_nonref=_nan,
+            mfsd_delta_ref_nonref=_nan,
+            mfsd_ks_ref_nonref=_nan,
+            mfsd_pval_ref_nonref=_nan,
+            mfsd_delta_alt_n=_nan,
+            mfsd_ks_alt_n=_nan,
+            mfsd_pval_alt_n=_nan,
+            mfsd_delta_ref_n=_nan,
+            mfsd_ks_ref_n=_nan,
+            mfsd_pval_ref_n=_nan,
+            mfsd_delta_nonref_n=_nan,
+            mfsd_ks_nonref_n=_nan,
+            mfsd_pval_nonref_n=_nan,
+            ref_sizes=[],
+            alt_sizes=[],
         )
 
     def test_show_normalization_columns(self):

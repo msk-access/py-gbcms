@@ -15,6 +15,7 @@ use bio::alignment::pairwise::Aligner;
 use super::fragment::{FragmentEvidence, hash_qname};
 use super::variant_checks::{check_snp, check_mnp, check_complex, check_insertion, check_deletion, MnpResult};
 use super::utils::{ClassifyResult, ClassifyPhase};
+use super::mfsd;
 
 
 /// Alignment backend selection for Phase 3 fallback classification.
@@ -382,7 +383,15 @@ fn count_single_variant(
         let is_forward = !is_reverse;
 
         let evidence = fragments.entry(qname_hash).or_insert_with(FragmentEvidence::new);
-        evidence.observe(is_ref, is_alt, base_qual, is_read1, is_forward);
+
+        // mFSD: capture tlen (signed; observe() stores absolute value) and N-base flag.
+        // TLEN=0 means unmapped mate or unpaired read — skipped inside observe().
+        // is_n_base: a fragment is in the N class when the base at the variant
+        // position was 'N' — proxied by base_qual==0 with no REF or ALT call.
+        let tlen = record.insert_size() as i32;
+        let is_n_base = base_qual == 0 && !is_ref && !is_alt;
+
+        evidence.observe(is_ref, is_alt, base_qual, is_read1, is_forward, tlen, is_n_base);
 
         // ── ALLELE-SPECIFIC COUNTS: only REF/ALT reads contribute to RD/AD.
         // DP and DPF are already recorded above.
@@ -445,6 +454,16 @@ fn count_single_variant(
     // that provided the best evidence for the winning allele, not just R1.
     // Example: R1=Fwd/REF(Q10) + R2=Rev/ALT(Q30) → ALT wins, counted as
     // adf_rev (not adf_fwd).
+    // ── mFSD size vectors: one per Krewlyzer fragment class ─────────────────
+    // Populated below during resolution. Only sizes in the cfDNA-valid range
+    // (50–1000 bp) with a known TLEN are added. GC correction is not applied —
+    // GC bias affects count depth, not fragment length, so these raw sizes are
+    // already unbiased samples of the true size distribution.
+    let mut ref_sizes:    Vec<f64> = Vec::with_capacity(fragments.len());
+    let mut alt_sizes:    Vec<f64> = Vec::with_capacity(fragments.len());
+    let mut nonref_sizes: Vec<f64> = Vec::with_capacity(fragments.len());
+    let mut n_sizes:      Vec<f64> = Vec::with_capacity(fragments.len());
+
     for evidence in fragments.values() {
         let (frag_ref, frag_alt) = evidence.resolve(qual_diff_threshold);
 
@@ -475,6 +494,25 @@ fn count_single_variant(
                 }
             }
         }
+
+        // mFSD: classify fragment into one of four size class vectors.
+        // Only fragments with a known, in-range insert size contribute.
+        if let Some(sz) = evidence.insert_size {
+            if (50..=1000).contains(&sz) {
+                let sz_f = sz as f64;
+                if frag_ref {
+                    ref_sizes.push(sz_f);
+                } else if frag_alt {
+                    alt_sizes.push(sz_f);
+                } else if evidence.has_n_base {
+                    // N class: ambiguous base at variant position
+                    n_sizes.push(sz_f);
+                } else {
+                    // NonREF class: definite non-ref, non-alt, non-N base
+                    nonref_sizes.push(sz_f);
+                }
+            }
+        }
     }
 
     // Calculate stats
@@ -491,6 +529,59 @@ fn count_single_variant(
     );
     counts.fsb_pval = fsb_pval;
     counts.fsb_or = fsb_or;
+
+    // ── mFSD Statistics ──────────────────────────────────────────────────────
+    // All distributional tests (KS, LLR, delta) use raw unweighted size arrays.
+    // Counts populated here match mfsd_*_count fields on BaseCounts.
+
+    counts.mfsd_ref_count    = ref_sizes.len()    as u32;
+    counts.mfsd_alt_count    = alt_sizes.len()    as u32;
+    counts.mfsd_nonref_count = nonref_sizes.len() as u32;
+    counts.mfsd_n_count      = n_sizes.len()      as u32;
+
+    // Means (0.0 for empty — callers should gate on mfsd_*_count)
+    counts.mfsd_ref_mean    = mfsd::calc_mean(&ref_sizes);
+    counts.mfsd_alt_mean    = mfsd::calc_mean(&alt_sizes);
+    counts.mfsd_nonref_mean = mfsd::calc_mean(&nonref_sizes);
+    counts.mfsd_n_mean      = mfsd::calc_mean(&n_sizes);
+
+    // LLR: sum(log P_tumor / P_healthy) per fragment; positive = tumor-like
+    counts.mfsd_alt_llr = mfsd::calc_llr(&alt_sizes);
+    counts.mfsd_ref_llr = mfsd::calc_llr(&ref_sizes);
+
+    // KS helper closure: pairwise delta + D-statistic + p-value
+    // delta = mean(a) - mean(b);  (NaN, 1.0) when either class < MIN_FOR_KS
+    let ks_pair = |a: &[f64], b: &[f64]| -> (f64, f64, f64) {
+        let (d, p) = mfsd::ks_test(a, b);
+        let delta = if a.is_empty() || b.is_empty() {
+            f64::NAN
+        } else {
+            mfsd::calc_mean(a) - mfsd::calc_mean(b)
+        };
+        (delta, d, p)
+    };
+
+    (counts.mfsd_delta_alt_ref,    counts.mfsd_ks_alt_ref,    counts.mfsd_pval_alt_ref)    = ks_pair(&alt_sizes, &ref_sizes);
+    (counts.mfsd_delta_alt_nonref, counts.mfsd_ks_alt_nonref, counts.mfsd_pval_alt_nonref) = ks_pair(&alt_sizes, &nonref_sizes);
+    (counts.mfsd_delta_ref_nonref, counts.mfsd_ks_ref_nonref, counts.mfsd_pval_ref_nonref) = ks_pair(&ref_sizes, &nonref_sizes);
+    (counts.mfsd_delta_alt_n,      counts.mfsd_ks_alt_n,      counts.mfsd_pval_alt_n)      = ks_pair(&alt_sizes, &n_sizes);
+    (counts.mfsd_delta_ref_n,      counts.mfsd_ks_ref_n,      counts.mfsd_pval_ref_n)      = ks_pair(&ref_sizes, &n_sizes);
+    (counts.mfsd_delta_nonref_n,   counts.mfsd_ks_nonref_n,   counts.mfsd_pval_nonref_n)   = ks_pair(&nonref_sizes, &n_sizes);
+
+    // Store raw size arrays for --mfsd-parquet export
+    counts.ref_sizes = ref_sizes.into_iter().map(|v| v as u32).collect();
+    counts.alt_sizes = alt_sizes.into_iter().map(|v| v as u32).collect();
+
+    debug!(
+        "mFSD {}:{} {}>{}: ref={} alt={} nonref={} n={} delta={:.1} ks_d={:.3} ks_p={:.3e} alt_llr={:.2}",
+        variant.chrom, variant.pos + 1, variant.ref_allele, variant.alt_allele,
+        counts.mfsd_ref_count, counts.mfsd_alt_count,
+        counts.mfsd_nonref_count, counts.mfsd_n_count,
+        counts.mfsd_delta_alt_ref,
+        counts.mfsd_ks_alt_ref,
+        counts.mfsd_pval_alt_ref,
+        counts.mfsd_alt_llr,
+    );
 
     // Log per-phase classification breakdown
     debug!(

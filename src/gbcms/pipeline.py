@@ -49,8 +49,15 @@ __all__ = ["Pipeline"]
 
 
 def _zero_counts():
-    """Create a zero-count object with the same attributes as BaseCounts."""
+    """Create a zero-count object mirroring BaseCounts for variants with no BAM coverage.
+
+    All standard count fields default to 0; mFSD KS/LLR/delta/mean fields default to
+    float('nan') since 0.0 would be scientifically misleading when the class is empty.
+    Formatted as 'NA' in MAF output and '.' in VCF INFO via the _fmt/_fmt_vcf helpers.
+    """
+    _nan = float("nan")
     return types.SimpleNamespace(
+        # Standard depth / allele counts
         dp=0,
         rd=0,
         ad=0,
@@ -71,6 +78,42 @@ def _zero_counts():
         sb_or=1.0,
         fsb_pval=1.0,
         fsb_or=1.0,
+        used_decomposed=False,
+        # mFSD — raw counts
+        mfsd_ref_count=0,
+        mfsd_alt_count=0,
+        mfsd_nonref_count=0,
+        mfsd_n_count=0,
+        # mFSD — mean sizes (NaN when class is empty)
+        mfsd_ref_mean=_nan,
+        mfsd_alt_mean=_nan,
+        mfsd_nonref_mean=_nan,
+        mfsd_n_mean=_nan,
+        # mFSD — LLR (NaN when class is empty)
+        mfsd_alt_llr=_nan,
+        mfsd_ref_llr=_nan,
+        # mFSD — pairwise KS (NaN when either class < MIN_FOR_KS=5)
+        mfsd_delta_alt_ref=_nan,
+        mfsd_ks_alt_ref=_nan,
+        mfsd_pval_alt_ref=_nan,
+        mfsd_delta_alt_nonref=_nan,
+        mfsd_ks_alt_nonref=_nan,
+        mfsd_pval_alt_nonref=_nan,
+        mfsd_delta_ref_nonref=_nan,
+        mfsd_ks_ref_nonref=_nan,
+        mfsd_pval_ref_nonref=_nan,
+        mfsd_delta_alt_n=_nan,
+        mfsd_ks_alt_n=_nan,
+        mfsd_pval_alt_n=_nan,
+        mfsd_delta_ref_n=_nan,
+        mfsd_ks_ref_n=_nan,
+        mfsd_pval_ref_n=_nan,
+        mfsd_delta_nonref_n=_nan,
+        mfsd_ks_nonref_n=_nan,
+        mfsd_pval_nonref_n=_nan,
+        # mFSD — raw size arrays (Parquet export)
+        ref_sizes=[],
+        alt_sizes=[],
     )
 
 

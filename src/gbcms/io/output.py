@@ -18,6 +18,18 @@ __all__ = ["OutputWriter", "MafWriter", "VcfWriter"]
 logger = logging.getLogger(__name__)
 
 
+def _fmt(v: float) -> str:
+    """Format a float for MAF output. NaN → 'NA' (standard missing value for tabular formats)."""
+    import math
+    return "NA" if (isinstance(v, float) and math.isnan(v)) else f"{v:.4f}"
+
+
+def _fmt_vcf(v: float) -> str:
+    """Format a float for VCF INFO fields. NaN → '.' (VCF spec missing value sentinel)."""
+    import math
+    return "." if (isinstance(v, float) and math.isnan(v)) else f"{v:.4f}"
+
+
 class OutputWriter:
     """Abstract base class for output writers."""
 
@@ -129,6 +141,34 @@ class MafWriter(OutputWriter):
             f"{p}ref_count_fragment_reverse",
             f"{p}alt_count_fragment_forward",
             f"{p}alt_count_fragment_reverse",
+            # ── mFSD: Mutant Fragment Size Distribution (31 columns) ─────────
+            # Raw counts — number of fragments in each size class (50-1000 bp)
+            "mfsd_ref_count",
+            "mfsd_alt_count",
+            "mfsd_nonref_count",
+            "mfsd_n_count",
+            # LLR relative to healthy/tumor cfDNA Gaussian model
+            "mfsd_alt_llr",
+            "mfsd_ref_llr",
+            # Mean fragment size per class (bp)
+            "mfsd_ref_mean",
+            "mfsd_alt_mean",
+            "mfsd_nonref_mean",
+            "mfsd_n_mean",
+            # Pairwise KS comparisons: 6 pairs × (delta, D-stat, p-value)
+            "mfsd_delta_alt_ref",    "mfsd_ks_alt_ref",    "mfsd_pval_alt_ref",
+            "mfsd_delta_alt_nonref", "mfsd_ks_alt_nonref", "mfsd_pval_alt_nonref",
+            "mfsd_delta_ref_nonref", "mfsd_ks_ref_nonref", "mfsd_pval_ref_nonref",
+            "mfsd_delta_alt_n",      "mfsd_ks_alt_n",      "mfsd_pval_alt_n",
+            "mfsd_delta_ref_n",      "mfsd_ks_ref_n",      "mfsd_pval_ref_n",
+            "mfsd_delta_nonref_n",   "mfsd_ks_nonref_n",   "mfsd_pval_nonref_n",
+            # Derived quality metrics (computed in Python from Rust exports)
+            "mfsd_error_rate",
+            "mfsd_n_rate",
+            "mfsd_size_ratio",
+            "mfsd_quality_score",
+            "mfsd_alt_confidence",
+            "mfsd_ks_valid",
         ]
         if self.show_normalization:
             cols.extend(self._norm_column_names())
@@ -181,7 +221,8 @@ class MafWriter(OutputWriter):
         """
         Build the gbcms count columns dictionary with the configured prefix.
 
-        Calculates VAF values and formats all count data as strings.
+        Calculates VAF values, derived mFSD metrics, and formats all count
+        data as strings (NaN → 'NA' via _fmt).
 
         Args:
             counts: BaseCounts object from the Rust engine.
@@ -197,6 +238,42 @@ class MafWriter(OutputWriter):
 
         total_frags = counts.rdf + counts.adf
         vaf_frag = counts.adf / total_frags if total_frags > 0 else 0.0
+
+        # ── mFSD derived metrics (computed here in Python) ────────────────────
+        # All arithmetic uses already-exported Rust counts; no Rust changes needed.
+        _nan = float("nan")
+        total_mfsd = (
+            counts.mfsd_ref_count
+            + counts.mfsd_alt_count
+            + counts.mfsd_nonref_count
+            + counts.mfsd_n_count
+        )
+        mfsd_error_rate = (
+            counts.mfsd_nonref_count / total_mfsd if total_mfsd > 0 else _nan
+        )
+        mfsd_n_rate = counts.mfsd_n_count / total_mfsd if total_mfsd > 0 else _nan
+        # Size ratio: mean(ALT) / mean(REF); NaN if either mean is 0 or empty
+        mfsd_size_ratio = (
+            counts.mfsd_alt_mean / counts.mfsd_ref_mean
+            if counts.mfsd_ref_mean > 0 and counts.mfsd_alt_count > 0
+            else _nan
+        )
+        mfsd_quality_score = (
+            1.0 - mfsd_n_rate - mfsd_error_rate
+            if not (mfsd_n_rate != mfsd_n_rate or mfsd_error_rate != mfsd_error_rate)  # NaN guard
+            else _nan
+        )
+        # Categorical confidence based on ALT fragment count
+        if counts.mfsd_alt_count >= 5:
+            mfsd_alt_confidence = "HIGH"
+        elif counts.mfsd_alt_count >= 1:
+            mfsd_alt_confidence = "LOW"
+        else:
+            mfsd_alt_confidence = "NONE"
+        # KS test is valid only when both ALT and REF have >= 5 fragments
+        mfsd_ks_valid = (
+            counts.mfsd_alt_count >= 5 and counts.mfsd_ref_count >= 5
+        )
 
         return {
             # Core counts
@@ -223,6 +300,46 @@ class MafWriter(OutputWriter):
             f"{p}ref_count_fragment_reverse": str(counts.rdf_rev),
             f"{p}alt_count_fragment_forward": str(counts.adf_fwd),
             f"{p}alt_count_fragment_reverse": str(counts.adf_rev),
+            # ── mFSD columns ─────────────────────────────────────────────────
+            # Raw counts
+            "mfsd_ref_count":    str(counts.mfsd_ref_count),
+            "mfsd_alt_count":    str(counts.mfsd_alt_count),
+            "mfsd_nonref_count": str(counts.mfsd_nonref_count),
+            "mfsd_n_count":      str(counts.mfsd_n_count),
+            # LLR
+            "mfsd_alt_llr": _fmt(counts.mfsd_alt_llr),
+            "mfsd_ref_llr": _fmt(counts.mfsd_ref_llr),
+            # Mean sizes
+            "mfsd_ref_mean":    _fmt(counts.mfsd_ref_mean),
+            "mfsd_alt_mean":    _fmt(counts.mfsd_alt_mean),
+            "mfsd_nonref_mean": _fmt(counts.mfsd_nonref_mean),
+            "mfsd_n_mean":      _fmt(counts.mfsd_n_mean),
+            # Pairwise KS comparisons: 6 pairs × 3 values
+            "mfsd_delta_alt_ref":    _fmt(counts.mfsd_delta_alt_ref),
+            "mfsd_ks_alt_ref":       _fmt(counts.mfsd_ks_alt_ref),
+            "mfsd_pval_alt_ref":     _fmt(counts.mfsd_pval_alt_ref),
+            "mfsd_delta_alt_nonref": _fmt(counts.mfsd_delta_alt_nonref),
+            "mfsd_ks_alt_nonref":    _fmt(counts.mfsd_ks_alt_nonref),
+            "mfsd_pval_alt_nonref":  _fmt(counts.mfsd_pval_alt_nonref),
+            "mfsd_delta_ref_nonref": _fmt(counts.mfsd_delta_ref_nonref),
+            "mfsd_ks_ref_nonref":    _fmt(counts.mfsd_ks_ref_nonref),
+            "mfsd_pval_ref_nonref":  _fmt(counts.mfsd_pval_ref_nonref),
+            "mfsd_delta_alt_n":      _fmt(counts.mfsd_delta_alt_n),
+            "mfsd_ks_alt_n":         _fmt(counts.mfsd_ks_alt_n),
+            "mfsd_pval_alt_n":       _fmt(counts.mfsd_pval_alt_n),
+            "mfsd_delta_ref_n":      _fmt(counts.mfsd_delta_ref_n),
+            "mfsd_ks_ref_n":         _fmt(counts.mfsd_ks_ref_n),
+            "mfsd_pval_ref_n":       _fmt(counts.mfsd_pval_ref_n),
+            "mfsd_delta_nonref_n":   _fmt(counts.mfsd_delta_nonref_n),
+            "mfsd_ks_nonref_n":      _fmt(counts.mfsd_ks_nonref_n),
+            "mfsd_pval_nonref_n":    _fmt(counts.mfsd_pval_nonref_n),
+            # Derived quality metrics
+            "mfsd_error_rate":      _fmt(mfsd_error_rate),
+            "mfsd_n_rate":          _fmt(mfsd_n_rate),
+            "mfsd_size_ratio":      _fmt(mfsd_size_ratio),
+            "mfsd_quality_score":   _fmt(mfsd_quality_score),
+            "mfsd_alt_confidence":  mfsd_alt_confidence,
+            "mfsd_ks_valid":        str(mfsd_ks_valid),
         }
 
     def write(
@@ -329,7 +446,7 @@ class VcfWriter(OutputWriter):
         self._headers_written = False
 
     def _write_header(self):
-        # Minimal VCF header
+        # Minimal VCF header with mFSD INFO fields
         headers = [
             "##fileformat=VCFv4.2",
             "##source=gbcms_v2",
@@ -339,6 +456,14 @@ class VcfWriter(OutputWriter):
             '##INFO=<ID=SB_OR,Number=1,Type=Float,Description="Fisher strand bias odds ratio">',
             '##INFO=<ID=FSB_PVAL,Number=1,Type=Float,Description="Fisher fragment strand bias p-value">',
             '##INFO=<ID=FSB_OR,Number=1,Type=Float,Description="Fisher fragment strand bias odds ratio">',
+            # mFSD INFO fields (VCF key = MAF column name uppercased)
+            '##INFO=<ID=MFSD_DELTA_ALT_REF,Number=1,Type=Float,Description="mFSD mean(ALT) − mean(REF) fragment size delta (bp)">',
+            '##INFO=<ID=MFSD_KS_ALT_REF,Number=1,Type=Float,Description="mFSD 2-sample KS D-statistic (ALT vs REF)">',
+            '##INFO=<ID=MFSD_PVAL_ALT_REF,Number=1,Type=Float,Description="mFSD KS p-value (ALT vs REF)">',
+            '##INFO=<ID=MFSD_ALT_LLR,Number=1,Type=Float,Description="mFSD LLR for ALT fragments: Σ log(P_tumor/P_healthy); positive=tumor-like">',
+            '##INFO=<ID=MFSD_REF_LLR,Number=1,Type=Float,Description="mFSD LLR for REF fragments">',
+            '##INFO=<ID=MFSD_ALT_COUNT,Number=1,Type=Integer,Description="ALT-classified fragments in mFSD window (50–1000 bp)">',
+            '##INFO=<ID=MFSD_REF_COUNT,Number=1,Type=Integer,Description="REF-classified fragments in mFSD window (50–1000 bp)">',
         ]
         if self.show_normalization:
             headers.extend(
@@ -378,7 +503,7 @@ class VcfWriter(OutputWriter):
         # VCF POS is 1-based
         pos = variant.pos + 1
 
-        # INFO fields
+        # INFO fields (VCF spec: missing values use '.' not 'NA')
         info_parts = [
             f"DP={counts.dp}",
             f"VS={validation_status}",
@@ -386,6 +511,14 @@ class VcfWriter(OutputWriter):
             f"SB_OR={counts.sb_or:.4f}",
             f"FSB_PVAL={counts.fsb_pval:.4e}",
             f"FSB_OR={counts.fsb_or:.4f}",
+            # mFSD primary diagnostic fields (key = MAF column name uppercased)
+            f"MFSD_DELTA_ALT_REF={_fmt_vcf(counts.mfsd_delta_alt_ref)}",
+            f"MFSD_KS_ALT_REF={_fmt_vcf(counts.mfsd_ks_alt_ref)}",
+            f"MFSD_PVAL_ALT_REF={_fmt_vcf(counts.mfsd_pval_alt_ref)}",
+            f"MFSD_ALT_LLR={_fmt_vcf(counts.mfsd_alt_llr)}",
+            f"MFSD_REF_LLR={_fmt_vcf(counts.mfsd_ref_llr)}",
+            f"MFSD_ALT_COUNT={counts.mfsd_alt_count}",
+            f"MFSD_REF_COUNT={counts.mfsd_ref_count}",
         ]
         if self.show_normalization and norm_variant:
             info_parts.extend(
