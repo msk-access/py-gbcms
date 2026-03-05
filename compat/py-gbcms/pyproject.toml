@@ -1,0 +1,20 @@
+[project]
+name = "py-gbcms"
+version = "3.0.0"
+description = "Deprecated: py-gbcms has been renamed to gbcms. Install gbcms instead."
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+keywords = ["deprecated", "gbcms"]
+classifiers = [
+    "Development Status :: 7 - Inactive",
+]
+# Pull in the real package automatically so existing environments keep working
+dependencies = ["gbcms>=3.0.0"]
+
+[project.urls]
+Homepage = "https://github.com/msk-access/gbcms"
+Repository = "https://github.com/msk-access/gbcms"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:build"
