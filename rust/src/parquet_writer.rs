@@ -55,7 +55,8 @@ use crate::types::BaseCounts;
 /// # Notes
 /// * `ref_sizes`/`alt_sizes` in `BaseCounts` are NOT exposed to Python via
 ///   `#[pyo3(get)]`; this function is the only consumer.
-/// * Parquet compression uses Snappy (fast, good ratio for integer lists).
+/// * Parquet compression uses Zstandard level 1 (fast, always available,
+///   better ratio than Snappy for integer lists).
 #[pyfunction]
 pub fn write_fsd_parquet(
     path: &str,
@@ -151,7 +152,10 @@ pub fn write_fsd_parquet(
         .map_err(|e| PyIOError::new_err(format!("Cannot create mFSD Parquet file '{path}': {e}")))?;
 
     let props = WriterProperties::builder()
-        .set_compression(parquet::basic::Compression::SNAPPY)
+        .set_compression(parquet::basic::Compression::ZSTD(
+            parquet::basic::ZstdLevel::try_new(1)
+                .map_err(|e| PyIOError::new_err(format!("Invalid ZSTD level: {e}")))?,
+        ))
         .build();
 
     let mut writer = ArrowWriter::try_new(file, schema, Some(props))

@@ -24,4 +24,4 @@ pyo3-log = "0.13.2"
 arrow-array = { version = "53", default-features = false }
 arrow-buffer = { version = "53", default-features = false }
 arrow-schema = { version = "53", default-features = false }
-parquet = { version = "53", default-features = false, features = ["arrow"] }
+parquet = { version = "53", default-features = false, features = ["arrow", "zstd"] }
