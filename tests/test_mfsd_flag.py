@@ -9,6 +9,7 @@ Covers:
 6. VcfWriter header INFO line count with/without mfsd
 7. _zero_counts() does not contain ref_sizes or alt_sizes
 """
+
 from pathlib import Path
 
 import pytest
@@ -99,20 +100,20 @@ class _MockVariant:
 # Test 1: Default mFSD off — columns absent from MAF header
 # ---------------------------------------------------------------------------
 
+
 def test_maf_writer_no_mfsd_columns_by_default(tmp_path: Path):
     """Without --mfsd, no mFSD columns should appear in the MAF output header."""
     writer = MafWriter(tmp_path / "out.maf")
     cols = writer._gbcms_column_names()
     mfsd_cols = [c for c in cols if c.startswith("mfsd_")]
-    assert mfsd_cols == [], (
-        f"Expected no mFSD columns without --mfsd, got: {mfsd_cols}"
-    )
+    assert mfsd_cols == [], f"Expected no mFSD columns without --mfsd, got: {mfsd_cols}"
     writer.close()
 
 
 # ---------------------------------------------------------------------------
 # Test 2: mfsd=True — 31 mFSD columns present in MAF header
 # ---------------------------------------------------------------------------
+
 
 def test_maf_writer_mfsd_columns_when_enabled(tmp_path: Path):
     """With mfsd=True, exactly 34 mFSD columns should appear in the MAF header.
@@ -129,15 +130,16 @@ def test_maf_writer_mfsd_columns_when_enabled(tmp_path: Path):
     writer = MafWriter(tmp_path / "out.maf", mfsd=True)
     cols = writer._gbcms_column_names()
     mfsd_cols = [c for c in cols if c.startswith("mfsd_")]
-    assert len(mfsd_cols) == 34, (
-        f"Expected 34 mFSD columns with mfsd=True, got {len(mfsd_cols)}: {mfsd_cols}"
-    )
+    assert (
+        len(mfsd_cols) == 34
+    ), f"Expected 34 mFSD columns with mfsd=True, got {len(mfsd_cols)}: {mfsd_cols}"
     writer.close()
 
 
 # ---------------------------------------------------------------------------
 # Test 3: VcfWriter — no MFSD INFO lines by default
 # ---------------------------------------------------------------------------
+
 
 def test_vcf_writer_no_mfsd_info_by_default(tmp_path: Path):
     """Without mfsd=True, VCF header should not contain MFSD ##INFO lines."""
@@ -146,14 +148,13 @@ def test_vcf_writer_no_mfsd_info_by_default(tmp_path: Path):
     writer._write_header()
     writer.close()
     content = path.read_text()
-    assert "MFSD_" not in content, (
-        "Expected no MFSD INFO lines in VCF header without --mfsd"
-    )
+    assert "MFSD_" not in content, "Expected no MFSD INFO lines in VCF header without --mfsd"
 
 
 # ---------------------------------------------------------------------------
 # Test 4: VcfWriter — 7 MFSD INFO lines when mfsd=True
 # ---------------------------------------------------------------------------
+
 
 def test_vcf_writer_mfsd_info_when_enabled(tmp_path: Path):
     """With mfsd=True, VCF header should contain exactly 7 ##INFO=<ID=MFSD_...> lines."""
@@ -163,14 +164,13 @@ def test_vcf_writer_mfsd_info_when_enabled(tmp_path: Path):
     writer.close()
     content = path.read_text()
     mfsd_lines = [line_ for line_ in content.splitlines() if "##INFO=<ID=MFSD_" in line_]
-    assert len(mfsd_lines) == 7, (
-        f"Expected 7 MFSD INFO header lines, got {len(mfsd_lines)}"
-    )
+    assert len(mfsd_lines) == 7, f"Expected 7 MFSD INFO header lines, got {len(mfsd_lines)}"
 
 
 # ---------------------------------------------------------------------------
 # Test 5: OutputConfig model validator — mfsd_parquet requires mfsd
 # ---------------------------------------------------------------------------
+
 
 def test_output_config_mfsd_parquet_requires_mfsd():
     """OutputConfig should raise ValidationError if mfsd_parquet=True without mfsd=True."""
@@ -199,6 +199,7 @@ def test_output_config_mfsd_parquet_valid_when_mfsd_true(tmp_path: Path):
 # Test 6: CLI cross-validation — --mfsd-parquet without --mfsd exits 1
 # ---------------------------------------------------------------------------
 
+
 def test_cli_mfsd_parquet_without_mfsd_exits_1(tmp_path: Path):
     """The CLI should exit with code 1 and log an error if --mfsd-parquet is used without --mfsd.
 
@@ -218,34 +219,35 @@ def test_cli_mfsd_parquet_without_mfsd_exits_1(tmp_path: Path):
         app,
         [
             "run",
-            "--bam", str(bam),
-            "--variants", str(vcf),
-            "--fasta", str(fasta),
-            "--output-dir", str(tmp_path),
+            "--bam",
+            str(bam),
+            "--variants",
+            str(vcf),
+            "--fasta",
+            str(fasta),
+            "--output-dir",
+            str(tmp_path),
             "--mfsd-parquet",  # --mfsd deliberately omitted
         ],
     )
     # Must exit non-zero
-    assert result.exit_code != 0, (
-        "Expected non-zero exit when --mfsd-parquet used without --mfsd"
-    )
+    assert result.exit_code != 0, "Expected non-zero exit when --mfsd-parquet used without --mfsd"
     # Must include a helpful error message
     output = result.output or ""
-    assert "mfsd" in output.lower(), (
-        f"Expected error mentioning mfsd in output, got: {output!r}"
-    )
+    assert "mfsd" in output.lower(), f"Expected error mentioning mfsd in output, got: {output!r}"
 
 
 # ---------------------------------------------------------------------------
 # Test 7: _zero_counts() does not expose ref_sizes or alt_sizes
 # ---------------------------------------------------------------------------
 
+
 def test_zero_counts_no_size_arrays():
     """_zero_counts() must not expose ref_sizes or alt_sizes — those are Rust-internal."""
     counts = _zero_counts()
-    assert not hasattr(counts, "ref_sizes"), (
-        "_zero_counts() should not have ref_sizes (internal Rust field)"
-    )
-    assert not hasattr(counts, "alt_sizes"), (
-        "_zero_counts() should not have alt_sizes (internal Rust field)"
-    )
+    assert not hasattr(
+        counts, "ref_sizes"
+    ), "_zero_counts() should not have ref_sizes (internal Rust field)"
+    assert not hasattr(
+        counts, "alt_sizes"
+    ), "_zero_counts() should not have alt_sizes (internal Rust field)"

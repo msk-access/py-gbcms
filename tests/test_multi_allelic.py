@@ -41,8 +41,10 @@ def multi_allelic_bam(tmp_path):
             a.reference_id = 0
             a.reference_start = 95
             a.mapping_quality = 60
-            a.cigar = ((0, 10),)
-            a.query_qualities = [30] * 10
+            a.cigartuples = [
+                (0, 10),
+            ]
+            a.query_qualities = [30] * 10  # type: ignore[assignment]
             outf.write(a)
 
         # REF reads (A) — REF for both variants
@@ -167,8 +169,10 @@ def overlapping_indel_bam(tmp_path):
             a.reference_id = 0
             a.reference_start = 96
             a.mapping_quality = 60
-            a.cigar = ((0, 10),)  # 10M
-            a.query_qualities = [30] * 10
+            a.cigartuples = [
+                (0, 10),
+            ]  # 10M
+            a.query_qualities = [30] * 10  # type: ignore[assignment]
             outf.write(a)
 
         # Deletion reads — 5M 2D 5M (deletes 2bp starting after 5th base)
@@ -180,8 +184,8 @@ def overlapping_indel_bam(tmp_path):
             a.reference_id = 0
             a.reference_start = 96
             a.mapping_quality = 60
-            a.cigar = ((0, 5), (2, 2), (0, 5))  # 5M 2D 5M
-            a.query_qualities = [30] * 10
+            a.cigartuples = [(0, 5), (2, 2), (0, 5)]  # 5M 2D 5M
+            a.query_qualities = [30] * 10  # type: ignore[assignment]
             outf.write(a)
 
         # Insertion reads — 5M 3I 5M (inserts 3bp after 5th base)
@@ -193,8 +197,8 @@ def overlapping_indel_bam(tmp_path):
             a.reference_id = 0
             a.reference_start = 96
             a.mapping_quality = 60
-            a.cigar = ((0, 5), (1, 3), (0, 5))  # 5M 3I 5M
-            a.query_qualities = [30] * 13
+            a.cigartuples = [(0, 5), (1, 3), (0, 5)]  # 5M 3I 5M
+            a.query_qualities = [30] * 13  # type: ignore[assignment]
             outf.write(a)
 
     sorted_bam = tmp_path / "overlap_indel.sorted.bam"

@@ -20,7 +20,9 @@ def mock_bam_with_flags(tmp_path):
         a.reference_id = 0
         a.reference_start = 100
         a.mapping_quality = 60
-        a.cigar = ((0, 100),)
+        a.cigartuples = [
+            (0, 100),
+        ]
         outf.write(a)
 
         # 2. QC Failed read (flag 512)
@@ -32,7 +34,9 @@ def mock_bam_with_flags(tmp_path):
         a.reference_id = 0
         a.reference_start = 100
         a.mapping_quality = 60
-        a.cigar = ((0, 100),)
+        a.cigartuples = [
+            (0, 100),
+        ]
         outf.write(a)
 
         # 3. Improper pair (flag 1: paired but not proper)
@@ -43,7 +47,9 @@ def mock_bam_with_flags(tmp_path):
         a.reference_id = 0
         a.reference_start = 100
         a.mapping_quality = 60
-        a.cigar = ((0, 100),)
+        a.cigartuples = [
+            (0, 100),
+        ]
         outf.write(a)
 
         # 4. Indel read (CIGAR has I or D)
@@ -55,7 +61,7 @@ def mock_bam_with_flags(tmp_path):
         a.reference_id = 0
         a.reference_start = 100
         a.mapping_quality = 60
-        a.cigar = ((0, 50), (1, 1), (0, 49))  # 50M 1I 49M
+        a.cigartuples = [(0, 50), (1, 1), (0, 49)]  # 50M 1I 49M
         outf.write(a)
 
         # 5. Secondary read (flag 256)
@@ -67,7 +73,9 @@ def mock_bam_with_flags(tmp_path):
         a.reference_id = 0
         a.reference_start = 100
         a.mapping_quality = 60
-        a.cigar = ((0, 100),)
+        a.cigartuples = [
+            (0, 100),
+        ]
         outf.write(a)
 
     pysam.index(str(bam_path))

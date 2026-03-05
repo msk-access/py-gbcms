@@ -45,8 +45,8 @@ def _make_read(name, seq, start, cigar, flag=0, mapq=60, quals=None):
     a.reference_id = 0
     a.reference_start = start
     a.mapping_quality = mapq
-    a.cigar = cigar
-    a.query_qualities = quals if quals else [30] * len(seq)
+    a.cigartuples = cigar
+    a.query_qualities = quals if quals else [30] * len(seq)  # type: ignore[assignment]
     return a
 
 

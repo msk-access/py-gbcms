@@ -21,12 +21,14 @@ logger = logging.getLogger(__name__)
 def _fmt(v: float) -> str:
     """Format a float for MAF output. NaN → 'NA' (standard missing value for tabular formats)."""
     import math
+
     return "NA" if (isinstance(v, float) and math.isnan(v)) else f"{v:.4f}"
 
 
 def _fmt_vcf(v: float) -> str:
     """Format a float for VCF INFO fields. NaN → '.' (VCF spec missing value sentinel)."""
     import math
+
     return "." if (isinstance(v, float) and math.isnan(v)) else f"{v:.4f}"
 
 
@@ -166,12 +168,24 @@ class MafWriter(OutputWriter):
                 "mfsd_nonref_mean",
                 "mfsd_n_mean",
                 # Pairwise KS comparisons: 6 pairs × (delta, D-stat, p-value)
-                "mfsd_delta_alt_ref",    "mfsd_ks_alt_ref",    "mfsd_pval_alt_ref",
-                "mfsd_delta_alt_nonref", "mfsd_ks_alt_nonref", "mfsd_pval_alt_nonref",
-                "mfsd_delta_ref_nonref", "mfsd_ks_ref_nonref", "mfsd_pval_ref_nonref",
-                "mfsd_delta_alt_n",      "mfsd_ks_alt_n",      "mfsd_pval_alt_n",
-                "mfsd_delta_ref_n",      "mfsd_ks_ref_n",      "mfsd_pval_ref_n",
-                "mfsd_delta_nonref_n",   "mfsd_ks_nonref_n",   "mfsd_pval_nonref_n",
+                "mfsd_delta_alt_ref",
+                "mfsd_ks_alt_ref",
+                "mfsd_pval_alt_ref",
+                "mfsd_delta_alt_nonref",
+                "mfsd_ks_alt_nonref",
+                "mfsd_pval_alt_nonref",
+                "mfsd_delta_ref_nonref",
+                "mfsd_ks_ref_nonref",
+                "mfsd_pval_ref_nonref",
+                "mfsd_delta_alt_n",
+                "mfsd_ks_alt_n",
+                "mfsd_pval_alt_n",
+                "mfsd_delta_ref_n",
+                "mfsd_ks_ref_n",
+                "mfsd_pval_ref_n",
+                "mfsd_delta_nonref_n",
+                "mfsd_ks_nonref_n",
+                "mfsd_pval_nonref_n",
                 # Derived quality metrics (computed in Python from Rust exports)
                 "mfsd_error_rate",
                 "mfsd_n_rate",
@@ -289,9 +303,7 @@ class MafWriter(OutputWriter):
                 + counts.mfsd_nonref_count
                 + counts.mfsd_n_count
             )
-            mfsd_error_rate = (
-                counts.mfsd_nonref_count / total_mfsd if total_mfsd > 0 else _nan
-            )
+            mfsd_error_rate = counts.mfsd_nonref_count / total_mfsd if total_mfsd > 0 else _nan
             mfsd_n_rate = counts.mfsd_n_count / total_mfsd if total_mfsd > 0 else _nan
             # Size ratio: mean(ALT) / mean(REF); NaN if either is 0/missing
             mfsd_size_ratio = (
@@ -315,47 +327,49 @@ class MafWriter(OutputWriter):
             # KS test validity: both ALT and REF need >= 5 fragments
             mfsd_ks_valid = counts.mfsd_alt_count >= 5 and counts.mfsd_ref_count >= 5
 
-            result.update({
-                # Raw counts
-                "mfsd_ref_count":    str(counts.mfsd_ref_count),
-                "mfsd_alt_count":    str(counts.mfsd_alt_count),
-                "mfsd_nonref_count": str(counts.mfsd_nonref_count),
-                "mfsd_n_count":      str(counts.mfsd_n_count),
-                # LLR
-                "mfsd_alt_llr": _fmt(counts.mfsd_alt_llr),
-                "mfsd_ref_llr": _fmt(counts.mfsd_ref_llr),
-                # Mean sizes
-                "mfsd_ref_mean":    _fmt(counts.mfsd_ref_mean),
-                "mfsd_alt_mean":    _fmt(counts.mfsd_alt_mean),
-                "mfsd_nonref_mean": _fmt(counts.mfsd_nonref_mean),
-                "mfsd_n_mean":      _fmt(counts.mfsd_n_mean),
-                # Pairwise KS comparisons: 6 pairs × 3 values
-                "mfsd_delta_alt_ref":    _fmt(counts.mfsd_delta_alt_ref),
-                "mfsd_ks_alt_ref":       _fmt(counts.mfsd_ks_alt_ref),
-                "mfsd_pval_alt_ref":     _fmt(counts.mfsd_pval_alt_ref),
-                "mfsd_delta_alt_nonref": _fmt(counts.mfsd_delta_alt_nonref),
-                "mfsd_ks_alt_nonref":    _fmt(counts.mfsd_ks_alt_nonref),
-                "mfsd_pval_alt_nonref":  _fmt(counts.mfsd_pval_alt_nonref),
-                "mfsd_delta_ref_nonref": _fmt(counts.mfsd_delta_ref_nonref),
-                "mfsd_ks_ref_nonref":    _fmt(counts.mfsd_ks_ref_nonref),
-                "mfsd_pval_ref_nonref":  _fmt(counts.mfsd_pval_ref_nonref),
-                "mfsd_delta_alt_n":      _fmt(counts.mfsd_delta_alt_n),
-                "mfsd_ks_alt_n":         _fmt(counts.mfsd_ks_alt_n),
-                "mfsd_pval_alt_n":       _fmt(counts.mfsd_pval_alt_n),
-                "mfsd_delta_ref_n":      _fmt(counts.mfsd_delta_ref_n),
-                "mfsd_ks_ref_n":         _fmt(counts.mfsd_ks_ref_n),
-                "mfsd_pval_ref_n":       _fmt(counts.mfsd_pval_ref_n),
-                "mfsd_delta_nonref_n":   _fmt(counts.mfsd_delta_nonref_n),
-                "mfsd_ks_nonref_n":      _fmt(counts.mfsd_ks_nonref_n),
-                "mfsd_pval_nonref_n":    _fmt(counts.mfsd_pval_nonref_n),
-                # Derived quality metrics
-                "mfsd_error_rate":      _fmt(mfsd_error_rate),
-                "mfsd_n_rate":          _fmt(mfsd_n_rate),
-                "mfsd_size_ratio":      _fmt(mfsd_size_ratio),
-                "mfsd_quality_score":   _fmt(mfsd_quality_score),
-                "mfsd_alt_confidence":  mfsd_alt_confidence,
-                "mfsd_ks_valid":        str(mfsd_ks_valid),
-            })
+            result.update(
+                {
+                    # Raw counts
+                    "mfsd_ref_count": str(counts.mfsd_ref_count),
+                    "mfsd_alt_count": str(counts.mfsd_alt_count),
+                    "mfsd_nonref_count": str(counts.mfsd_nonref_count),
+                    "mfsd_n_count": str(counts.mfsd_n_count),
+                    # LLR
+                    "mfsd_alt_llr": _fmt(counts.mfsd_alt_llr),
+                    "mfsd_ref_llr": _fmt(counts.mfsd_ref_llr),
+                    # Mean sizes
+                    "mfsd_ref_mean": _fmt(counts.mfsd_ref_mean),
+                    "mfsd_alt_mean": _fmt(counts.mfsd_alt_mean),
+                    "mfsd_nonref_mean": _fmt(counts.mfsd_nonref_mean),
+                    "mfsd_n_mean": _fmt(counts.mfsd_n_mean),
+                    # Pairwise KS comparisons: 6 pairs × 3 values
+                    "mfsd_delta_alt_ref": _fmt(counts.mfsd_delta_alt_ref),
+                    "mfsd_ks_alt_ref": _fmt(counts.mfsd_ks_alt_ref),
+                    "mfsd_pval_alt_ref": _fmt(counts.mfsd_pval_alt_ref),
+                    "mfsd_delta_alt_nonref": _fmt(counts.mfsd_delta_alt_nonref),
+                    "mfsd_ks_alt_nonref": _fmt(counts.mfsd_ks_alt_nonref),
+                    "mfsd_pval_alt_nonref": _fmt(counts.mfsd_pval_alt_nonref),
+                    "mfsd_delta_ref_nonref": _fmt(counts.mfsd_delta_ref_nonref),
+                    "mfsd_ks_ref_nonref": _fmt(counts.mfsd_ks_ref_nonref),
+                    "mfsd_pval_ref_nonref": _fmt(counts.mfsd_pval_ref_nonref),
+                    "mfsd_delta_alt_n": _fmt(counts.mfsd_delta_alt_n),
+                    "mfsd_ks_alt_n": _fmt(counts.mfsd_ks_alt_n),
+                    "mfsd_pval_alt_n": _fmt(counts.mfsd_pval_alt_n),
+                    "mfsd_delta_ref_n": _fmt(counts.mfsd_delta_ref_n),
+                    "mfsd_ks_ref_n": _fmt(counts.mfsd_ks_ref_n),
+                    "mfsd_pval_ref_n": _fmt(counts.mfsd_pval_ref_n),
+                    "mfsd_delta_nonref_n": _fmt(counts.mfsd_delta_nonref_n),
+                    "mfsd_ks_nonref_n": _fmt(counts.mfsd_ks_nonref_n),
+                    "mfsd_pval_nonref_n": _fmt(counts.mfsd_pval_nonref_n),
+                    # Derived quality metrics
+                    "mfsd_error_rate": _fmt(mfsd_error_rate),
+                    "mfsd_n_rate": _fmt(mfsd_n_rate),
+                    "mfsd_size_ratio": _fmt(mfsd_size_ratio),
+                    "mfsd_quality_score": _fmt(mfsd_quality_score),
+                    "mfsd_alt_confidence": mfsd_alt_confidence,
+                    "mfsd_ks_valid": str(mfsd_ks_valid),
+                }
+            )
 
         return result
 
@@ -489,15 +503,17 @@ class VcfWriter(OutputWriter):
         if self.mfsd:
             # mFSD INFO fields (7 primary diagnostics). VCF key = MAF column name uppercased.
             # Only added when --mfsd is set — keeps VCF header minimal for standard runs.
-            headers.extend([
-                '##INFO=<ID=MFSD_DELTA_ALT_REF,Number=1,Type=Float,Description="mFSD mean(ALT) − mean(REF) fragment size delta (bp)">',
-                '##INFO=<ID=MFSD_KS_ALT_REF,Number=1,Type=Float,Description="mFSD 2-sample KS D-statistic (ALT vs REF)">',
-                '##INFO=<ID=MFSD_PVAL_ALT_REF,Number=1,Type=Float,Description="mFSD KS p-value (ALT vs REF)">',
-                '##INFO=<ID=MFSD_ALT_LLR,Number=1,Type=Float,Description="mFSD LLR for ALT fragments: Σ log(P_tumor/P_healthy); positive=tumor-like">',
-                '##INFO=<ID=MFSD_REF_LLR,Number=1,Type=Float,Description="mFSD LLR for REF fragments">',
-                '##INFO=<ID=MFSD_ALT_COUNT,Number=1,Type=Integer,Description="ALT-classified fragments in mFSD window (50–1000 bp)">',
-                '##INFO=<ID=MFSD_REF_COUNT,Number=1,Type=Integer,Description="REF-classified fragments in mFSD window (50–1000 bp)">',
-            ])
+            headers.extend(
+                [
+                    '##INFO=<ID=MFSD_DELTA_ALT_REF,Number=1,Type=Float,Description="mFSD mean(ALT) − mean(REF) fragment size delta (bp)">',
+                    '##INFO=<ID=MFSD_KS_ALT_REF,Number=1,Type=Float,Description="mFSD 2-sample KS D-statistic (ALT vs REF)">',
+                    '##INFO=<ID=MFSD_PVAL_ALT_REF,Number=1,Type=Float,Description="mFSD KS p-value (ALT vs REF)">',
+                    '##INFO=<ID=MFSD_ALT_LLR,Number=1,Type=Float,Description="mFSD LLR for ALT fragments: Σ log(P_tumor/P_healthy); positive=tumor-like">',
+                    '##INFO=<ID=MFSD_REF_LLR,Number=1,Type=Float,Description="mFSD LLR for REF fragments">',
+                    '##INFO=<ID=MFSD_ALT_COUNT,Number=1,Type=Integer,Description="ALT-classified fragments in mFSD window (50–1000 bp)">',
+                    '##INFO=<ID=MFSD_REF_COUNT,Number=1,Type=Integer,Description="REF-classified fragments in mFSD window (50–1000 bp)">',
+                ]
+            )
         if self.show_normalization:
             headers.extend(
                 [
@@ -521,7 +537,6 @@ class VcfWriter(OutputWriter):
         )
         self.file.write("\n".join(headers) + "\n")
         self._headers_written = True
-
 
     def write(
         self,
@@ -549,15 +564,17 @@ class VcfWriter(OutputWriter):
         if self.mfsd:
             # mFSD primary diagnostic INFO fields (7 values).
             # Only populated when --mfsd is set; '.' for NaN per VCF spec.
-            info_parts.extend([
-                f"MFSD_DELTA_ALT_REF={_fmt_vcf(counts.mfsd_delta_alt_ref)}",
-                f"MFSD_KS_ALT_REF={_fmt_vcf(counts.mfsd_ks_alt_ref)}",
-                f"MFSD_PVAL_ALT_REF={_fmt_vcf(counts.mfsd_pval_alt_ref)}",
-                f"MFSD_ALT_LLR={_fmt_vcf(counts.mfsd_alt_llr)}",
-                f"MFSD_REF_LLR={_fmt_vcf(counts.mfsd_ref_llr)}",
-                f"MFSD_ALT_COUNT={counts.mfsd_alt_count}",
-                f"MFSD_REF_COUNT={counts.mfsd_ref_count}",
-            ])
+            info_parts.extend(
+                [
+                    f"MFSD_DELTA_ALT_REF={_fmt_vcf(counts.mfsd_delta_alt_ref)}",
+                    f"MFSD_KS_ALT_REF={_fmt_vcf(counts.mfsd_ks_alt_ref)}",
+                    f"MFSD_PVAL_ALT_REF={_fmt_vcf(counts.mfsd_pval_alt_ref)}",
+                    f"MFSD_ALT_LLR={_fmt_vcf(counts.mfsd_alt_llr)}",
+                    f"MFSD_REF_LLR={_fmt_vcf(counts.mfsd_ref_llr)}",
+                    f"MFSD_ALT_COUNT={counts.mfsd_alt_count}",
+                    f"MFSD_REF_COUNT={counts.mfsd_ref_count}",
+                ]
+            )
         if self.show_normalization and norm_variant:
             info_parts.extend(
                 [
