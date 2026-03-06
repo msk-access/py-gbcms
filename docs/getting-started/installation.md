@@ -4,7 +4,7 @@
 
 === "PyPI (Recommended)"
     ```bash
-    pip install py-gbcms
+    pip install gbcms
     gbcms --version
     ```
     
@@ -14,14 +14,14 @@
 
 === "Docker"
     ```bash
-    docker pull ghcr.io/msk-access/py-gbcms:X.Y.Z
-    docker run --rm ghcr.io/msk-access/py-gbcms:X.Y.Z gbcms --help
+    docker pull ghcr.io/msk-access/gbcms:X.Y.Z
+    docker run --rm ghcr.io/msk-access/gbcms:X.Y.Z gbcms --help
     ```
 
 === "From Source"
     ```bash
-    git clone https://github.com/msk-access/py-gbcms.git
-    cd py-gbcms
+    git clone https://github.com/msk-access/gbcms.git
+    cd gbcms
     pip install -e ".[dev]"
     ```
 
@@ -50,44 +50,44 @@ For RHEL 8, CentOS 8, or HPC systems with glibc < 2.34:
     ```bash
     # Create environment with build dependencies
     # Note: clangdev (not clang) provides headers needed by bindgen
-    micromamba create -n py_gbcms_env python=3.13 clangdev rust -c conda-forge
-    micromamba activate py_gbcms_env
+    micromamba create -n gbcms_env python=3.13 clangdev rust -c conda-forge
+    micromamba activate gbcms_env
     
     # Set libclang path for the Rust build
     export LIBCLANG_PATH=$CONDA_PREFIX/lib
     
     # Install from source
-    git clone https://github.com/msk-access/py-gbcms.git
-    cd py-gbcms
+    git clone https://github.com/msk-access/gbcms.git
+    cd gbcms
     pip install .
     ```
 
 === "Conda"
     ```bash
-    conda create -n py_gbcms_env python=3.13 clangdev rust -c conda-forge
-    conda activate py_gbcms_env
+    conda create -n gbcms_env python=3.13 clangdev rust -c conda-forge
+    conda activate gbcms_env
     export LIBCLANG_PATH=$CONDA_PREFIX/lib
     
-    git clone https://github.com/msk-access/py-gbcms.git
-    cd py-gbcms
+    git clone https://github.com/msk-access/gbcms.git
+    cd gbcms
     pip install .
     ```
 
 === "Singularity (HPC)"
     ```bash
-    singularity pull docker://ghcr.io/msk-access/py-gbcms:X.Y.Z
-    singularity exec py-gbcms_X.Y.Z.sif gbcms --help
+    singularity pull docker://ghcr.io/msk-access/gbcms:X.Y.Z
+    singularity exec gbcms_X.Y.Z.sif gbcms --help
     
     # With data binding
-    singularity exec -B /path/to/data:/data py-gbcms_X.Y.Z.sif gbcms run \
+    singularity exec -B /path/to/data:/data gbcms_X.Y.Z.sif gbcms run \
       --variants /data/variants.vcf --bam /data/sample.bam \
       --fasta /data/ref.fa --output-dir /data/results/
     ```
 
 === "Docker"
     ```bash
-    docker pull ghcr.io/msk-access/py-gbcms:X.Y.Z
-    docker run --rm -v $(pwd):/data ghcr.io/msk-access/py-gbcms:X.Y.Z gbcms --help
+    docker pull ghcr.io/msk-access/gbcms:X.Y.Z
+    docker run --rm -v $(pwd):/data ghcr.io/msk-access/gbcms:X.Y.Z gbcms --help
     ```
 
 !!! note "Why not pip install?"
@@ -115,7 +115,7 @@ gbcms --help
 ```bash
 docker run --rm \
   -v $(pwd):/data \
-  ghcr.io/msk-access/py-gbcms:X.Y.Z \
+  ghcr.io/msk-access/gbcms:X.Y.Z \
   gbcms run \
     --variants /data/variants.vcf \
     --bam /data/sample.bam \
@@ -132,7 +132,7 @@ docker run --rm \
 
 ### Module Not Found
 ```bash
-pip uninstall py-gbcms && pip install py-gbcms
+pip uninstall gbcms && pip install gbcms
 ```
 
 ### BAM Index Missing
@@ -153,7 +153,7 @@ If you see `GLIBC_2.34 not found`, use the [Legacy Linux](#legacy-linux-rhel-8-h
 ## Upgrade
 
 ```bash
-pip install --upgrade py-gbcms
+pip install --upgrade gbcms
 ```
 
 ---

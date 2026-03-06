@@ -1,6 +1,6 @@
 # Developer Guide
 
-Guide for contributing to py-gbcms.
+Guide for contributing to gbcms.
 
 ---
 
@@ -9,8 +9,8 @@ Guide for contributing to py-gbcms.
 === "Modern Linux (Ubuntu 22.04+, RHEL 9+)"
     ```bash
     # Clone
-    git clone https://github.com/msk-access/py-gbcms.git
-    cd py-gbcms
+    git clone https://github.com/msk-access/gbcms.git
+    cd gbcms
     
     # Virtual environment
     python -m venv .venv
@@ -29,8 +29,8 @@ Guide for contributing to py-gbcms.
 === "Legacy Linux (RHEL 8 / HPC)"
     ```bash
     # Clone
-    git clone https://github.com/msk-access/py-gbcms.git
-    cd py-gbcms
+    git clone https://github.com/msk-access/gbcms.git
+    cd gbcms
     
     # Create conda environment with build dependencies
     # Note: clangdev (not clang) provides headers needed by bindgen
@@ -51,8 +51,8 @@ Guide for contributing to py-gbcms.
 === "macOS"
     ```bash
     # Clone
-    git clone https://github.com/msk-access/py-gbcms.git
-    cd py-gbcms
+    git clone https://github.com/msk-access/gbcms.git
+    cd gbcms
     
     # Install Rust (if not installed)
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
@@ -127,8 +127,8 @@ to verify no unintended count shifts:
 
 3. Review the comparison output. Key metrics:
    - **ALT count diff distribution**: most variants should be within ±2
-   - **C++ higher**: investigate any new variants where C++ ALT > py-gbcms
-   - **py-gbcms higher**: expected for windowed indel detection improvements
+   - **C++ higher**: investigate any new variants where C++ ALT > gbcms
+   - **gbcms higher**: expected for windowed indel detection improvements
 
 ### Variant-Type-Specific BAM Slices
 
@@ -153,6 +153,17 @@ When debugging specific variant types, create targeted BAM slices:
 | Exports | `__all__` in every module |
 | Logging | Use `logging`, not `print()` |
 | Config | Pydantic models |
+
+#### CLI Validation Standards
+
+New CLI options must follow this four-layer validation order:
+
+1. **Parse-time** (Typer): Use `Enum` for constrained choices, `min=`/`max=` for numeric ranges. Typer rejects invalid values before any Python code runs.
+2. **Pre-model** (cli.py command body): File extension checks, cross-option semantics (e.g. `--preserve-barcode` + non-MAF input), charset validation. Log at `ERROR` and raise `typer.Exit(code=1)`.
+3. **Model-time** (Pydantic): Business-logic constraints in `models/core.py` via `Field(ge=..., le=...)` and `@field_validator`.
+4. **No silent skips**: Missing inputs must fail-fast or require an explicit opt-out (e.g. `--lenient-bam`). `WARNING`-level silent skips are unacceptable for missing required inputs.
+
+The module-level docstring in `cli.py` documents this order and must be kept in sync when adding new options.
 
 ### Rust
 
@@ -215,3 +226,33 @@ Before committing:
 ```bash
 GBCMS_LOG_LEVEL=DEBUG RUST_LOG=debug gbcms run ...
 ```
+
+---
+
+## Generating a PDF
+
+The docs include a combined print page (via `mkdocs-print-site-plugin`) that can be printed to PDF directly from Chrome — no extra tools required.
+
+**Steps:**
+
+1. Start the docs server:
+   ```bash
+   mkdocs serve
+   ```
+
+2. Open **`http://127.0.0.1:8000/gbcms/print_page/`** in Google Chrome and wait ~10s for Mermaid diagrams to render.
+
+3. Open the DevTools console (`F12` → Console tab) and paste:
+   ```js
+   document.querySelectorAll(
+     '.md-sidebar,.md-header,.md-footer,.md-tabs,.md-source-file'
+   ).forEach(e => e.remove());
+   document.querySelectorAll('.md-content').forEach(e => {
+     e.style.maxWidth = '100%'; e.style.padding = '0 1cm';
+   });
+   ```
+
+4. Press `Cmd+P` → **Save as PDF** (A4, default margins, ✅ background graphics).
+
+!!! tip "Automated PDF"
+    For a headless/automated version, see `~/Downloads/gbcms-pdf-generator/` (local archive, not in repo) — generates `site/documentation.pdf` via `node generate_pdf.mjs`.

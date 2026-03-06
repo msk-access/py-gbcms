@@ -1,4 +1,4 @@
-# Contributing to py-gbcms
+# Contributing to gbcms
 
 Thank you for your interest in contributing to GetBaseCounts! This document provides guidelines and instructions for contributing.
 
@@ -6,8 +6,8 @@ Thank you for your interest in contributing to GetBaseCounts! This document prov
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/msk-access/py-gbcms.git
-   cd py-gbcms
+   git clone https://github.com/msk-access/gbcms.git
+   cd gbcms
    ```
 
 2. **Install uv** (if not already installed)

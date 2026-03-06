@@ -1,6 +1,6 @@
 # Allele Classification
 
-How py-gbcms classifies each read as supporting the **reference** allele, the **alternate** allele, or **neither**.
+How gbcms classifies each read as supporting the **reference** allele, the **alternate** allele, or **neither**.
 
 !!! tip "Detailed Visual Reference (PDF)"
     ![Allele Classification Visual Guide](../assets/posters/Allele_Classification_factory_cmp.pdf){ type=application/pdf style="min-height:75vh;width:100%" }
@@ -209,7 +209,7 @@ Bases deleted after an **anchor** position. Mirrors insertion but looks for `Del
 
 Same single-walk strategy as insertion, with three additional features:
 
-1. **Reciprocal overlap matching** — For large deletions (≥50bp), if the CIGAR shows a deletion at the anchor but with a different length, py-gbcms accepts it if the reciprocal overlap is ≥50% (SV-caller standard, used by SURVIVOR):
+1. **Reciprocal overlap matching** — For large deletions (≥50bp), if the CIGAR shows a deletion at the anchor but with a different length, gbcms accepts it if the reciprocal overlap is ≥50% (SV-caller standard, used by SURVIVOR):
 
     ```
     reciprocal_overlap = min(expected, found) / max(expected, found)
@@ -349,7 +349,7 @@ flowchart TD
 
 ### Contiguity Check
 
-The contiguity check is performed **first** (before quality or sequence comparison) as a fail-fast for structural issues. py-gbcms compares the read positions of the first and last MNP base — if the distance doesn't equal `len - 1`, an indel exists within the block and the read is routed to `check_complex` for haplotype-based resolution.
+The contiguity check is performed **first** (before quality or sequence comparison) as a fail-fast for structural issues. gbcms compares the read positions of the first and last MNP base — if the distance doesn't equal `len - 1`, an indel exists within the block and the read is routed to `check_complex` for haplotype-based resolution.
 
 
 ---
@@ -501,7 +501,7 @@ Instead of exact matching, bases with quality below `--min-baseq` are **masked o
 
 ### Phase 2.5: Edit Distance
 
-When Phase 2's strict length comparison fails (Case A/B/C don't match), py-gbcms measures the **Levenshtein edit distance** between the reconstruction and each allele. This catches cases where the reconstruction is off by 1-2 bases due to an incomplete variant definition:
+When Phase 2's strict length comparison fails (Case A/B/C don't match), gbcms measures the **Levenshtein edit distance** between the reconstruction and each allele. This catches cases where the reconstruction is off by 1-2 bases due to an incomplete variant definition:
 
 | Parameter | Value | Rationale |
 |:----------|:------|:----------|

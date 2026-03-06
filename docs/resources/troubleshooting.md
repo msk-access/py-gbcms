@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Common issues and solutions for py-gbcms.
+Common issues and solutions for gbcms.
 
 ## Installation Issues
 
@@ -51,13 +51,13 @@ samtools index sample.bam
 
 ### Container Not Found
 
-**Error:** `Unable to find image 'ghcr.io/msk-access/py-gbcms:X.Y.Z'`
+**Error:** `Unable to find image 'ghcr.io/msk-access/gbcms:X.Y.Z'`
 
 **Solution:** Pull manually:
 ```bash
-docker pull ghcr.io/msk-access/py-gbcms:X.Y.Z
+docker pull ghcr.io/msk-access/gbcms:X.Y.Z
 # or
-singularity pull docker://ghcr.io/msk-access/py-gbcms:X.Y.Z
+singularity pull docker://ghcr.io/msk-access/gbcms:X.Y.Z
 ```
 
 ### Task Metrics Error

@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-03-05
+
+### ⚠️ Breaking Changes
+- **Package renamed**: `py-gbcms` → `gbcms`. Update your dependencies:
+  ```bash
+  pip uninstall py-gbcms
+  pip install gbcms
+  ```
+  A final `py-gbcms==3.0.0` deprecation stub on PyPI re-exports `gbcms` and
+  issues a `DeprecationWarning` for smooth migration.
+
+### ✨ Added
+- **mFSD native integration**: `--mfsd` and `--mfsd-parquet` flags output a
+  Parquet file with 31 MAF columns + 7 VCF INFO fields via the Rust native
+  Parquet writer. Compression: ZSTD level 1.
+- **CLI validation hardening**: 12 validation gaps resolved — fail-fast BAM
+  accessibility check, `--lenient-bam` flag for permissive mode, `.vcf.bgz`
+  accepted as a valid variant input extension.
+- **`py-gbcms` deprecation stub**: `compat/py-gbcms/` shim published to PyPI
+  as `py-gbcms==3.0.0` for backwards compatibility during migration.
+
+### 🔧 Fixed
+- Parquet output compression switched from SNAPPY to ZSTD(1).
+- Resolved `mypy` `AlignedSegment.cigar` attribute errors in test suite.
+- Lint and stale-comment cleanup post Phase 6 audit.
+
+### 📚 Documentation
+- Full documentation sync with codebase after Phase 6 (mFSD) merge.
+- PDF generation guide added to developer documentation.
+- `.agent/rules/` directory added; stale `.antigravity` docs removed.
+
+### 🏗️ CI
+- Added `mkdocs-print-site-plugin` to CI docs install step and `pyproject.toml`.
+
 ## [2.8.0] - 2026-02-23
 
 ### ✨ Added
@@ -362,13 +396,13 @@ Version 2.0.0 is **not backward compatible** with 1.x. Key breaking changes:
 
 ```bash
 # From PyPI (includes pre-built wheels)
-pip install py-gbcms
+pip install gbcms
 
 # From source (requires Rust)
-pip install git+https://github.com/msk-access/py-gbcms.git
+pip install git+https://github.com/msk-access/gbcms.git
 
 # Docker
-docker pull ghcr.io/msk-access/py-gbcms:2.0.0
+docker pull ghcr.io/msk-access/gbcms:2.0.0
 ```
 
 ### 🙏 Acknowledgments

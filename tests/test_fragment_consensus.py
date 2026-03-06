@@ -58,8 +58,8 @@ def fragment_consensus_bam(tmp_path):
             a.reference_id = 0
             a.reference_start = pos
             a.mapping_quality = 60
-            a.cigar = [(0, len(seq))]  # All match
-            a.query_qualities = pysam.qualitystring_to_array("".join(chr(q + 33) for q in quals))
+            a.cigartuples = [(0, len(seq))]  # All match
+            a.query_qualities = pysam.qualitystring_to_array("".join(chr(q + 33) for q in quals))  # type: ignore[assignment]
             # Set mate info
             a.next_reference_id = 0
             a.next_reference_start = pos

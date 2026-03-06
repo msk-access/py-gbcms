@@ -4,15 +4,16 @@ process GBCMS_RUN {
 
     publishDir "${params.outdir}/gbcms", mode: params.publish_dir_mode
 
-    container "ghcr.io/msk-access/py-gbcms:2.8.0"
+    container "ghcr.io/msk-access/gbcms:3.0.0"
 
     input:
     tuple val(meta), path(bam), path(bai), path(variants)
     tuple path(fasta), path(fai)
 
     output:
-    tuple val(meta), path("*.{vcf,maf}"), emit: counts
-    path "versions.yml"                 , emit: versions
+    tuple val(meta), path("*.{vcf,maf}"),  emit: counts
+    tuple val(meta), path("*.fsd.parquet"), emit: fsd_parquet, optional: true
+    path "versions.yml"                   , emit: versions
 
     when:
     task.ext.when == null || task.ext.when
@@ -53,6 +54,10 @@ process GBCMS_RUN {
     if (params.filter_improper_pair) filters += " --filter-improper-pair"
     if (params.filter_indel)         filters += " --filter-indel"
 
+    // mFSD analysis (off by default — must opt in)
+    def mfsd_arg         = params.mfsd         ? "--mfsd"          : ""
+    def mfsd_parquet_arg = params.mfsd_parquet ? "--mfsd-parquet"  : ""
+
     """
     gbcms run \\
         --variants ${variants} \\
@@ -73,6 +78,8 @@ process GBCMS_RUN {
         --fragment-qual-threshold ${params.fragment_qual_threshold} \\
         --context-padding ${params.context_padding} \\
         ${filters} \\
+        ${mfsd_arg} \\
+        ${mfsd_parquet_arg} \\
         ${args}
 
     cat <<-END_VERSIONS > versions.yml

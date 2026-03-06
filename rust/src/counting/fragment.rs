@@ -15,6 +15,11 @@ use std::collections::hash_map::DefaultHasher;
 /// allele is the orientation of the read that provided the best-quality
 /// evidence for that allele. This ensures Fisher's Strand Bias (FSB)
 /// reflects the actual strand of the evidence, not just R1's strand.
+///
+/// ## mFSD fields
+/// `insert_size` and `has_n_base` feed the mFSD engine during fragment
+/// resolution, building the four class size vectors
+/// (`ref_sizes`, `alt_sizes`, `nonref_sizes`, `n_sizes`).
 #[derive(Debug, Clone)]
 pub struct FragmentEvidence {
     /// Best base quality seen supporting REF across reads in this fragment
@@ -29,6 +34,16 @@ pub struct FragmentEvidence {
     read1_orientation: Option<bool>,
     /// Orientation of read 2 (fallback)
     read2_orientation: Option<bool>,
+
+    // ── mFSD Fragment Size Distribution fields ────────────────────────────
+    /// Absolute insert size (|TLEN|) in base pairs, from the first non-zero TLEN
+    /// seen across reads of this fragment. TLEN=0 (unpaired/unmapped mate) is
+    /// ignored. Only sizes in the cfDNA range (50–1000 bp) are later aggregated.
+    pub insert_size: Option<i32>,
+    /// True if the base at the variant position was 'N' (ambiguous) on any read.
+    /// Sticky: once set, never cleared. Used to split "neither-REF-nor-ALT"
+    /// fragments into the N class vs. the NonREF class for mFSD analysis.
+    pub has_n_base: bool,
 }
 
 impl FragmentEvidence {
@@ -40,15 +55,34 @@ impl FragmentEvidence {
             best_alt_orientation: None,
             read1_orientation: None,
             read2_orientation: None,
+            insert_size: None,
+            has_n_base: false,
         }
     }
 
-    /// Record a read's allele call and orientation into this fragment's evidence.
+    /// Record a read's allele call, orientation, and fragment size into this
+    /// fragment's evidence.
     ///
     /// Tracks per-allele orientation: when a new best-quality observation is
     /// recorded for REF or ALT, the orientation of THAT read is stored.
     /// This couples the strand direction to the winning evidence, not just R1.
-    pub fn observe(&mut self, is_ref: bool, is_alt: bool, base_qual: u8, is_read1: bool, is_forward: bool) {
+    ///
+    /// ## mFSD tracking
+    /// - `tlen`: signed TLEN from the BAM record. Absolute value stored once
+    ///   (first non-zero value wins). TLEN=0 (unpaired/unmapped mate) is skipped.
+    /// - `is_n_base`: set `true` when the base at the variant position is 'N'.
+    ///   Sticky across reads of the pair — once set, not cleared.
+    #[allow(clippy::too_many_arguments)] // 5 existing + tlen + is_n_base: unavoidable
+    pub fn observe(
+        &mut self,
+        is_ref: bool,
+        is_alt: bool,
+        base_qual: u8,
+        is_read1: bool,
+        is_forward: bool,
+        tlen: i32,
+        is_n_base: bool,
+    ) {
         if is_ref && base_qual > self.best_ref_qual {
             self.best_ref_qual = base_qual;
             self.best_ref_orientation = Some(is_forward);
@@ -62,6 +96,15 @@ impl FragmentEvidence {
             self.read1_orientation = Some(is_forward);
         } else {
             self.read2_orientation = Some(is_forward);
+        }
+
+        // mFSD: capture insert size once (first non-zero value from either read)
+        if self.insert_size.is_none() && tlen != 0 {
+            self.insert_size = Some(tlen.abs());
+        }
+        // mFSD: sticky N flag — once a read sees 'N' at this position, it stays
+        if is_n_base {
+            self.has_n_base = true;
         }
     }
 

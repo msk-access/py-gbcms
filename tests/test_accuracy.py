@@ -26,8 +26,10 @@ def synthetic_bam(tmp_path):
             a.reference_id = 0
             a.reference_start = 95
             a.mapping_quality = 60
-            a.cigar = ((0, 10),)  # 10M
-            a.query_qualities = [30] * 10
+            a.cigartuples = [
+                (0, 10),
+            ]  # 10M
+            a.query_qualities = [30] * 10  # type: ignore[assignment]
             outf.write(a)
 
         # 3 Reverse Reads supporting REF (A)
@@ -39,8 +41,10 @@ def synthetic_bam(tmp_path):
             a.reference_id = 0
             a.reference_start = 95
             a.mapping_quality = 60
-            a.cigar = ((0, 10),)
-            a.query_qualities = [30] * 10
+            a.cigartuples = [
+                (0, 10),
+            ]
+            a.query_qualities = [30] * 10  # type: ignore[assignment]
             outf.write(a)
 
         # 4 Forward Reads supporting ALT (T) at pos 100
@@ -54,8 +58,10 @@ def synthetic_bam(tmp_path):
             a.reference_id = 0
             a.reference_start = 95
             a.mapping_quality = 60
-            a.cigar = ((0, 10),)
-            a.query_qualities = [30] * 10
+            a.cigartuples = [
+                (0, 10),
+            ]
+            a.query_qualities = [30] * 10  # type: ignore[assignment]
             outf.write(a)
 
         # 2 Reverse Reads supporting ALT (T)
@@ -67,8 +73,10 @@ def synthetic_bam(tmp_path):
             a.reference_id = 0
             a.reference_start = 95
             a.mapping_quality = 60
-            a.cigar = ((0, 10),)
-            a.query_qualities = [30] * 10
+            a.cigartuples = [
+                (0, 10),
+            ]
+            a.query_qualities = [30] * 10  # type: ignore[assignment]
             outf.write(a)
 
         # 2. Insertion Case: chr1:200, REF=A, ALT=AT (Insertion of T)
@@ -86,8 +94,8 @@ def synthetic_bam(tmp_path):
             a.reference_id = 0
             a.reference_start = 196
             a.mapping_quality = 60
-            a.cigar = ((0, 5), (1, 1), (0, 4))  # 5M 1I 4M
-            a.query_qualities = [30] * 10
+            a.cigartuples = [(0, 5), (1, 1), (0, 4)]  # 5M 1I 4M
+            a.query_qualities = [30] * 10  # type: ignore[assignment]
             outf.write(a)
 
         # 3. Deletion Case: chr1:300, REF=AT, ALT=A (Deletion of T)
@@ -103,8 +111,8 @@ def synthetic_bam(tmp_path):
             a.reference_id = 0
             a.reference_start = 296
             a.mapping_quality = 60
-            a.cigar = ((0, 5), (2, 1), (0, 5))  # 5M 1D 5M
-            a.query_qualities = [30] * 10
+            a.cigartuples = [(0, 5), (2, 1), (0, 5)]  # 5M 1D 5M
+            a.query_qualities = [30] * 10  # type: ignore[assignment]
             outf.write(a)
 
         # 4. Filter Checks
@@ -116,8 +124,10 @@ def synthetic_bam(tmp_path):
         a.reference_id = 0
         a.reference_start = 95
         a.mapping_quality = 5  # Low
-        a.cigar = ((0, 10),)
-        a.query_qualities = [30] * 10
+        a.cigartuples = [
+            (0, 10),
+        ]
+        a.query_qualities = [30] * 10  # type: ignore[assignment]
         outf.write(a)
 
         # Low BaseQ (should be ignored)
@@ -128,11 +138,13 @@ def synthetic_bam(tmp_path):
         a.reference_id = 0
         a.reference_start = 95
         a.mapping_quality = 60
-        a.cigar = ((0, 10),)
+        a.cigartuples = [
+            (0, 10),
+        ]
         # Make the T (index 5) have low quality
         quals = [30] * 10
         quals[5] = 5
-        a.query_qualities = quals
+        a.query_qualities = quals  # type: ignore[assignment]
         outf.write(a)
 
         # Duplicate (should be ignored if filter enabled)
@@ -143,8 +155,10 @@ def synthetic_bam(tmp_path):
         a.reference_id = 0
         a.reference_start = 95
         a.mapping_quality = 60
-        a.cigar = ((0, 10),)
-        a.query_qualities = [30] * 10
+        a.cigartuples = [
+            (0, 10),
+        ]
+        a.query_qualities = [30] * 10  # type: ignore[assignment]
         outf.write(a)
 
         # 5. MNP Case: chr1:400, REF=AT, ALT=CG
@@ -157,8 +171,10 @@ def synthetic_bam(tmp_path):
             a.reference_id = 0
             a.reference_start = 396
             a.mapping_quality = 60
-            a.cigar = ((0, 10),)
-            a.query_qualities = [30] * 10
+            a.cigartuples = [
+                (0, 10),
+            ]
+            a.query_qualities = [30] * 10  # type: ignore[assignment]
             outf.write(a)
 
         # 1 Reverse Read supporting REF (AT)
@@ -169,8 +185,10 @@ def synthetic_bam(tmp_path):
         a.reference_id = 0
         a.reference_start = 396
         a.mapping_quality = 60
-        a.cigar = ((0, 10),)
-        a.query_qualities = [30] * 10
+        a.cigartuples = [
+            (0, 10),
+        ]
+        a.query_qualities = [30] * 10  # type: ignore[assignment]
         outf.write(a)
 
     # Sort and index the BAM
@@ -289,8 +307,10 @@ def test_complex_accuracy(synthetic_bam):
         a.reference_id = 0
         a.reference_start = 100
         a.mapping_quality = 60
-        a.cigar = ((0, 2),)  # 2M
-        a.query_qualities = [30, 30]
+        a.cigartuples = [
+            (0, 2),
+        ]  # 2M
+        a.query_qualities = [30, 30]  # type: ignore[assignment]
         outf.write(a)
 
         # Read 2: ALT (C) -> 1X1D. Seq=C.
@@ -309,8 +329,8 @@ def test_complex_accuracy(synthetic_bam):
         b.reference_id = 0
         b.reference_start = 100
         b.mapping_quality = 60
-        b.cigar = ((0, 1), (2, 1))  # 1M 1D
-        b.query_qualities = [30]
+        b.cigartuples = [(0, 1), (2, 1)]  # 1M 1D
+        b.query_qualities = [30]  # type: ignore[assignment]
         outf.write(b)
 
         # Case 2: SNP + Insertion (REF=A, ALT=CT) at pos 200
@@ -322,8 +342,10 @@ def test_complex_accuracy(synthetic_bam):
         c.reference_id = 0
         c.reference_start = 200
         c.mapping_quality = 60
-        c.cigar = ((0, 1),)  # 1M
-        c.query_qualities = [30]
+        c.cigartuples = [
+            (0, 1),
+        ]  # 1M
+        c.query_qualities = [30]  # type: ignore[assignment]
         outf.write(c)
 
         # Read 2: ALT (CT) -> 1M1I. Seq=CT.
@@ -336,8 +358,8 @@ def test_complex_accuracy(synthetic_bam):
         d.reference_id = 0
         d.reference_start = 200
         d.mapping_quality = 60
-        d.cigar = ((0, 1), (1, 1))  # 1M 1I
-        d.query_qualities = [30, 30]
+        d.cigartuples = [(0, 1), (1, 1)]  # 1M 1I
+        d.query_qualities = [30, 30]  # type: ignore[assignment]
         outf.write(d)
 
     pysam.sort("-o", "test_complex.sorted.bam", complex_bam)

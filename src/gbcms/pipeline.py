@@ -49,8 +49,18 @@ __all__ = ["Pipeline"]
 
 
 def _zero_counts():
-    """Create a zero-count object with the same attributes as BaseCounts."""
+    """Create a zero-count object mirroring BaseCounts for variants with no BAM coverage.
+
+    All standard count fields default to 0; mFSD KS/LLR/delta/mean fields default to
+    float('nan') since 0.0 would be scientifically misleading when the class is empty.
+    Formatted as 'NA' in MAF output and '.' in VCF INFO via the _fmt/_fmt_vcf helpers.
+
+    Note: ref_sizes/alt_sizes are NOT included — those are internal Rust fields written
+    directly to Parquet by write_fsd_parquet() and never exposed to Python via PyO3.
+    """
+    _nan = float("nan")
     return types.SimpleNamespace(
+        # Standard depth / allele counts
         dp=0,
         rd=0,
         ad=0,
@@ -71,6 +81,39 @@ def _zero_counts():
         sb_or=1.0,
         fsb_pval=1.0,
         fsb_or=1.0,
+        used_decomposed=False,
+        # mFSD — raw counts
+        mfsd_ref_count=0,
+        mfsd_alt_count=0,
+        mfsd_nonref_count=0,
+        mfsd_n_count=0,
+        # mFSD — mean sizes (NaN when class is empty)
+        mfsd_ref_mean=_nan,
+        mfsd_alt_mean=_nan,
+        mfsd_nonref_mean=_nan,
+        mfsd_n_mean=_nan,
+        # mFSD — LLR (NaN when class is empty)
+        mfsd_alt_llr=_nan,
+        mfsd_ref_llr=_nan,
+        # mFSD — pairwise KS triads (NaN when either class < MIN_FOR_KS=5)
+        mfsd_delta_alt_ref=_nan,
+        mfsd_ks_alt_ref=_nan,
+        mfsd_pval_alt_ref=_nan,
+        mfsd_delta_alt_nonref=_nan,
+        mfsd_ks_alt_nonref=_nan,
+        mfsd_pval_alt_nonref=_nan,
+        mfsd_delta_ref_nonref=_nan,
+        mfsd_ks_ref_nonref=_nan,
+        mfsd_pval_ref_nonref=_nan,
+        mfsd_delta_alt_n=_nan,
+        mfsd_ks_alt_n=_nan,
+        mfsd_pval_alt_n=_nan,
+        mfsd_delta_ref_n=_nan,
+        mfsd_ks_ref_n=_nan,
+        mfsd_pval_ref_n=_nan,
+        mfsd_delta_nonref_n=_nan,
+        mfsd_ks_nonref_n=_nan,
+        mfsd_pval_nonref_n=_nan,
     )
 
 
@@ -353,13 +396,29 @@ class Pipeline:
         path = self.config.variant_file
         reader: VariantReader
 
-        suffix = path.suffix.lower()
-        if suffix in [".vcf", ".gz"]:
+        # Note: The CLI pre-checks the extension at parse time (before Pydantic), so
+        # reaching this branch with an unsupported extension means Pipeline was called
+        # programmatically rather than via the CLI.  We raise ValueError here as a
+        # defensive backstop.
+        #
+        # Accepted compressed formats:
+        #   .vcf.gz  — gzip/bgzip (standard tabix format)
+        #   .vcf.bgz — explicit bgzip extension used by some pipelines
+        # Both are block-gzip compatible and handled identically by pysam.
+        name_lower = path.name.lower()
+        if (
+            path.suffix.lower() == ".vcf"
+            or name_lower.endswith(".vcf.gz")
+            or name_lower.endswith(".vcf.bgz")
+        ):
             reader = VcfReader(path)
-        elif suffix == ".maf":
+        elif path.suffix.lower() == ".maf":
             reader = MafReader(path)
         else:
-            raise ValueError(f"Unsupported variant file format: {suffix}")
+            raise ValueError(
+                f"Unsupported variant file format: '{path.suffix}'. "
+                "Expected .vcf, .vcf.gz, .vcf.bgz, or .maf."
+            )
 
         variants = list(reader)
         if hasattr(reader, "close"):
@@ -412,6 +471,7 @@ class Pipeline:
                 output_path,
                 sample_name=sample_name,
                 show_normalization=self.config.show_normalization,
+                mfsd=self.config.output.mfsd,
             )
         else:
             writer = MafWriter(
@@ -419,6 +479,7 @@ class Pipeline:
                 column_prefix=self.config.output.column_prefix,
                 preserve_barcode=self.config.output.preserve_barcode,
                 show_normalization=self.config.show_normalization,
+                mfsd=self.config.output.mfsd,
             )
 
         for i, (v, counts) in enumerate(zip(variants, counts_list, strict=True)):
@@ -445,3 +506,26 @@ class Pipeline:
 
         writer.close()
         logger.debug("Results written to %s", output_path)
+
+        # Write companion mFSD Parquet when --mfsd-parquet is enabled.
+        # Delegates to the native Rust writer (no pyarrow dep).
+        if self.config.output.mfsd_parquet:
+            fsd_path = output_path.with_suffix("").with_suffix(".fsd.parquet")
+            _get_rs().write_fsd_parquet(
+                str(fsd_path),
+                [v.chrom for v in variants],
+                [v.pos + 1 for v in variants],  # 1-based MAF/VCF convention
+                [v.ref for v in variants],
+                [v.alt for v in variants],
+                counts_list,
+            )
+            logger.info(
+                "mFSD Parquet written: %s (%d variants)",
+                fsd_path,
+                len(variants),
+            )
+        elif self.config.output.mfsd:
+            logger.debug(
+                "mFSD analysis enabled but --mfsd-parquet not set; "
+                "raw fragment size arrays not written to disk."
+            )

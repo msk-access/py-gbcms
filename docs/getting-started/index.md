@@ -1,6 +1,6 @@
 # Getting Started
 
-Welcome to py-gbcms! This section will help you get up and running quickly.
+Welcome to gbcms! This section will help you get up and running quickly.
 
 ## What You'll Learn
 

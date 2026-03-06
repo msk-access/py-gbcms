@@ -77,7 +77,7 @@ flowchart TD
 
 ## Quality Thresholds
 
-Beyond the read-level filters above, py-gbcms also applies **base-level quality thresholds** during allele classification:
+Beyond the read-level filters above, gbcms also applies **base-level quality thresholds** during allele classification:
 
 | Parameter | CLI Flag | Default | Description |
 |:----------|:---------|:--------|:------------|
@@ -98,9 +98,9 @@ Beyond the read-level filters above, py-gbcms also applies **base-level quality 
 ## Comparison with Original GBCMS
 
 !!! note "Filter Non-Primary"
-    The original GBCMS has a single `--filter_non_primary` flag. py-gbcms splits this into `--filter-secondary` and `--filter-supplementary` for finer control. Both default to **off**, matching the original behavior.
+    The original GBCMS has a single `--filter_non_primary` flag. gbcms splits this into `--filter-secondary` and `--filter-supplementary` for finer control. Both default to **off**, matching the original behavior.
 
-| Feature | Original GBCMS | py-gbcms |
+| Feature | Original GBCMS | gbcms |
 |:--------|:---------------|:---------|
 | Base quality filtering | No threshold | Default `--min-baseq 20` |
 | Duplicate filtering | Optional | **On** by default |
@@ -111,7 +111,7 @@ Beyond the read-level filters above, py-gbcms also applies **base-level quality 
 
 ## Fetch Window
 
-py-gbcms fetches reads from a **dynamic window** around each variant position — not just at the exact position. The window defaults to ±5bp but **scales with the variant's repeat span** to capture indels that aligners shift beyond 5bp in long homopolymers and microsatellite regions. The formula is `max(5, repeat_span + 2)`.
+gbcms fetches reads from a **dynamic window** around each variant position — not just at the exact position. The window defaults to ±5bp but **scales with the variant's repeat span** to capture indels that aligners shift beyond 5bp in long homopolymers and microsatellite regions. The formula is `max(5, repeat_span + 2)`.
 
 ```
 Variant: chr1:100 A→ATG (insertion, repeat_span=0)

@@ -138,5 +138,5 @@ jobs:
       - name: Show release summary
         run: |
           echo "✅ Release completed!"
-          echo "📦 PyPI: https://pypi.org/project/py-gbcms/${{ github.ref_name }}/"
+          echo "📦 PyPI: https://pypi.org/project/gbcms/${{ github.ref_name }}/"
           echo "🐳 Docker: ${{ env.REGISTRY }}/${{ github.repository }}:${{ github.ref_name }}"

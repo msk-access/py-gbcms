@@ -1,10 +1,10 @@
 #!/bin/bash
-# Complete setup and test script for py-gbcms
+# Complete setup and test script for gbcms
 
 set -e
 
 echo "=========================================="
-echo "py-gbcms Setup and Test"
+echo "gbcms Setup and Test"
 echo "=========================================="
 echo
 
@@ -131,7 +131,7 @@ echo "Setup and Test Summary"
 echo "=========================================="
 echo -e "${GREEN}✅ All checks passed!${NC}"
 echo
-echo "py-gbcms is ready to use:"
+echo "gbcms is ready to use:"
 echo "  gbcms --help"
 echo "  gbcms version"
 echo "  gbcms info"

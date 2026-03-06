@@ -87,10 +87,23 @@ class ReadFilters(BaseModel):
 
 
 class QualityThresholds(BaseModel):
-    """Quality score thresholds for filtering reads and bases."""
+    """Quality score thresholds for filtering reads and bases.
 
-    min_mapping_quality: int = Field(default=20, ge=0, description="Minimum mapping quality (MAPQ)")
-    min_base_quality: int = Field(default=0, ge=0, description="Minimum base quality (BQ)")
+    Defaults are chosen to match the CLI defaults so that programmatic callers
+    and CLI users observe identical behaviour without explicit overrides.
+    """
+
+    min_mapping_quality: int = Field(
+        default=20, ge=0, description="Minimum mapping quality (MAPQ). Default 20 matches CLI."
+    )
+    min_base_quality: int = Field(
+        default=20,
+        ge=0,
+        description=(
+            "Minimum base quality (BQ). Default 20 matches CLI `--min-baseq` default. "
+            "Previously this was 0 (maximally permissive), which diverged from the CLI."
+        ),
+    )
     fragment_qual_threshold: int = Field(
         default=10,
         ge=0,
@@ -201,6 +214,24 @@ class OutputConfig(BaseModel):
             "Only applies to MAF→MAF output; VCF→MAF always uses BAM name."
         ),
     )
+    mfsd: bool = Field(
+        default=False,
+        description=(
+            "Enable Mutant Fragment Size Distribution (mFSD) analysis. "
+            "Adds 34 mFSD columns (KS test, LLR, mean sizes, pairwise comparisons, "
+            "derived metrics) to MAF output and 7 MFSD INFO fields to VCF. "
+            "Required when mfsd_parquet=True."
+        ),
+    )
+    mfsd_parquet: bool = Field(
+        default=False,
+        description=(
+            "Write a companion <sample>.fsd.parquet file with per-variant raw "
+            "fragment size arrays (REF and ALT insert sizes). "
+            "Enables downstream mFSD visualizations (e.g. density plots). "
+            "Requires mfsd=True."
+        ),
+    )
 
     @field_validator("directory")
     @classmethod
@@ -209,6 +240,20 @@ class OutputConfig(BaseModel):
         if v.exists() and v.is_file():
             raise ValueError(f"Output path must be a directory, not a file: {v}")
         return v
+
+    @model_validator(mode="after")
+    def validate_mfsd_parquet(self) -> "OutputConfig":
+        """Enforce that mfsd_parquet requires mfsd to be enabled.
+
+        This is validated at model construction so both CLI and programmatic
+        callers get the same fail-fast behaviour.
+        """
+        if self.mfsd_parquet and not self.mfsd:
+            raise ValueError(
+                "mfsd_parquet=True requires mfsd=True. "
+                "Enable mFSD analysis before requesting Parquet export."
+            )
+        return self
 
 
 class GbcmsConfig(BaseModel):
